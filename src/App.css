@@ -1,0 +1,267 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100svh;
+  text-align: left;
+}
+
+.app__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.app__title h1 {
+  font-size: 28px;
+  margin: 0;
+  letter-spacing: -0.4px;
+}
+
+.app__title p {
+  color: var(--text);
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.app__controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.reset-btn {
+  font: inherit;
+  font-size: 14px;
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--code-bg);
+  color: var(--text-h);
+  cursor: pointer;
+}
+.reset-btn:hover {
+  border-color: var(--accent-border);
+}
+
+.app__main {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.graph-container {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 39px,
+    var(--border) 40px
+  );
+  background-color: var(--bg);
+}
+
+.graph-container svg {
+  display: block;
+  cursor: grab;
+}
+
+.graph-link {
+  stroke: var(--border);
+  stroke-width: 1.5px;
+}
+
+.graph-node {
+  cursor: pointer;
+}
+
+.graph-node__label {
+  font-size: 13px;
+  fill: #fff;
+  pointer-events: none;
+  font-weight: 600;
+  paint-order: stroke;
+  stroke: rgba(0, 0, 0, 0.25);
+  stroke-width: 2px;
+}
+
+.graph-node--kanji .graph-node__label {
+  font-size: 17px;
+}
+
+.graph-node__expand-ring {
+  stroke: currentColor;
+  color: var(--text);
+  opacity: 0.45;
+  stroke-width: 1.5px;
+  stroke-dasharray: 3 4;
+}
+
+.graph-node.is-selected circle:first-child {
+  stroke: var(--accent);
+  stroke-width: 3px;
+}
+
+.app__sidebar {
+  width: 280px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--border);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow-y: auto;
+}
+
+.search-bar {
+  position: relative;
+}
+
+.search-bar input {
+  font: inherit;
+  font-size: 14px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-h);
+  width: 260px;
+  max-width: 40vw;
+}
+
+.search-results {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  z-index: 10;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.search-results li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.search-results li:hover {
+  background: var(--accent-bg);
+}
+
+.search-results__word {
+  font-weight: 600;
+  color: var(--text-h);
+}
+.search-results__reading {
+  font-size: 12px;
+  color: var(--text);
+}
+.search-results__meaning {
+  font-size: 12px;
+  color: var(--text);
+  margin-left: auto;
+  text-align: right;
+}
+
+.detail-panel {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  background: var(--code-bg);
+}
+
+.detail-panel--empty {
+  color: var(--text);
+  font-size: 13px;
+}
+.detail-panel--empty .hint {
+  margin-top: 8px;
+  opacity: 0.8;
+}
+
+.detail-panel__char {
+  font-size: 32px;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.detail-panel__reading {
+  font-size: 14px;
+  color: var(--text);
+  margin-top: 2px;
+}
+
+.detail-panel__meaning {
+  margin-top: 8px;
+  font-size: 15px;
+  color: var(--text-h);
+}
+
+.detail-panel__row {
+  margin-top: 10px;
+  font-size: 13px;
+  display: flex;
+  gap: 8px;
+}
+
+.detail-panel__label {
+  color: var(--text);
+  min-width: 70px;
+}
+
+.legend {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+  font-size: 13px;
+}
+
+.legend__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  color: var(--text);
+}
+
+.legend__swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.legend__swatch--root {
+  background: #b45309;
+}
+.legend__swatch--word {
+  background: #0d9488;
+}
+.legend__swatch--kanji {
+  background: #2563eb;
+}
+
+.legend__stats {
+  margin-top: 10px;
+  color: var(--text);
+  opacity: 0.8;
+}
+
+@media (max-width: 720px) {
+  .app__sidebar {
+    display: none;
+  }
+}
