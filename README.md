@@ -19,7 +19,7 @@ npm install
 ```
 
 The app runs perfectly well with **no further setup** — it loads a bundled
-~190k-word/13k-kanji dataset (see "The dataset" below) and works fully as a
+~228k-word/13k-kanji dataset (see "The dataset" below) and works fully as a
 guest (no accounts, no saved progress across devices). To get the full
 experience (accounts, mastery tracking and groups that survive a refresh,
 saved words), you need a Supabase project:
@@ -185,18 +185,26 @@ of sync.
 
 ## The dataset (and its limits)
 
-`public/data/words.json` (~189.6k entries — essentially the complete
+`public/data/words.json` (~228.3k entries — essentially the complete
 [JMdict](https://www.edrdg.org/wiki/index.php/JMdict-EDICT_Dictionary_Project),
 every entry with at least one English gloss) and `public/data/kanji.json`
 (~13.1k entries) are the bundled offline dataset, paired with a
 [KANJIDIC2](https://www.edrdg.org/wiki/index.php/KANJIDIC_Project)-derived
-kanji reference (meanings, on'yomi/kun'yomi, JLPT level). Each word carries
-every sense JMdict has for it (capped at 10 senses, 2 glosses each, for the
-handful of entries with dozens) rather than just the first, and a `rank`
-(lower = more common, from JMdict's own `news`/`ichi`/`spec`/`gai`/`nf##`
-priority tags) when JMdict tags it as common at all — most entries aren't,
-and sort last when a kanji branch is capped by "words per branch". A
-kana-only entry (no kanji spelling) still gets a dictionary entry — it's
+kanji reference (meanings, on'yomi/kun'yomi, JLPT level). Every valid kanji
+spelling of a word is its own searchable headword sharing that word's
+reading/senses (e.g. 呼びかける, 呼び掛ける, and 呼掛ける are three separate
+entries, not one "best" spelling standing in for the others) -- extracted
+via the actual [jamdict](https://github.com/neocl/jamdict) Python package's
+own entry/sense/kanji-form assembly rather than hand-rolled joins over its
+underlying tables, after an earlier version of this dataset picked only
+one spelling per entry and silently dropped ~750 legitimate alternate
+spellings as a result. Each word carries every sense JMdict has for it
+(capped at 10 senses, 2 glosses each, for the handful of entries with
+dozens) rather than just the first, and a `rank` (lower = more common,
+from JMdict's own `news`/`ichi`/`spec`/`gai`/`nf##` priority tags, checked
+per spelling) when JMdict tags that spelling as common at all — most
+aren't, and sort last when a kanji branch is capped by "words per branch".
+A kana-only entry (no kanji spelling) still gets a dictionary entry — it's
 just never reachable by clicking through the graph, since it has no kanji
 to be a component of. Both files were
 extracted from a local JMdict/KANJIDIC2 SQLite build and the WaniKani-style
