@@ -1,19 +1,28 @@
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
+  /* Light theme -- "Ink & paper": Japanese calligraphy/shodo grounding.
+     Muted oatmeal paper (not generic warm cream), deep ink text, a single
+     sparing accent drawn from hanko-seal vermillion. */
+  --bg: #e7e2d1;
+  --code-bg: #ded8c4;
+  --border: #c9c2ac;
+  --text: #4a4438;
+  --text-h: #1c1a14;
+  --accent: #c33a2e;
+  --accent-bg: rgba(195, 58, 46, 0.1);
+  --accent-border: rgba(195, 58, 46, 0.45);
   --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+    rgba(28, 26, 20, 0.12) 0 10px 15px -3px, rgba(28, 26, 20, 0.06) 0 4px 6px -2px;
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+  /* Node/edge semantic colors -- kept separate from --accent so the root
+     node's color and general UI chrome (buttons, links) never compete for
+     the same visual signal. */
+  --node-root: var(--accent);
+  --node-kanji: #3f4b63;
+  --node-word: #4b6355;
+
+  --sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --heading: 'Shippori Mincho', serif;
+  --heading-weight: 500;
 
   font: 18px/145% var(--sans);
   letter-spacing: 0.18px;
@@ -32,36 +41,45 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
+    /* Dark theme -- "Modern Tokyo signage": train-line maps and night
+       shop signage. Deliberate blue-black ground, bold sans headings,
+       saturated color-coded accents for each node type. */
+    --bg: #0b0c10;
+    --code-bg: #16181f;
+    --border: #2a2d38;
+    --text: #a9afc0;
+    --text-h: #f5f6fa;
+    --accent: #7c5cff;
+    --accent-bg: rgba(124, 92, 255, 0.15);
+    --accent-border: rgba(124, 92, 255, 0.5);
+    --shadow: rgba(0, 0, 0, 0.5) 0 10px 15px -3px, rgba(0, 0, 0, 0.3) 0 4px 6px -2px;
 
-  #social .button-icon {
-    filter: invert(1) brightness(2);
+    --node-root: #ff3d71;
+    --node-kanji: #00b8d9;
+    --node-word: #ffb000;
+
+    --heading: 'Inter', system-ui, sans-serif;
+    --heading-weight: 800;
   }
 }
 
 :root[data-theme="dark"] {
-  --text: #9ca3af;
-  --text-h: #f3f4f6;
-  --bg: #16171d;
-  --border: #2e303a;
-  --code-bg: #1f2028;
-  --accent: #c084fc;
-  --accent-bg: rgba(192, 132, 252, 0.15);
-  --accent-border: rgba(192, 132, 252, 0.5);
-  --social-bg: rgba(47, 48, 58, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+  --bg: #0b0c10;
+  --code-bg: #16181f;
+  --border: #2a2d38;
+  --text: #a9afc0;
+  --text-h: #f5f6fa;
+  --accent: #7c5cff;
+  --accent-bg: rgba(124, 92, 255, 0.15);
+  --accent-border: rgba(124, 92, 255, 0.5);
+  --shadow: rgba(0, 0, 0, 0.5) 0 10px 15px -3px, rgba(0, 0, 0, 0.3) 0 4px 6px -2px;
+
+  --node-root: #ff3d71;
+  --node-kanji: #00b8d9;
+  --node-word: #ffb000;
+
+  --heading: 'Inter', system-ui, sans-serif;
+  --heading-weight: 800;
 }
 
 body {
@@ -82,8 +100,9 @@ body {
 h1,
 h2 {
   font-family: var(--heading);
-  font-weight: 500;
+  font-weight: var(--heading-weight);
   color: var(--text-h);
+  text-wrap: balance;
 }
 
 h1 {
@@ -106,19 +125,4 @@ h2 {
 }
 p {
   margin: 0;
-}
-
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
-}
-
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
 }

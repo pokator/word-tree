@@ -7,6 +7,13 @@
 // Sources for meanings/readings: standard jouyou kanji references (memory),
 // not pulled from any external dataset. Good enough for a prototype; a real
 // version should use a licensed dictionary (e.g. JMdict/KANJIDIC2).
+//
+// This is also the app's offline/guest/no-credentials fallback fixture --
+// see src/data/useWordData.js -- so its shape must stay in sync with the
+// Supabase `kanji`/`words` tables (supabase/schema.sql, supabase/seed.sql,
+// the latter generated FROM this file by scripts/generate-seed-sql.mjs).
+
+import { buildIndexes } from "./deriveIndexes";
 
 export const KANJI = {
   日: { char: "日", meaning: "day / sun", onyomi: ["ニチ", "ジツ"], kunyomi: ["ひ", "か"] },
@@ -86,16 +93,4 @@ export const WORDS = [
   { word: "国内", reading: "こくない", meaning: "domestic (within the country)", components: ["国", "内"] },
 ];
 
-export const WORDS_BY_TEXT = Object.fromEntries(WORDS.map((w) => [w.word, w]));
-
-// Reverse index: kanji char -> list of words that contain it.
-export const WORDS_CONTAINING_KANJI = (() => {
-  const index = {};
-  for (const w of WORDS) {
-    for (const k of w.components) {
-      if (!index[k]) index[k] = [];
-      index[k].push(w.word);
-    }
-  }
-  return index;
-})();
+export const { WORDS_BY_TEXT, WORDS_CONTAINING_KANJI } = buildIndexes(WORDS);

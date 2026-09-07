@@ -2,11 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { select } from "d3-selection";
 import { zoom as d3zoom, zoomIdentity } from "d3-zoom";
 import { useForceSimulation } from "../graph/useForceSimulation";
-import { nodeRadius, nodeFill } from "../graph/layout";
+import { nodeRadius, nodeFill, nodeOpacity } from "../graph/layout";
+import { readNodeColors } from "../graph/theme";
 
 const DRAG_CLICK_THRESHOLD_PX = 5;
+const noStatus = () => undefined;
 
-export default function WordTreeGraph({ graph, selectedId, onNodeClick }) {
+export default function WordTreeGraph({ graph, selectedId, onNodeClick, getStatus = noStatus }) {
   const containerRef = useRef(null);
   const svgRef = useRef(null);
   const gRef = useRef(null);
@@ -87,6 +89,7 @@ export default function WordTreeGraph({ graph, selectedId, onNodeClick }) {
   const nodes = Array.from(simNodesMapRef.current.values());
   // oxlint-disable-next-line react/refs
   const nodesById = simNodesMapRef.current;
+  const colors = readNodeColors();
 
   return (
     <div ref={containerRef} className="graph-container">
@@ -114,6 +117,8 @@ export default function WordTreeGraph({ graph, selectedId, onNodeClick }) {
               const r = nodeRadius(node);
               const selected = node.id === selectedId;
               const label = node.type === "kanji" ? node.char : node.word;
+              const itemId = node.type === "kanji" ? node.char : node.word;
+              const opacity = nodeOpacity(getStatus(node.type, itemId));
               return (
                 <g
                   key={node.id}
@@ -123,8 +128,9 @@ export default function WordTreeGraph({ graph, selectedId, onNodeClick }) {
                   className={`graph-node graph-node--${node.type}${selected ? " is-selected" : ""}${
                     node.isRoot ? " is-root" : ""
                   }`}
+                  style={{ opacity }}
                 >
-                  <circle r={r} fill={nodeFill(node, { selected, root: node.isRoot })} />
+                  <circle r={r} fill={nodeFill(node, { root: node.isRoot, colors })} />
                   {!node.expanded && (
                     <circle r={r + 5} className="graph-node__expand-ring" fill="none" />
                   )}

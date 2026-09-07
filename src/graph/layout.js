@@ -1,5 +1,7 @@
 // Visual sizing/color shared between the simulation (collision radius) and
-// the SVG renderer, so they never disagree about how big a node is.
+// the SVG renderer, so they never disagree about how big/what color a node
+// is. Colors come from the caller (see graph/theme.js) so this stays a pure
+// function of its inputs, not a hidden dependency on the DOM.
 
 export function nodeRadius(node) {
   if (node.type === "kanji") return 24;
@@ -7,8 +9,16 @@ export function nodeRadius(node) {
   return Math.min(38, 20 + len * 5);
 }
 
-export function nodeFill(node, { selected, root }) {
-  if (root) return "#b45309"; // amber-700: the word you searched for
-  if (node.type === "kanji") return selected ? "#1d4ed8" : "#2563eb"; // blue: kanji component
-  return selected ? "#0f766e" : "#0d9488"; // teal: compound word
+export function nodeFill(node, { root, colors }) {
+  if (root) return colors.root;
+  return node.type === "kanji" ? colors.kanji : colors.word;
+}
+
+const MASTERY_OPACITY = { new: 0.45, learning: 0.75, known: 1 };
+
+// `status` is undefined until mastery tracking is wired up to a node
+// (guest/logged-out, or not yet fetched) -- render at full opacity rather
+// than assuming "new" in that case, since it isn't actually known yet.
+export function nodeOpacity(status) {
+  return status ? (MASTERY_OPACITY[status] ?? 1) : 1;
 }
