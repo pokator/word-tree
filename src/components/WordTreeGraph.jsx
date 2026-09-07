@@ -8,8 +8,17 @@ import { readNodeColors } from "../graph/theme";
 const DRAG_CLICK_THRESHOLD_PX = 5;
 const noStatus = () => undefined;
 const noGroup = () => false;
+const noDim = () => false;
+const DIMMED_OPACITY = 0.12;
 
-export default function WordTreeGraph({ graph, selectedId, onNodeClick, getStatus = noStatus, isInGroup = noGroup }) {
+export default function WordTreeGraph({
+  graph,
+  selectedId,
+  onNodeClick,
+  getStatus = noStatus,
+  isInGroup = noGroup,
+  isDimmed = noDim,
+}) {
   const containerRef = useRef(null);
   const svgRef = useRef(null);
   const gRef = useRef(null);
@@ -119,7 +128,9 @@ export default function WordTreeGraph({ graph, selectedId, onNodeClick, getStatu
               const selected = node.id === selectedId;
               const label = node.type === "kanji" ? node.char : node.word;
               const itemId = node.type === "kanji" ? node.char : node.word;
-              const opacity = nodeOpacity(getStatus(node.type, itemId));
+              const baseOpacity = nodeOpacity(getStatus(node.type, itemId));
+              const dimmed = !node.isRoot && isDimmed(node);
+              const opacity = dimmed ? Math.min(baseOpacity, DIMMED_OPACITY) : baseOpacity;
               return (
                 <g
                   key={node.id}
@@ -131,16 +142,18 @@ export default function WordTreeGraph({ graph, selectedId, onNodeClick, getStatu
                   }`}
                   style={{ opacity }}
                 >
-                  <circle r={r} fill={nodeFill(node, { root: node.isRoot, colors })} />
-                  {!node.expanded && (
-                    <circle r={r + 5} className="graph-node__expand-ring" fill="none" />
-                  )}
-                  <text textAnchor="middle" dominantBaseline="central" className="graph-node__label">
-                    {label}
-                  </text>
-                  {node.type === "word" && isInGroup(node.word) && (
-                    <circle cx={r * 0.68} cy={-r * 0.68} r={4.5} className="graph-node__group-dot" />
-                  )}
+                  <g className="graph-node__pop">
+                    <circle r={r} fill={nodeFill(node, { root: node.isRoot, colors })} />
+                    {!node.expanded && (
+                      <circle r={r + 5} className="graph-node__expand-ring" fill="none" />
+                    )}
+                    <text textAnchor="middle" dominantBaseline="central" className="graph-node__label">
+                      {label}
+                    </text>
+                    {node.type === "word" && isInGroup(node.word) && (
+                      <circle cx={r * 0.68} cy={-r * 0.68} r={4.5} className="graph-node__group-dot" />
+                    )}
+                  </g>
                 </g>
               );
             })}

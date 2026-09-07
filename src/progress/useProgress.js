@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../auth/useAuth";
 import { supabase } from "../lib/supabaseClient";
 
@@ -94,5 +94,27 @@ export function useProgress() {
     [user]
   );
 
-  return { getStatus, setStatus, loading };
+  // Word-only mastery counts + membership (kanji aren't part of the "words
+  // learned" story this stat is telling) -- used by the header's progress
+  // bar and the "Review" entry point (its pool is every word marked New or
+  // Learning).
+  const wordsByStatus = useMemo(() => {
+    const buckets = { new: [], learning: [], known: [] };
+    for (const [k, status] of map) {
+      if (k.startsWith("word:") && buckets[status]) buckets[status].push(k.slice("word:".length));
+    }
+    return buckets;
+  }, [map]);
+
+  const wordStats = useMemo(
+    () => ({
+      new: wordsByStatus.new.length,
+      learning: wordsByStatus.learning.length,
+      known: wordsByStatus.known.length,
+      total: wordsByStatus.new.length + wordsByStatus.learning.length + wordsByStatus.known.length,
+    }),
+    [wordsByStatus]
+  );
+
+  return { getStatus, setStatus, loading, wordStats, wordsByStatus };
 }

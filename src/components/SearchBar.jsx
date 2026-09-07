@@ -13,7 +13,7 @@ function matchScore(word, q, qLower) {
   return 5; // meaning-only match
 }
 
-export default function SearchBar({ words, onSelectWord }) {
+export default function SearchBar({ words, onSelectWord, recents = [], wordsByText = {} }) {
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [error, setError] = useState(null);
@@ -84,6 +84,20 @@ export default function SearchBar({ words, onSelectWord }) {
               Explore &ldquo;{query.trim()}&rdquo; as typed &rarr;
             </li>
           )}
+        </ul>
+      )}
+      {isOpen && !query.trim() && recents.length > 0 && (
+        <ul className="search-results">
+          <li className="search-results__section-label">Recent</li>
+          {recents.map((word) => {
+            const entry = wordsByText[word];
+            return (
+              <li key={word} onMouseDown={() => choose(word)}>
+                <span className="search-results__word">{word}</span>
+                {entry && <span className="search-results__meaning">{entry.meaning}</span>}
+              </li>
+            );
+          })}
         </ul>
       )}
       {error && <p className="search-bar__error">{error}</p>}

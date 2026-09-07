@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-export default function GroupsPanel({ dataset, groupsApi, onClose, onSelectWord }) {
+export default function GroupsPanel({ dataset, groupsApi, onClose, onSelectWord, onQuizGroup }) {
   const { groups, createGroup, renameGroup, deleteGroup, removeWordFromGroup } = groupsApi;
   const [newName, setNewName] = useState("");
   const [openGroupId, setOpenGroupId] = useState(null);
@@ -73,6 +73,15 @@ export default function GroupsPanel({ dataset, groupsApi, onClose, onSelectWord 
                       <span className="groups-panel__count">({group.words.length})</span>
                     </button>
                   )}
+                  <button
+                    type="button"
+                    className="groups-panel__quiz-btn"
+                    onClick={() => onQuizGroup(group)}
+                    disabled={group.words.length === 0}
+                    title={group.words.length === 0 ? "Add words to this group first" : "Quiz this group"}
+                  >
+                    Quiz
+                  </button>
                   <button type="button" className="groups-panel__icon-btn" onClick={() => startRename(group)} title="Rename">
                     ✎
                   </button>
