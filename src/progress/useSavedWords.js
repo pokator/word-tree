@@ -7,7 +7,7 @@ import { supabase } from "../lib/supabaseClient";
  * mastery, this is Supabase-only (no guest/localStorage variant) -- its
  * whole point is surviving until the user gets around to opening Anki, so
  * there's no value in an ephemeral local copy. Logged-out users simply
- * can't save words (see DetailPanel's "Sign in to save words" hint).
+ * can't save words (see DictionaryPanel's "Sign in to save words" hint).
  */
 export function useSavedWords() {
   const { user } = useAuth();

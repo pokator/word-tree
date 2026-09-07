@@ -42,34 +42,55 @@ saved words), you need a Supabase project:
 
 If Supabase isn't configured (or a fetch to it fails), the app silently
 falls back to the same bundled dataset, offline-style — you'll see "local
-dataset" in the sidebar and can still explore, just without accounts.
+dataset" in the graph panel's footer and can still explore, just without
+accounts.
 
 ## Using it
 
-Type any Japanese word — `日本語`, `学校`, `天気`, a word not in the
-dropdown, even one the dictionary doesn't have an entry for — or search by
-reading/meaning like "school". The word becomes the root of a
-force-directed graph; its kanji branch out from it. Click any kanji to
-reveal other words containing it; click any word to reveal its own kanji.
-Nodes with a dashed ring haven't been (fully) expanded yet. Drag nodes to
-rearrange, scroll/pinch to zoom, drag the background to pan.
+This is a dictionary first, exploration tool second: type any Japanese
+word — `日本語`, `学校`, `天気`, a word not in the dropdown, even one the
+dictionary doesn't have an entry for — or search by reading/meaning like
+"school", and its entry fills the left panel (headword, reading, numbered
+senses, JLPT level, on'yomi/kun'yomi for a kanji). The word tree graph on
+the right is the secondary, exploratory half of the same view, always
+visible alongside the dictionary entry rather than hidden behind it — drag
+the divider between the two panels to give either one more room (double-
+click the divider to reset the split), or just leave it at the default and
+use both side by side.
 
 A word typed straight in (not picked from the dropdown) still works as a
 root as long as it contains at least one hiragana/katakana/kanji character
 — its kanji are read directly off the text you typed, so branching out from
-it works the same way even if the word itself isn't in the dictionary.
+it works the same way even if the word itself isn't in the dictionary
+(the entry just won't have a reading/meaning for it).
 
-**Max/branch** (header) caps how many words appear each time you click a
-kanji, ranked most-common-first. If more remain, the kanji stays in its
-"click for more" (dashed ring) state — click it again to reveal the next
-batch, repeating until everything's shown. Handy for keeping a very common
-kanji (like 日 or 人) from instantly flooding the graph.
+In the graph: click any kanji to reveal other words containing it; click
+any word to reveal its own kanji and simultaneously update the dictionary
+panel to that word's entry. Nodes with a dashed ring haven't been (fully)
+expanded yet. Drag nodes to rearrange, scroll/pinch to zoom, drag the
+background to pan.
 
-Click a node to see its detail panel, where you can:
+**Filters** (graph panel toolbar) — three ways to control what the graph
+shows:
+- **Mastery** — hide/dim words by New / Learning / Known status.
+- **JLPT level** — hide/dim by a word's hardest-tagged kanji (N5 easiest —
+  N1 hardest, plus "Other" for untagged). Unlike the mastery/group filters,
+  this one also limits what *future* kanji/word reveals show up, not just
+  what's already on screen — hit Reset to fully apply it retroactively.
+- **Focus on group** — show only one of your groups, dimming everything
+  else.
+- **Words per branch** (moved in here) caps how many words appear each
+  time you click a kanji, ranked most-common-first. If more remain, the
+  kanji stays in its "click for more" (dashed ring) state — click it again
+  for the next batch. Handy for keeping a very common kanji (like 日 or
+  人) from instantly flooding the graph.
+
+The dictionary panel, for the currently-selected word or kanji, lets you:
 - **Mark mastery** — New / Learning / Known. This dims or brightens the
   node on the graph (a quick visual read of what you've already got vs.
   what's new) and persists it — to your account if signed in, to
-  `localStorage` as a guest.
+  `localStorage` as a guest. The sidebar's progress bar (known/learning/new
+  proportions) and daily visit streak track this over time.
 - **Add a word to a group** (word nodes only) — check any of your existing
   groups, or type a new group name to create one. Groups are your own
   collections (e.g. "JLPT N4 review", "kitchen vocab") independent of
@@ -78,6 +99,14 @@ Click a node to see its detail panel, where you can:
   Works for guests too (`localStorage`), just like mastery.
 - **Save a word for Anki** (word nodes only, requires sign-in) — adds it to
   your export queue, shown under the "Saved" button in the header.
+
+### Reviewing what you've marked
+
+"Review" (header) quizzes every word you've marked New or Learning: see
+the word, "Show answer" reveals its reading/meaning, then grade yourself
+"Still learning" or "Got it" — updates mastery status live, with a session
+summary at the end. Each group also has its own "Quiz" button (in the
+Groups panel) to review just that group's words regardless of status.
 
 ### Exporting to Anki
 
@@ -125,6 +154,12 @@ of sync.
   **d3-zoom** handles pan/zoom; node dragging is hand-rolled with pointer
   events (`src/components/WordTreeGraph.jsx`) to cleanly distinguish
   "click to expand" from "drag to reposition".
+- The top-level layout is a resizable two-pane split
+  (`src/components/SplitPane.jsx`, also hand-rolled with pointer events,
+  same pattern as node dragging) between `DictionaryPanel.jsx` (the
+  primary dictionary entry view) and `GraphPanel.jsx` (the word-tree graph
+  plus its own toolbar — Filters, Reset — and legend/stats footer); below
+  ~900px they stack vertically instead and the drag handle hides.
 - The graph/expansion logic is framework- and dataset-agnostic
   (`src/graph/buildGraph.js`): given a word, look up its kanji; given a
   kanji, look up every word containing it — each function takes the
@@ -189,8 +224,9 @@ see "Assumptions" below.
 - **No guest → account progress migration.** Signing in starts a fresh
   (then Supabase-loaded) mastery/groups state rather than merging in
   whatever was tracked as a guest. A deliberate scope cut, not an oversight.
-- **Desktop-first.** The sidebar hides below ~720px width rather than
-  reflowing into a mobile layout.
+- **Desktop-first.** Below ~900px the dictionary/graph split stacks
+  vertically instead of side-by-side (see SplitPane above), but it's not
+  touch-tuned beyond that.
 - **A word can belong to any number of groups**, but a group can't contain
   another group (no nesting) and a group has no notion of ordering beyond
   insertion order.

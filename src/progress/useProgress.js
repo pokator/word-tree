@@ -26,7 +26,7 @@ function saveGuestMap(map) {
  * Tri-state (new/learning/known) mastery tracking per word/kanji.
  * Logged in: backed by Supabase's `user_progress` table.
  * Guest/logged-out: identical Map-shaped API backed by localStorage, so
- * callers (DetailPanel, WordTreeGraph) never need to know which is active.
+ * callers (DictionaryPanel, WordTreeGraph) never need to know which is active.
  * No guest -> account migration in this phase -- signing in starts a fresh
  * (empty, then Supabase-loaded) progress map rather than merging the two.
  */

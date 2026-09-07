@@ -1,14 +1,13 @@
 import { useCallback, useMemo, useState } from "react";
 import SearchBar from "./components/SearchBar";
-import DetailPanel from "./components/DetailPanel";
-import WordTreeGraph from "./components/WordTreeGraph";
+import DictionaryPanel from "./components/DictionaryPanel";
+import GraphPanel from "./components/GraphPanel";
+import SplitPane from "./components/SplitPane";
 import ThemeToggle from "./components/ThemeToggle";
 import AuthPanel from "./components/AuthPanel";
 import SavedWordsPanel from "./components/SavedWordsPanel";
 import GroupsPanel from "./components/GroupsPanel";
-import FiltersPanel from "./components/FiltersPanel";
 import ReviewMode from "./components/ReviewMode";
-import ProgressStats from "./components/ProgressStats";
 import { useWordData } from "./data/useWordData";
 import { useRecentRoots } from "./data/useRecentRoots";
 import { useAuth } from "./auth/useAuth";
@@ -65,6 +64,12 @@ function loadJlptFilter() {
   }
 }
 
+function jlptBucketToLevel(bucket) {
+  if (!bucket || bucket === "unrated") return null;
+  const n = Number(bucket.slice(1));
+  return Number.isFinite(n) ? n : null;
+}
+
 export default function App() {
   const dataset = useWordData();
   const [rootWord, setRootWord] = useState(DEFAULT_ROOT);
@@ -104,6 +109,11 @@ export default function App() {
 
   const selectedNode = graph?.nodes.get(selectedId) ?? null;
   const selectedItemId = selectedNode && (selectedNode.type === "kanji" ? selectedNode.char : selectedNode.word);
+  const selectedJlptLevel = selectedNode
+    ? selectedNode.type === "kanji"
+      ? (selectedNode.jlpt ?? null)
+      : jlptBucketToLevel(wordJlptBucket(dataset, selectedNode.word))
+    : null;
 
   const { getStatus, setStatus: setMasteryStatus, wordStats, wordsByStatus } = useProgress();
   const handleSetStatus = useCallback(
@@ -274,45 +284,15 @@ export default function App() {
       <header className="app__header">
         <div className="app__title">
           <h1>言葉の木 &mdash; Word Tree</h1>
-          <p>Explore how Japanese words share meaning through their kanji components.</p>
         </div>
+        <SearchBar words={dataset.WORDS} onSelectWord={handleSelectWord} recents={recents} wordsByText={dataset.WORDS_BY_TEXT} />
         <div className="app__controls">
-          <SearchBar words={dataset.WORDS} onSelectWord={handleSelectWord} recents={recents} wordsByText={dataset.WORDS_BY_TEXT} />
-
-          <div className="filters-panel-wrap">
-            <button
-              className={`reset-btn filters-btn${filtersActive ? " is-active" : ""}`}
-              onClick={() => setIsFiltersPanelOpen((v) => !v)}
-            >
-              Filters
-              {filtersActive && <span className="filters-btn__badge" />}
-            </button>
-            {isFiltersPanelOpen && (
-              <FiltersPanel
-                masteryFilter={masteryFilter}
-                onToggleMastery={handleToggleMasteryFilter}
-                jlptFilter={jlptFilter}
-                onToggleJlpt={handleToggleJlptFilter}
-                groups={groupsApi.groups}
-                focusGroupId={focusGroupId}
-                onSetFocusGroup={setFocusGroupId}
-                maxWords={maxWords}
-                onSetMaxWords={handleMaxWordsChange}
-                onClose={() => setIsFiltersPanelOpen(false)}
-              />
-            )}
-          </div>
-
           <button
             className="reset-btn"
             onClick={startGlobalReview}
             title="Review words you've marked New or Learning"
           >
             Review ({wordStats.new + wordStats.learning})
-          </button>
-
-          <button className="reset-btn" onClick={handleReset} title="Collapse back to just the root word">
-            Reset
           </button>
           <ThemeToggle theme={theme} onToggle={toggleTheme} />
           <div className="saved-panel-wrap">
@@ -342,50 +322,57 @@ export default function App() {
       </header>
 
       <main className="app__main">
-        {graph ? (
-          <WordTreeGraph
-            graph={graph}
-            selectedId={selectedId}
-            onNodeClick={handleNodeClick}
-            getStatus={getStatus}
-            isInGroup={isInGroup}
-            isDimmed={isNodeDimmed}
-            theme={theme}
-          />
-        ) : (
-          <div className="graph-container graph-container--loading">Loading word data&hellip;</div>
-        )}
-        <aside className="app__sidebar">
-          <DetailPanel
-            node={selectedNode}
-            status={selectedNode && getStatus(selectedNode.type, selectedItemId)}
-            onSetStatus={handleSetStatus}
-            canSave={Boolean(user)}
-            isSaved={selectedNode?.type === "word" && saved.isSaved(selectedNode.word)}
-            onToggleSave={handleToggleSave}
-            groups={groupsApi.groups}
-            memberOf={memberOf}
-            onToggleGroup={handleToggleGroup}
-            onCreateGroup={handleCreateGroupWithWord}
-          />
-          <div className="legend">
-            <div className="legend__row">
-              <span className="legend__swatch legend__swatch--root" /> root word
-            </div>
-            <div className="legend__row">
-              <span className="legend__swatch legend__swatch--word" /> word
-            </div>
-            <div className="legend__row">
-              <span className="legend__swatch legend__swatch--kanji" /> kanji component
-            </div>
-            <ProgressStats wordStats={wordStats} streak={streak} />
-            <p className="legend__stats">
-              {stats.words} words &middot; {stats.kanji} kanji shown
-              {dataset.source === "local" && !dataset.loading ? " · local dataset" : ""}
-              {dataset.source === "tiny-fallback" && !dataset.loading ? " · offline demo data" : ""}
-            </p>
-          </div>
-        </aside>
+        <SplitPane
+          storageKey="main"
+          defaultPct={40}
+          min={26}
+          max={62}
+          left={
+            <DictionaryPanel
+              node={selectedNode}
+              status={selectedNode && getStatus(selectedNode.type, selectedItemId)}
+              onSetStatus={handleSetStatus}
+              canSave={Boolean(user)}
+              isSaved={selectedNode?.type === "word" && saved.isSaved(selectedNode.word)}
+              onToggleSave={handleToggleSave}
+              groups={groupsApi.groups}
+              memberOf={memberOf}
+              onToggleGroup={handleToggleGroup}
+              onCreateGroup={handleCreateGroupWithWord}
+              jlptLevel={selectedJlptLevel}
+              wordStats={wordStats}
+              streak={streak}
+            />
+          }
+          right={
+            <GraphPanel
+              graph={graph}
+              selectedId={selectedId}
+              onNodeClick={handleNodeClick}
+              getStatus={getStatus}
+              isInGroup={isInGroup}
+              isDimmed={isNodeDimmed}
+              theme={theme}
+              onReset={handleReset}
+              stats={stats}
+              datasetSource={dataset.source}
+              datasetLoading={dataset.loading}
+              isFiltersPanelOpen={isFiltersPanelOpen}
+              onToggleFiltersPanel={() => setIsFiltersPanelOpen((v) => !v)}
+              onCloseFiltersPanel={() => setIsFiltersPanelOpen(false)}
+              filtersActive={filtersActive}
+              masteryFilter={masteryFilter}
+              onToggleMastery={handleToggleMasteryFilter}
+              jlptFilter={jlptFilter}
+              onToggleJlpt={handleToggleJlptFilter}
+              groups={groupsApi.groups}
+              focusGroupId={focusGroupId}
+              onSetFocusGroup={setFocusGroupId}
+              maxWords={maxWords}
+              onSetMaxWords={handleMaxWordsChange}
+            />
+          }
+        />
       </main>
 
       {reviewSession && (

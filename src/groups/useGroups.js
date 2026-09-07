@@ -31,7 +31,7 @@ function guestId() {
  * status or the Anki save queue. Shape: [{ id, name, words: string[] }].
  * Logged in: backed by Supabase's `groups`/`group_words` tables.
  * Guest/logged-out: identical array-shaped API backed by localStorage, so
- * callers (GroupsPanel, DetailPanel) never need to know which is active --
+ * callers (GroupsPanel, DictionaryPanel) never need to know which is active --
  * same pattern as progress/useProgress.js.
  */
 export function useGroups() {
