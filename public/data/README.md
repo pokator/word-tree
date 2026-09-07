@@ -11,19 +11,25 @@ experiences share the exact same data.
 Both files were generated once, locally, from data used by this
 developer's other project, Gakuji:
 
-- **`words.json`** (~25.7k entries: `word`, `reading`, `meaning`, `rank`) —
-  every entry in a local [JMdict](https://www.edrdg.org/wiki/index.php/JMdict-EDICT_Dictionary_Project)
-  SQLite build (via the [jamdict](https://github.com/neocl/jamdict) schema)
-  that has at least one kanji-form priority tag (`news1/2`, `ichi1/2`,
-  `spec1/2`, `gai1/2`, or `nf01`-`nf48`) -- i.e. JMdict's own notion of a
-  "common" word. `reading` prefers a kana form that's itself tagged common;
-  `meaning` is the first sense's first 1-3 English glosses. `rank` is the
-  lowest `nfXX` bucket found (1-48, lower = more common) or `25` when the
-  word has a priority tag but no `nf` bucket -- used to decide which words
-  show first when a kanji branch is capped by the "max words per branch"
-  setting. No `components` field is stored: a word's kanji are derived
-  directly from its own text at runtime (see `src/graph/kanji.js`), so
-  storing them separately would just be a redundant, driftable copy.
+- **`words.json`** (~189.6k entries: `word`, `reading`, `meaning`, optional
+  `rank`) -- essentially all of [JMdict](https://www.edrdg.org/wiki/index.php/JMdict-EDICT_Dictionary_Project)
+  (via a local SQLite build using the [jamdict](https://github.com/neocl/jamdict)
+  schema): every entry with at least one English gloss. `word` is the best
+  kanji form (preferring one JMdict tags as a priority/"common" form, else
+  the first); if an entry has no kanji spelling at all, `word` is its kana
+  form instead and `reading` is omitted (showing an identical reading line
+  under an identical headword would be redundant). `meaning` joins every
+  sense the entry has (capped at 10 senses, 2 glosses each, for the rare
+  entry with dozens), each sense separated by `; ` so the app's UI can
+  render one numbered line per sense. `rank` is the lowest `nfXX` bucket
+  (1-48, lower = more common) found on any of the entry's forms, `25` if
+  it has a priority tag but no `nf` bucket, or omitted entirely if JMdict
+  doesn't tag it as common at all (the large majority) -- used only to
+  decide which words show first when a kanji branch is capped by "words
+  per branch"; an omitted `rank` sorts last. No `components` field is
+  stored: a word's kanji are derived directly from its own text at
+  runtime (see `src/graph/kanji.js`), so storing them separately would
+  just be a redundant, driftable copy.
 - **`kanji.json`** (~13.1k entries: `char`, `meaning`, `onyomi`, `kunyomi`,
   `jlpt`) -- trimmed from a [KANJIDIC2](https://www.edrdg.org/wiki/index.php/KANJIDIC_Project)-derived
   reference (`meaning` joins up to 3 gloss words; `jlpt` is the modern

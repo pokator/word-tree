@@ -19,7 +19,7 @@ npm install
 ```
 
 The app runs perfectly well with **no further setup** — it loads a bundled
-~26k-word/13k-kanji dataset (see "The dataset" below) and works fully as a
+~190k-word/13k-kanji dataset (see "The dataset" below) and works fully as a
 guest (no accounts, no saved progress across devices). To get the full
 experience (accounts, mastery tracking and groups that survive a refresh,
 saved words), you need a Supabase project:
@@ -185,12 +185,20 @@ of sync.
 
 ## The dataset (and its limits)
 
-`public/data/words.json` (~25.7k entries) and `public/data/kanji.json`
-(~13.1k entries) are the bundled offline dataset — every "common"-tagged
-entry (has a `news`/`ichi`/`spec`/`gai`/`nf##` priority tag) from
+`public/data/words.json` (~189.6k entries — essentially the complete
 [JMdict](https://www.edrdg.org/wiki/index.php/JMdict-EDICT_Dictionary_Project),
-paired with a [KANJIDIC2](https://www.edrdg.org/wiki/index.php/KANJIDIC_Project)-derived
-kanji reference (meanings, on'yomi/kun'yomi, JLPT level). Both were
+every entry with at least one English gloss) and `public/data/kanji.json`
+(~13.1k entries) are the bundled offline dataset, paired with a
+[KANJIDIC2](https://www.edrdg.org/wiki/index.php/KANJIDIC_Project)-derived
+kanji reference (meanings, on'yomi/kun'yomi, JLPT level). Each word carries
+every sense JMdict has for it (capped at 10 senses, 2 glosses each, for the
+handful of entries with dozens) rather than just the first, and a `rank`
+(lower = more common, from JMdict's own `news`/`ichi`/`spec`/`gai`/`nf##`
+priority tags) when JMdict tags it as common at all — most entries aren't,
+and sort last when a kanji branch is capped by "words per branch". A
+kana-only entry (no kanji spelling) still gets a dictionary entry — it's
+just never reachable by clicking through the graph, since it has no kanji
+to be a component of. Both files were
 extracted from a local JMdict/KANJIDIC2 SQLite build and the WaniKani-style
 kanji reference used by this developer's other project, Gakuji — see
 `public/data/README.md` for exactly how, so it can be regenerated if the
@@ -237,24 +245,20 @@ see "Assumptions" below.
   origins) — `buildGraph.js` is kept generic enough that an
   `englishData.js` + equivalent expand functions could be added later
   without reworking the graph/rendering layer.
-- Full JMdict coverage (only "common"-tagged entries are bundled/seeded —
-  see "The dataset" above), radical-level kanji decomposition,
-  quiz/spaced-repetition modes beyond the tri-state mastery marker, OAuth
-  sign-in.
+- Radical-level kanji decomposition, quiz/spaced-repetition modes beyond
+  the tri-state mastery marker, OAuth sign-in.
 - Mobile/touch-optimized interaction (pointer events work on touch, but
   nothing was tuned for it).
 
 ## Possible next steps
 
-1. Bundle full (not just "common") JMdict coverage, so branching out never
-   comes up short even on obscure words.
-2. Radical-level decomposition as a deeper zoom level on a kanji node.
-3. Active-recall quiz modes launched from a node (guess the reading,
+1. Radical-level decomposition as a deeper zoom level on a kanji node.
+2. Active-recall quiz modes launched from a node (guess the reading,
    assemble a word from its kanji) — the mastery marker becomes a real
    spaced-repetition signal instead of a manual toggle. Groups would be a
    natural scope for a quiz session ("quiz me on this group").
-4. An English dataset + a second "mode" so the same graph engine can
+3. An English dataset + a second "mode" so the same graph engine can
    explore `unhappiness` → `un-`, `happy`, `-ness`.
-5. Guest → account progress/groups migration on first sign-in.
-6. Per-group color coding on the graph (today it's just a single dot for
+4. Guest → account progress/groups migration on first sign-in.
+5. Per-group color coding on the graph (today it's just a single dot for
    "in any group").
