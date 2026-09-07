@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { select } from "d3-selection";
 import { zoom as d3zoom, zoomIdentity } from "d3-zoom";
 import { useForceSimulation } from "../graph/useForceSimulation";
@@ -18,6 +18,7 @@ export default function WordTreeGraph({
   getStatus = noStatus,
   isInGroup = noGroup,
   isDimmed = noDim,
+  theme,
 }) {
   const containerRef = useRef(null);
   const svgRef = useRef(null);
@@ -99,7 +100,11 @@ export default function WordTreeGraph({
   const nodes = Array.from(simNodesMapRef.current.values());
   // oxlint-disable-next-line react/refs
   const nodesById = simNodesMapRef.current;
-  const colors = readNodeColors();
+  // `theme` isn't read directly -- it's a dependency so this recomputes
+  // the moment the theme toggles, rather than waiting for some unrelated
+  // prop change (selection, expansion) to happen to trigger a re-render.
+  // oxlint-disable-next-line react-hooks/exhaustive-deps
+  const colors = useMemo(() => readNodeColors(), [theme]);
 
   return (
     <div ref={containerRef} className="graph-container">

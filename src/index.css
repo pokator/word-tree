@@ -82,6 +82,16 @@
   --heading-weight: 800;
 }
 
+/* Without this, any `width: 100%` element that also has padding/border
+   overflows its container by that padding/border amount (content-box is
+   the default) -- e.g. the group-membership "+ New group..." input did
+   exactly that. One global reset instead of opting in ad hoc per element. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 body {
   margin: 0;
   background: var(--bg);

@@ -4,11 +4,22 @@ const MASTERY_OPTIONS = [
   { value: "known", label: "Known" },
 ];
 
+const JLPT_OPTIONS = [
+  { value: "n5", label: "N5" },
+  { value: "n4", label: "N4" },
+  { value: "n3", label: "N3" },
+  { value: "n2", label: "N2" },
+  { value: "n1", label: "N1" },
+  { value: "unrated", label: "Other" },
+];
+
 const MAX_WORDS_OPTIONS = [5, 8, 12, 20, 40, Infinity];
 
 export default function FiltersPanel({
   masteryFilter,
   onToggleMastery,
+  jlptFilter,
+  onToggleJlpt,
   groups,
   focusGroupId,
   onSetFocusGroup,
@@ -35,6 +46,27 @@ export default function FiltersPanel({
             </button>
           ))}
         </div>
+      </div>
+
+      <div className="filters-panel__section">
+        <span className="filters-panel__label">JLPT level</span>
+        <div className="filters-panel__chips filters-panel__chips--wrap">
+          {JLPT_OPTIONS.map(({ value, label }) => (
+            <button
+              key={value}
+              type="button"
+              className={`filters-panel__chip filters-panel__chip--jlpt${jlptFilter[value] ? " is-active" : ""}`}
+              onClick={() => onToggleJlpt(value)}
+              aria-pressed={jlptFilter[value]}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <p className="filters-panel__hint">
+          Based on a word&rsquo;s hardest kanji. Narrowing this only limits new reveals -- hit Reset to fully apply
+          to what&rsquo;s already on screen.
+        </p>
       </div>
 
       <div className="filters-panel__section">

@@ -624,6 +624,10 @@
   gap: 6px;
 }
 
+.filters-panel__chips--wrap {
+  flex-wrap: wrap;
+}
+
 .filters-panel__chip {
   flex: 1;
   font: inherit;
@@ -642,6 +646,10 @@
   background: var(--accent-bg);
   color: var(--text-h);
   font-weight: 600;
+}
+
+.filters-panel__chip--jlpt {
+  flex: 0 1 calc(33.333% - 4px);
 }
 
 .filters-panel select {

@@ -16,14 +16,24 @@ import { useProgress } from "./progress/useProgress";
 import { useSavedWords } from "./progress/useSavedWords";
 import { useStreak } from "./progress/useStreak";
 import { useGroups } from "./groups/useGroups";
-import { createInitialGraph, expandKanji, expandWord, wordNodeId } from "./graph/buildGraph";
+import { useTheme } from "./theme/useTheme";
+import {
+  createInitialGraph,
+  expandKanji,
+  expandWord,
+  wordNodeId,
+  kanjiJlptBucket,
+  wordJlptBucket,
+} from "./graph/buildGraph";
 import "./App.css";
 
 const DEFAULT_ROOT = "日本語";
 const MAX_WORDS_KEY = "word-tree:max-words-per-branch";
 const MASTERY_FILTER_KEY = "word-tree:mastery-filter";
+const JLPT_FILTER_KEY = "word-tree:jlpt-filter";
 const MAX_WORDS_OPTIONS = [5, 8, 12, 20, 40, Infinity];
 const DEFAULT_MASTERY_FILTER = { new: true, learning: true, known: true };
+const DEFAULT_JLPT_FILTER = { n5: true, n4: true, n3: true, n2: true, n1: true, unrated: true };
 
 function loadMaxWords() {
   try {
@@ -45,6 +55,16 @@ function loadMasteryFilter() {
   }
 }
 
+function loadJlptFilter() {
+  try {
+    const raw = localStorage.getItem(JLPT_FILTER_KEY);
+    if (!raw) return DEFAULT_JLPT_FILTER;
+    return { ...DEFAULT_JLPT_FILTER, ...JSON.parse(raw) };
+  } catch {
+    return DEFAULT_JLPT_FILTER;
+  }
+}
+
 export default function App() {
   const dataset = useWordData();
   const [rootWord, setRootWord] = useState(DEFAULT_ROOT);
@@ -53,12 +73,24 @@ export default function App() {
   const [selectedId, setSelectedId] = useState(wordNodeId(DEFAULT_ROOT));
   const [maxWords, setMaxWords] = useState(loadMaxWords);
   const [masteryFilter, setMasteryFilter] = useState(loadMasteryFilter);
+  const [jlptFilter, setJlptFilter] = useState(loadJlptFilter);
   const [focusGroupId, setFocusGroupId] = useState(null);
   const [isFiltersPanelOpen, setIsFiltersPanelOpen] = useState(false);
   const [reviewSession, setReviewSession] = useState(null); // { title, words } | null
 
   const { recents, addRecent } = useRecentRoots();
   const streak = useStreak();
+  const { theme, toggle: toggleTheme } = useTheme();
+
+  // A word's JLPT bucket is derived from its hardest-tagged kanji (see
+  // graph/buildGraph.js) -- there's no stored per-word JLPT field.
+  const isJlptAllowed = useCallback(
+    (type, idOrWord) => {
+      const bucket = type === "kanji" ? kanjiJlptBucket(dataset, idOrWord) : wordJlptBucket(dataset, idOrWord);
+      return jlptFilter[bucket] !== false;
+    },
+    [dataset, jlptFilter]
+  );
 
   // Rebuild the graph when the dataset becomes ready or the root word
   // changes -- adjusting state during render (React's documented pattern
@@ -67,7 +99,7 @@ export default function App() {
   const readyKey = dataset.loading ? null : `${dataset.source}:${rootWord}`;
   if (readyKey && readyKey !== builtFor) {
     setBuiltFor(readyKey);
-    setGraph(createInitialGraph(dataset, rootWord));
+    setGraph(createInitialGraph(dataset, rootWord, { isJlptAllowed }));
   }
 
   const selectedNode = graph?.nodes.get(selectedId) ?? null;
@@ -126,9 +158,9 @@ export default function App() {
   );
 
   const handleReset = useCallback(() => {
-    setGraph(createInitialGraph(dataset, rootWord));
+    setGraph(createInitialGraph(dataset, rootWord, { isJlptAllowed }));
     setSelectedId(wordNodeId(rootWord));
-  }, [dataset, rootWord]);
+  }, [dataset, rootWord, isJlptAllowed]);
 
   const handleMaxWordsChange = useCallback((rawValue) => {
     const next = rawValue === "all" ? Infinity : Number(rawValue);
@@ -152,22 +184,42 @@ export default function App() {
     });
   }, []);
 
+  const handleToggleJlptFilter = useCallback((bucket) => {
+    setJlptFilter((prev) => {
+      const next = { ...prev, [bucket]: !prev[bucket] };
+      try {
+        localStorage.setItem(JLPT_FILTER_KEY, JSON.stringify(next));
+      } catch {
+        // localStorage unavailable -- setting just won't persist this session
+      }
+      return next;
+    });
+  }, []);
+
   const isNodeDimmed = useCallback(
     (node) => {
-      if (node.type !== "word") return false;
-      const status = getStatus("word", node.word) ?? "new";
-      if (!masteryFilter[status]) return true;
-      if (focusGroupId) {
-        const group = groupsApi.groups.find((g) => g.id === focusGroupId);
-        if (group && !group.words.includes(node.word)) return true;
+      if (node.type === "word") {
+        const status = getStatus("word", node.word) ?? "new";
+        if (!masteryFilter[status]) return true;
+        if (focusGroupId) {
+          const group = groupsApi.groups.find((g) => g.id === focusGroupId);
+          if (group && !group.words.includes(node.word)) return true;
+        }
       }
+      if (!isJlptAllowed(node.type, node.type === "kanji" ? node.char : node.word)) return true;
       return false;
     },
-    [getStatus, masteryFilter, focusGroupId, groupsApi.groups]
+    [getStatus, masteryFilter, focusGroupId, groupsApi.groups, isJlptAllowed]
   );
 
+  const jlptFilterActive = Object.values(jlptFilter).some((v) => !v);
   const filtersActive =
-    !masteryFilter.new || !masteryFilter.learning || !masteryFilter.known || focusGroupId !== null || maxWords !== 8;
+    !masteryFilter.new ||
+    !masteryFilter.learning ||
+    !masteryFilter.known ||
+    jlptFilterActive ||
+    focusGroupId !== null ||
+    maxWords !== 8;
 
   const handleNodeClick = useCallback(
     (nodeId) => {
@@ -176,11 +228,11 @@ export default function App() {
         const node = prev.nodes.get(nodeId);
         if (!node || node.expanded) return prev;
         return node.type === "kanji"
-          ? expandKanji(dataset, prev, node.char, maxWords)
-          : expandWord(dataset, prev, node.word);
+          ? expandKanji(dataset, prev, node.char, maxWords, { isJlptAllowed })
+          : expandWord(dataset, prev, node.word, { isJlptAllowed });
       });
     },
-    [dataset, maxWords]
+    [dataset, maxWords, isJlptAllowed]
   );
 
   const handleGradeReview = useCallback(
@@ -239,6 +291,8 @@ export default function App() {
               <FiltersPanel
                 masteryFilter={masteryFilter}
                 onToggleMastery={handleToggleMasteryFilter}
+                jlptFilter={jlptFilter}
+                onToggleJlpt={handleToggleJlptFilter}
                 groups={groupsApi.groups}
                 focusGroupId={focusGroupId}
                 onSetFocusGroup={setFocusGroupId}
@@ -260,7 +314,7 @@ export default function App() {
           <button className="reset-btn" onClick={handleReset} title="Collapse back to just the root word">
             Reset
           </button>
-          <ThemeToggle />
+          <ThemeToggle theme={theme} onToggle={toggleTheme} />
           <div className="saved-panel-wrap">
             <button className="reset-btn" onClick={() => setIsSavedPanelOpen((v) => !v)}>
               Saved ({saved.words.length})
@@ -296,6 +350,7 @@ export default function App() {
             getStatus={getStatus}
             isInGroup={isInGroup}
             isDimmed={isNodeDimmed}
+            theme={theme}
           />
         ) : (
           <div className="graph-container graph-container--loading">Loading word data&hellip;</div>

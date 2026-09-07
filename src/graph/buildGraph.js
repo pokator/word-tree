@@ -22,6 +22,27 @@ export const kanjiNodeId = (char) => `kanji:${char}`;
 const DEFAULT_RANK = 999;
 const rankOf = (dataset, word) => dataset.WORDS_BY_TEXT[word]?.rank ?? DEFAULT_RANK;
 
+// A kanji's JLPT bucket is just its own tag ("n5".."n1", or "unrated" if
+// untagged). A word has no JLPT tag of its own -- its bucket is derived as
+// its HARDEST tagged component (lowest numeric level, since N1 is hardest),
+// which is the standard heuristic (a word is only as easy as its hardest
+// kanji). "unrated" if none of its components carry a JLPT tag at all.
+export function kanjiJlptBucket(dataset, char) {
+  const level = dataset.KANJI[char]?.jlpt;
+  return typeof level === "number" ? `n${level}` : "unrated";
+}
+
+export function wordJlptBucket(dataset, word) {
+  let hardest = null;
+  for (const char of extractKanjiComponents(word)) {
+    const level = dataset.KANJI[char]?.jlpt;
+    if (typeof level === "number" && (hardest === null || level < hardest)) hardest = level;
+  }
+  return hardest === null ? "unrated" : `n${hardest}`;
+}
+
+const alwaysAllowed = () => true;
+
 function kanjiNode(dataset, char) {
   const entry = dataset.KANJI[char];
   return {
@@ -64,9 +85,14 @@ function wordNode(dataset, word, { isRoot = false, expanded = false } = {}) {
   };
 }
 
-/** Build a fresh graph centered on a single root word (any string -- it
- * doesn't need to already be in the dataset, see wordNode above). */
-export function createInitialGraph(dataset, rootWord) {
+/**
+ * Build a fresh graph centered on a single root word (any string -- it
+ * doesn't need to already be in the dataset, see wordNode above). The root
+ * itself always shows regardless of `isJlptAllowed` -- you can't hide the
+ * thing you just searched for -- but its kanji components are still
+ * subject to it, same as any other reveal.
+ */
+export function createInitialGraph(dataset, rootWord, { isJlptAllowed = alwaysAllowed } = {}) {
   const wordEntry = dataset.WORDS_BY_TEXT[rootWord];
   const components = wordEntry ? wordComponents(wordEntry) : extractKanjiComponents(rootWord);
 
@@ -77,6 +103,7 @@ export function createInitialGraph(dataset, rootWord) {
   nodes.set(rootId, wordNode(dataset, rootWord, { isRoot: true, expanded: true }));
 
   for (const char of components) {
+    if (!isJlptAllowed("kanji", char)) continue;
     const kId = kanjiNodeId(char);
     if (!nodes.has(kId)) nodes.set(kId, kanjiNode(dataset, char));
     links.push({ source: rootId, target: kId });
@@ -92,9 +119,12 @@ export function createInitialGraph(dataset, rootWord) {
  * NEW words are revealed per call -- if more remain, the kanji node stays
  * in its "expanded: false" (dashed-ring, click-for-more) state so calling
  * this again reveals the next batch, until every related word is shown.
- * No-ops if already fully expanded.
+ * No-ops if already fully expanded. Words that fail `isJlptAllowed` are
+ * excluded from `notYetLinked` entirely -- they don't count toward "more
+ * remain" and won't reappear unless the filter changes, matching "limit
+ * what shows up" rather than just capping a batch of it.
  */
-export function expandKanji(dataset, graph, char, maxWords = Infinity) {
+export function expandKanji(dataset, graph, char, maxWords = Infinity, { isJlptAllowed = alwaysAllowed } = {}) {
   const kId = kanjiNodeId(char);
   const existing = graph.nodes.get(kId);
   if (!existing || existing.expanded) return graph;
@@ -111,7 +141,9 @@ export function expandKanji(dataset, graph, char, maxWords = Infinity) {
   }
 
   const relatedWords = dataset.WORDS_CONTAINING_KANJI[char] ?? [];
-  const notYetLinked = relatedWords.filter((word) => !alreadyLinked.has(wordNodeId(word)));
+  const notYetLinked = relatedWords.filter(
+    (word) => !alreadyLinked.has(wordNodeId(word)) && isJlptAllowed("word", word)
+  );
   const sorted = notYetLinked.slice().sort((a, b) => rankOf(dataset, a) - rankOf(dataset, b));
   const toReveal = sorted.slice(0, maxWords);
 
@@ -130,7 +162,7 @@ export function expandKanji(dataset, graph, char, maxWords = Infinity) {
  * Return a NEW graph state with the given word expanded: its component
  * kanji are added as nodes, linked to the word. No-ops if already expanded.
  */
-export function expandWord(dataset, graph, word) {
+export function expandWord(dataset, graph, word, { isJlptAllowed = alwaysAllowed } = {}) {
   const wId = wordNodeId(word);
   const existing = graph.nodes.get(wId);
   if (!existing || existing.expanded) return graph;
@@ -143,6 +175,7 @@ export function expandWord(dataset, graph, word) {
 
   const components = entry ? wordComponents(entry) : extractKanjiComponents(word);
   for (const char of components) {
+    if (!isJlptAllowed("kanji", char)) continue;
     const kId = kanjiNodeId(char);
     if (!nodes.has(kId)) nodes.set(kId, kanjiNode(dataset, char));
     if (!links.some((l) => linkKey(l) === linkKey({ source: wId, target: kId }))) {
