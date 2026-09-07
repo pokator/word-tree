@@ -1,11 +1,12 @@
 # Word Tree (言葉の木)
 
-An interactive, exploratory dictionary: start from one word, and expand
-outward through the components it's built from (in Japanese, kanji) to
-discover every other word in the dataset that shares a component with it.
-The point is to make the *relatedness* of vocabulary visible and explorable,
-and to turn that exploration into actual retention — mark what you know,
-save words of interest, and push them into Anki for spaced repetition.
+An interactive, exploratory dictionary: start from **any** Japanese word,
+and expand outward through the components it's built from (in Japanese,
+kanji) to discover every other word in the dataset that shares a component
+with it. The point is to make the *relatedness* of vocabulary visible and
+explorable, and to turn that exploration into actual retention — mark what
+you know, organize words into your own study groups, save words of
+interest, and push them into Anki for spaced repetition.
 
 This covers Japanese only. English (prefixes/suffixes/Latin & Greek roots)
 is a natural next step but intentionally out of scope for now — see "Not in
@@ -17,14 +18,18 @@ scope" below.
 npm install
 ```
 
-The app runs perfectly well with **no further setup** — it falls back to a
-small built-in dataset and works fully as a guest (no accounts, no saved
-progress across devices). To get the full experience (accounts, mastery
-tracking that survives a refresh, saved words), you need a Supabase project:
+The app runs perfectly well with **no further setup** — it loads a bundled
+~26k-word/13k-kanji dataset (see "The dataset" below) and works fully as a
+guest (no accounts, no saved progress across devices). To get the full
+experience (accounts, mastery tracking and groups that survive a refresh,
+saved words), you need a Supabase project:
 
 1. Create a free project at [supabase.com](https://supabase.com).
 2. Open its SQL editor and run `supabase/schema.sql`, then
-   `supabase/seed.sql`, in that order.
+   `supabase/seed.sql`, in that order. Both are safe to re-run — if you set
+   this up before this dataset/groups update, just re-run them both to pick
+   up the larger word list and the new `groups` tables (nothing existing
+   gets dropped; `seed.sql` upserts).
 3. Copy `.env.example` to `.env.local` and fill in your project's URL and
    anon public key (Settings → API in the Supabase dashboard):
    ```
@@ -36,23 +41,41 @@ tracking that survives a refresh, saved words), you need a Supabase project:
 4. `npm run dev`
 
 If Supabase isn't configured (or a fetch to it fails), the app silently
-falls back to the same built-in dataset, offline-style — you'll see
-"offline data" in the sidebar and can still explore, just without accounts.
+falls back to the same bundled dataset, offline-style — you'll see "local
+dataset" in the sidebar and can still explore, just without accounts.
 
 ## Using it
 
-Search for a word (try `日本語`, `学校`, `天気`, or search by
-reading/meaning like "school"). The searched word becomes the root of a
+Type any Japanese word — `日本語`, `学校`, `天気`, a word not in the
+dropdown, even one the dictionary doesn't have an entry for — or search by
+reading/meaning like "school". The word becomes the root of a
 force-directed graph; its kanji branch out from it. Click any kanji to
-reveal every other word containing it; click any word to reveal its own
-kanji. Nodes with a dashed ring haven't been expanded yet. Drag nodes to
+reveal other words containing it; click any word to reveal its own kanji.
+Nodes with a dashed ring haven't been (fully) expanded yet. Drag nodes to
 rearrange, scroll/pinch to zoom, drag the background to pan.
+
+A word typed straight in (not picked from the dropdown) still works as a
+root as long as it contains at least one hiragana/katakana/kanji character
+— its kanji are read directly off the text you typed, so branching out from
+it works the same way even if the word itself isn't in the dictionary.
+
+**Max/branch** (header) caps how many words appear each time you click a
+kanji, ranked most-common-first. If more remain, the kanji stays in its
+"click for more" (dashed ring) state — click it again to reveal the next
+batch, repeating until everything's shown. Handy for keeping a very common
+kanji (like 日 or 人) from instantly flooding the graph.
 
 Click a node to see its detail panel, where you can:
 - **Mark mastery** — New / Learning / Known. This dims or brightens the
   node on the graph (a quick visual read of what you've already got vs.
   what's new) and persists it — to your account if signed in, to
   `localStorage` as a guest.
+- **Add a word to a group** (word nodes only) — check any of your existing
+  groups, or type a new group name to create one. Groups are your own
+  collections (e.g. "JLPT N4 review", "kitchen vocab") independent of
+  mastery status; manage them from the "Groups" button in the header. A
+  small dot on a graph node marks it as belonging to at least one group.
+  Works for guests too (`localStorage`), just like mastery.
 - **Save a word for Anki** (word nodes only, requires sign-in) — adds it to
   your export queue, shown under the "Saved" button in the header.
 
@@ -106,36 +129,51 @@ of sync.
   (`src/graph/buildGraph.js`): given a word, look up its kanji; given a
   kanji, look up every word containing it — each function takes the
   dataset as a parameter rather than importing one, so it doesn't care
-  whether the data came from Supabase or the static fallback.
+  whether the data came from Supabase or the bundled local dataset. A
+  word's kanji "components" aren't stored anywhere — they're computed on
+  the fly from the word's own text (`src/graph/kanji.js`), which is also
+  what makes an arbitrary, not-in-the-dictionary root word work: there's
+  nothing to look up to find its kanji, just the text itself.
 - `src/data/useWordData.js` fetches from Supabase when configured, falling
-  back to `src/data/japaneseData.js` (the same ~32 kanji / ~38 word fixture
-  from the original prototype) otherwise or on failure.
+  back to the bundled local dataset (`public/data/{kanji,words}.json`)
+  otherwise or on failure, and to `src/data/japaneseData.js` (a tiny ~32
+  kanji / ~38 word fixture) as a last-resort emergency fallback if even
+  that fetch somehow fails.
 - `src/progress/useProgress.js` (mastery) and `src/progress/useSavedWords.js`
   (Anki export queue) both branch on auth state; mastery has a
   `localStorage`-backed guest mode, the saved-words queue is
   Supabase-only (its whole point is surviving until you open Anki).
+  `src/groups/useGroups.js` (word collections) follows the same
+  guest/`localStorage` + Supabase pattern as mastery.
 - `src/anki/ankiConnect.js` talks to AnkiConnect's local HTTP API;
   `src/anki/exportFile.js` is the `.tsv` fallback.
 
 ## The dataset (and its limits)
 
-`src/data/japaneseData.js` is a **hand-curated set of ~32 kanji and ~38
-common compound words**, picked so they overlap a lot (語, 国, 人, 曜, and
-日 each show up in many words) to make exploring feel rich despite the
-small size. It's not pulled from any dictionary API; meanings/readings were
-written from general knowledge and should be spot-checked before this
-becomes anything other than a prototype. `supabase/seed.sql` is generated
-directly from this file (`npm run generate:seed`) so the two can never
-drift apart.
+`public/data/words.json` (~25.7k entries) and `public/data/kanji.json`
+(~13.1k entries) are the bundled offline dataset — every "common"-tagged
+entry (has a `news`/`ichi`/`spec`/`gai`/`nf##` priority tag) from
+[JMdict](https://www.edrdg.org/wiki/index.php/JMdict-EDICT_Dictionary_Project),
+paired with a [KANJIDIC2](https://www.edrdg.org/wiki/index.php/KANJIDIC_Project)-derived
+kanji reference (meanings, on'yomi/kun'yomi, JLPT level). Both were
+extracted from a local JMdict/KANJIDIC2 SQLite build and the WaniKani-style
+kanji reference used by this developer's other project, Gakuji — see
+`public/data/README.md` for exactly how, so it can be regenerated if the
+source data ever needs refreshing. `scripts/generate-seed-sql.mjs` derives
+`supabase/seed.sql` from these same two JSON files (`npm run
+generate:seed`), so the offline dataset and the Supabase-backed one can
+never drift apart. `src/data/japaneseData.js` is a much smaller, separate,
+hand-curated ~32 kanji / ~38 word fixture kept only as a last-resort
+emergency fallback (see "How it's built" above) — it plays no part in the
+normal offline/Supabase data path anymore.
 
-This does **not** scale as authored — it's a demo fixture, not a
-dictionary. A real version would need a licensed/open dataset, e.g.
-[KANJIDIC2](https://www.edrdg.org/wiki/index.php/KANJIDIC_Project) and
-[JMdict](https://www.edrdg.org/wiki/index.php/JMdict-EDICT_Dictionary_Project)
-for readings/meanings/coverage, and
-[KanjiVG](https://kanjivg.tagaini.net/)/KRADFILE for structural
-(radical/stroke) decomposition — a *different and richer* notion of
-"component" than "which kanji make up this word", see below.
+A word not covered by either dataset still works as an exploration root
+(see "Using it" above) — you just won't get a dictionary meaning/reading
+for it, only its kanji breakdown. Structural (radical/stroke)
+decomposition of a single kanji — a *different and richer* notion of
+"component" than "which kanji make up this word" — would need
+[KanjiVG](https://kanjivg.tagaini.net/)/KRADFILE, and isn't covered here;
+see "Assumptions" below.
 
 ## Assumptions
 
@@ -149,10 +187,13 @@ for readings/meanings/coverage, and
 - **The graph only grows, never auto-prunes** within one exploration;
   "Reset" collapses back to the root, searching a new word starts fresh.
 - **No guest → account progress migration.** Signing in starts a fresh
-  (then Supabase-loaded) mastery map rather than merging in whatever was
-  tracked as a guest. A deliberate scope cut, not an oversight.
+  (then Supabase-loaded) mastery/groups state rather than merging in
+  whatever was tracked as a guest. A deliberate scope cut, not an oversight.
 - **Desktop-first.** The sidebar hides below ~720px width rather than
   reflowing into a mobile layout.
+- **A word can belong to any number of groups**, but a group can't contain
+  another group (no nesting) and a group has no notion of ordering beyond
+  insertion order.
 
 ## Not in scope (by design, for now)
 
@@ -160,20 +201,24 @@ for readings/meanings/coverage, and
   origins) — `buildGraph.js` is kept generic enough that an
   `englishData.js` + equivalent expand functions could be added later
   without reworking the graph/rendering layer.
-- Real dictionary backend / full-lexicon search, radical-level kanji
-  decomposition, quiz/spaced-repetition modes beyond the tri-state mastery
-  marker, OAuth sign-in.
+- Full JMdict coverage (only "common"-tagged entries are bundled/seeded —
+  see "The dataset" above), radical-level kanji decomposition,
+  quiz/spaced-repetition modes beyond the tri-state mastery marker, OAuth
+  sign-in.
 - Mobile/touch-optimized interaction (pointer events work on touch, but
   nothing was tuned for it).
 
 ## Possible next steps
 
-1. Swap the curated dataset for JMdict/KANJIDIC2, with JLPT-level tagging
-   so exploration can be scoped by difficulty.
+1. Bundle full (not just "common") JMdict coverage, so branching out never
+   comes up short even on obscure words.
 2. Radical-level decomposition as a deeper zoom level on a kanji node.
 3. Active-recall quiz modes launched from a node (guess the reading,
    assemble a word from its kanji) — the mastery marker becomes a real
-   spaced-repetition signal instead of a manual toggle.
+   spaced-repetition signal instead of a manual toggle. Groups would be a
+   natural scope for a quiz session ("quiz me on this group").
 4. An English dataset + a second "mode" so the same graph engine can
    explore `unhappiness` → `un-`, `happy`, `-ness`.
-5. Guest → account progress migration on first sign-in.
+5. Guest → account progress/groups migration on first sign-in.
+6. Per-group color coding on the graph (today it's just a single dot for
+   "in any group").

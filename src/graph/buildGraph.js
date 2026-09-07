@@ -11,23 +11,48 @@
 //   word:<word text>   e.g. "word:日本語"
 //   kanji:<char>        e.g. "kanji:語"
 
+import { extractKanjiComponents } from "./kanji";
+import { wordComponents } from "../data/deriveIndexes";
+
 export const wordNodeId = (word) => `word:${word}`;
 export const kanjiNodeId = (char) => `kanji:${char}`;
 
+// Words with no explicit rank (or entries synthesized for an unlisted root
+// word's kanji) sort last when a branch is capped -- see expandKanji.
+const DEFAULT_RANK = 999;
+const rankOf = (dataset, word) => dataset.WORDS_BY_TEXT[word]?.rank ?? DEFAULT_RANK;
+
 function kanjiNode(dataset, char) {
+  const entry = dataset.KANJI[char];
   return {
     id: kanjiNodeId(char),
     type: "kanji",
     char,
-    meaning: dataset.KANJI[char]?.meaning ?? "",
-    onyomi: dataset.KANJI[char]?.onyomi ?? [],
-    kunyomi: dataset.KANJI[char]?.kunyomi ?? [],
+    meaning: entry?.meaning ?? "",
+    onyomi: entry?.onyomi ?? [],
+    kunyomi: entry?.kunyomi ?? [],
+    jlpt: entry?.jlpt,
     expanded: false,
   };
 }
 
 function wordNode(dataset, word, { isRoot = false, expanded = false } = {}) {
   const entry = dataset.WORDS_BY_TEXT[word];
+  if (!entry) {
+    // Arbitrary word typed by the user that isn't in the loaded corpus --
+    // still a valid node, just without dictionary meaning/reading. Its
+    // components come straight from its own text (see graph/kanji.js).
+    return {
+      id: wordNodeId(word),
+      type: "word",
+      word,
+      reading: "",
+      meaning: "",
+      isRoot,
+      expanded,
+      isUnlisted: true,
+    };
+  }
   return {
     id: wordNodeId(word),
     type: "word",
@@ -39,12 +64,11 @@ function wordNode(dataset, word, { isRoot = false, expanded = false } = {}) {
   };
 }
 
-/** Build a fresh graph centered on a single root word. */
+/** Build a fresh graph centered on a single root word (any string -- it
+ * doesn't need to already be in the dataset, see wordNode above). */
 export function createInitialGraph(dataset, rootWord) {
   const wordEntry = dataset.WORDS_BY_TEXT[rootWord];
-  if (!wordEntry) {
-    throw new Error(`Unknown word: ${rootWord}`);
-  }
+  const components = wordEntry ? wordComponents(wordEntry) : extractKanjiComponents(rootWord);
 
   const nodes = new Map();
   const links = [];
@@ -52,7 +76,7 @@ export function createInitialGraph(dataset, rootWord) {
   const rootId = wordNodeId(rootWord);
   nodes.set(rootId, wordNode(dataset, rootWord, { isRoot: true, expanded: true }));
 
-  for (const char of wordEntry.components) {
+  for (const char of components) {
     const kId = kanjiNodeId(char);
     if (!nodes.has(kId)) nodes.set(kId, kanjiNode(dataset, char));
     links.push({ source: rootId, target: kId });
@@ -62,11 +86,15 @@ export function createInitialGraph(dataset, rootWord) {
 }
 
 /**
- * Return a NEW graph state with the given kanji expanded: every word
- * containing that kanji is added as a node, linked to the kanji node.
- * No-ops if already expanded.
+ * Return a NEW graph state with the given kanji expanded: words containing
+ * that kanji are added as nodes, linked to the kanji node, most-common
+ * first (see data/*.json's `rank`, lower = more common). At most `maxWords`
+ * NEW words are revealed per call -- if more remain, the kanji node stays
+ * in its "expanded: false" (dashed-ring, click-for-more) state so calling
+ * this again reveals the next batch, until every related word is shown.
+ * No-ops if already fully expanded.
  */
-export function expandKanji(dataset, graph, char) {
+export function expandKanji(dataset, graph, char, maxWords = Infinity) {
   const kId = kanjiNodeId(char);
   const existing = graph.nodes.get(kId);
   if (!existing || existing.expanded) return graph;
@@ -74,15 +102,25 @@ export function expandKanji(dataset, graph, char) {
   const nodes = new Map(graph.nodes);
   const links = [...graph.links];
 
-  nodes.set(kId, { ...existing, expanded: true });
+  const alreadyLinked = new Set();
+  for (const l of links) {
+    const s = typeof l.source === "object" ? l.source.id : l.source;
+    const t = typeof l.target === "object" ? l.target.id : l.target;
+    if (s === kId) alreadyLinked.add(t);
+    else if (t === kId) alreadyLinked.add(s);
+  }
 
   const relatedWords = dataset.WORDS_CONTAINING_KANJI[char] ?? [];
-  for (const word of relatedWords) {
+  const notYetLinked = relatedWords.filter((word) => !alreadyLinked.has(wordNodeId(word)));
+  const sorted = notYetLinked.slice().sort((a, b) => rankOf(dataset, a) - rankOf(dataset, b));
+  const toReveal = sorted.slice(0, maxWords);
+
+  nodes.set(kId, { ...existing, expanded: toReveal.length === notYetLinked.length });
+
+  for (const word of toReveal) {
     const wId = wordNodeId(word);
     if (!nodes.has(wId)) nodes.set(wId, wordNode(dataset, word));
-    if (!links.some((l) => linkKey(l) === linkKey({ source: kId, target: wId }))) {
-      links.push({ source: kId, target: wId });
-    }
+    links.push({ source: kId, target: wId });
   }
 
   return { nodes, links };
@@ -103,7 +141,8 @@ export function expandWord(dataset, graph, word) {
 
   nodes.set(wId, { ...existing, expanded: true });
 
-  for (const char of entry.components) {
+  const components = entry ? wordComponents(entry) : extractKanjiComponents(word);
+  for (const char of components) {
     const kId = kanjiNodeId(char);
     if (!nodes.has(kId)) nodes.set(kId, kanjiNode(dataset, char));
     if (!links.some((l) => linkKey(l) === linkKey({ source: wId, target: kId }))) {

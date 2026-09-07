@@ -1,4 +1,43 @@
+import { useState } from "react";
+
 const MASTERY_LABELS = { new: "New", learning: "Learning", known: "Known" };
+
+function GroupMembership({ word, groups, memberOf, onToggleGroup, onCreateGroup }) {
+  const [newName, setNewName] = useState("");
+  const memberIds = new Set(memberOf.map((g) => g.id));
+
+  function handleCreate(e) {
+    e.preventDefault();
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+    onCreateGroup(trimmed, word);
+    setNewName("");
+  }
+
+  return (
+    <div className="group-membership">
+      <span className="detail-panel__label">Groups</span>
+      {groups.length > 0 && (
+        <div className="group-membership__list">
+          {groups.map((g) => (
+            <label key={g.id} className="group-membership__item">
+              <input type="checkbox" checked={memberIds.has(g.id)} onChange={() => onToggleGroup(g.id)} />
+              {g.name}
+            </label>
+          ))}
+        </div>
+      )}
+      <form className="group-membership__create" onSubmit={handleCreate}>
+        <input
+          type="text"
+          placeholder="+ New group..."
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+        />
+      </form>
+    </div>
+  );
+}
 
 function MasteryControl({ status, onSetStatus }) {
   return (
@@ -33,7 +72,18 @@ function SaveToggle({ canSave, isSaved, onToggleSave }) {
   );
 }
 
-export default function DetailPanel({ node, status, onSetStatus, canSave, isSaved, onToggleSave }) {
+export default function DetailPanel({
+  node,
+  status,
+  onSetStatus,
+  canSave,
+  isSaved,
+  onToggleSave,
+  groups = [],
+  memberOf = [],
+  onToggleGroup,
+  onCreateGroup,
+}) {
   if (!node) {
     return (
       <div className="detail-panel detail-panel--empty">
@@ -63,6 +113,12 @@ export default function DetailPanel({ node, status, onSetStatus, canSave, isSave
             <span>{node.kunyomi.join("、")}</span>
           </div>
         )}
+        {node.jlpt && (
+          <div className="detail-panel__row">
+            <span className="detail-panel__label">JLPT</span>
+            <span>N{node.jlpt}</span>
+          </div>
+        )}
         <MasteryControl status={status} onSetStatus={onSetStatus} />
       </div>
     );
@@ -72,9 +128,20 @@ export default function DetailPanel({ node, status, onSetStatus, canSave, isSave
     <div className="detail-panel">
       <div className="detail-panel__char">{node.word}</div>
       <div className="detail-panel__reading">{node.reading}</div>
-      <div className="detail-panel__meaning">{node.meaning}</div>
+      <div className="detail-panel__meaning">
+        {node.meaning || (node.isUnlisted ? "(not in dictionary -- exploring by kanji only)" : "")}
+      </div>
       <MasteryControl status={status} onSetStatus={onSetStatus} />
       <SaveToggle canSave={canSave} isSaved={isSaved} onToggleSave={onToggleSave} />
+      {onToggleGroup && (
+        <GroupMembership
+          word={node.word}
+          groups={groups}
+          memberOf={memberOf}
+          onToggleGroup={onToggleGroup}
+          onCreateGroup={onCreateGroup}
+        />
+      )}
     </div>
   );
 }

@@ -7,8 +7,9 @@ import { readNodeColors } from "../graph/theme";
 
 const DRAG_CLICK_THRESHOLD_PX = 5;
 const noStatus = () => undefined;
+const noGroup = () => false;
 
-export default function WordTreeGraph({ graph, selectedId, onNodeClick, getStatus = noStatus }) {
+export default function WordTreeGraph({ graph, selectedId, onNodeClick, getStatus = noStatus, isInGroup = noGroup }) {
   const containerRef = useRef(null);
   const svgRef = useRef(null);
   const gRef = useRef(null);
@@ -137,6 +138,9 @@ export default function WordTreeGraph({ graph, selectedId, onNodeClick, getStatu
                   <text textAnchor="middle" dominantBaseline="central" className="graph-node__label">
                     {label}
                   </text>
+                  {node.type === "word" && isInGroup(node.word) && (
+                    <circle cx={r * 0.68} cy={-r * 0.68} r={4.5} className="graph-node__group-dot" />
+                  )}
                 </g>
               );
             })}
