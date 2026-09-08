@@ -80,6 +80,10 @@ export function useForceSimulation(graph, width, height) {
   // its parent an actual, persistent way to create room, instead of the
   // link force pulling it straight back once the drag ends.
   const linkDistanceRef = useRef(new Map());
+  // Word ids already snapped to sit between their kanji parents (see the
+  // reconciliation effect below) -- a one-time nudge per word, not a
+  // standing constraint, so it doesn't keep fighting a user's own drag.
+  const bridgedWordsRef = useRef(new Set());
   const [, forceRerender] = useReducer((x) => x + 1, 0);
 
   // Create the simulation once.
@@ -138,6 +142,21 @@ export function useForceSimulation(graph, width, height) {
     // links) and needs to reflect every link, not just this batch's new
     // ones -- a hub revealed across several "show more" batches needs its
     // ring sized for its TOTAL sibling count, not just the latest addition.
+    // wordId -> Set(kanjiId) for every kanji that reveals this word -- most
+    // words have exactly one, but a word built from several kanji (e.g. 日本
+    // from 日 and 本) can end up linked from each of them separately, once
+    // each kanji has been expanded. Used below both for parentDegree (a
+    // kanji's fan-out size) and to detect these multi-parent "bridge" words.
+    const kanjiParentsByWord = new Map();
+    for (const l of graph.links) {
+      const s = idOf(l.source);
+      const t = idOf(l.target);
+      if (graph.nodes.get(s)?.type === "kanji") {
+        if (!kanjiParentsByWord.has(t)) kanjiParentsByWord.set(t, new Set());
+        kanjiParentsByWord.get(t).add(s);
+      }
+    }
+
     const parentDegree = new Map();
     for (const l of graph.links) {
       const s = idOf(l.source);
@@ -182,6 +201,35 @@ export function useForceSimulation(graph, width, height) {
       anglesByParent.set(parentId, computeSiblingAngles(siblingIds, graph.nodes.get(parentId), graph.nodes));
     }
 
+    // A word shared by several kanji (e.g. 日本, once both 日 and 本 have
+    // been separately expanded) should sit between them, representing that
+    // shared relationship -- not hang off whichever kanji happened to
+    // reveal it first while a second, distant link to it stretches across
+    // the graph. A one-time position snap alone doesn't hold: each link's
+    // distance force still independently pulls toward that PARENT's own
+    // full hub-ring distance, and since that's normally bigger than half
+    // the gap between the two kanji, the word gets stretched right back
+    // out to one side (equidistant from both, but off the line between
+    // them, not sitting on it). So this also pins each parent link's own
+    // target distance to the word's actual current distance from that
+    // parent -- with both links agreeing on "however far the midpoint
+    // currently is," the midpoint becomes the equilibrium the physics
+    // itself wants, not just a starting position it immediately abandons.
+    // Returns null if fewer than 2 of its kanji parents are actually
+    // placed yet (nothing to average).
+    function pinBridgeWord(wordId, kanjiIds) {
+      const positions = Array.from(kanjiIds)
+        .map((kid) => [kid, simNodesMap.get(kid)])
+        .filter(([, n]) => n);
+      if (positions.length < 2) return null;
+      const mx = positions.reduce((sum, [, n]) => sum + n.x, 0) / positions.length;
+      const my = positions.reduce((sum, [, n]) => sum + n.y, 0) / positions.length;
+      for (const [kid, n] of positions) {
+        linkDistanceRef.current.set(linkDistanceKey(kid, wordId), Math.hypot(mx - n.x, my - n.y));
+      }
+      return [mx, my];
+    }
+
     // Second pass: place each new node. Siblings revealed together fan out
     // around their parent (grouped by role, see computeSiblingAngles)
     // instead of a random jitter that the force simulation then has to
@@ -193,8 +241,22 @@ export function useForceSimulation(graph, width, height) {
     // tight and visibly shoving itself apart after the fact.
     for (const [id, data] of graph.nodes) {
       const prev = simNodesMap.get(id);
+      const kanjiParents = kanjiParentsByWord.get(id);
+
       if (prev) {
         Object.assign(prev, data);
+        // This word just gained a second (or later) kanji parent -- snap it
+        // to sit between them once, rather than leaving it wherever it
+        // spawned relative to only the first. Not repeated on every later
+        // graph change (bridgedWordsRef), so it doesn't fight a user's own
+        // drag of this node afterward.
+        if (kanjiParents?.size >= 2 && !bridgedWordsRef.current.has(id)) {
+          const mid = pinBridgeWord(id, kanjiParents);
+          if (mid) {
+            [prev.x, prev.y] = mid;
+            bridgedWordsRef.current.add(id);
+          }
+        }
         continue;
       }
 
@@ -202,7 +264,11 @@ export function useForceSimulation(graph, width, height) {
       const parent = parentId ? simNodesMap.get(parentId) : null;
       let spawnX = width / 2 + (Math.random() - 0.5) * 60;
       let spawnY = height / 2 + (Math.random() - 0.5) * 60;
-      if (parent) {
+      const mid = kanjiParents?.size >= 2 ? pinBridgeWord(id, kanjiParents) : null;
+      if (mid) {
+        [spawnX, spawnY] = mid;
+        bridgedWordsRef.current.add(id);
+      } else if (parent) {
         const angle = anglesByParent.get(parentId).get(id);
         const spawnRadius = baseLinkDistance(parentDegree.get(parentId) ?? 1);
         spawnX = parent.x + spawnRadius * Math.cos(angle);

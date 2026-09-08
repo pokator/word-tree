@@ -21,26 +21,6 @@ const ZOOM_STEP = 1.3;
 // link force that's about to take back over once the drag ends.
 const NEIGHBOR_FOLLOW = 0.55;
 
-// A gentle, constant-direction bow instead of a straight line -- in a
-// radial hub-and-spoke layout like this one there's little actual edge
-// CROSSING for a curve to disentangle, but a uniform curve still reads as
-// noticeably calmer than dead-straight spokes converging on one point (the
-// same reason mind-map / org-chart tools default to curved edges), and
-// pairs well with the position-category coloring by turning each hub's
-// fan-out into more of a "flower" than a starburst. Always bowing the same
-// rotational direction (rather than alternating per-link) keeps that
-// flower reading as intentional rather than jittery. Scales with length,
-// capped, so short links don't kink and long ones don't over-bow.
-function linkPath(s, t) {
-  const dx = t.x - s.x;
-  const dy = t.y - s.y;
-  const len = Math.hypot(dx, dy) || 1;
-  const bow = Math.min(24, len * 0.12);
-  const midX = (s.x + t.x) / 2 + (-dy / len) * bow;
-  const midY = (s.y + t.y) / 2 + (dx / len) * bow;
-  return `M ${s.x} ${s.y} Q ${midX} ${midY} ${t.x} ${t.y}`;
-}
-
 export default function WordTreeGraph({
   graph,
   selectedId,
@@ -290,10 +270,12 @@ export default function WordTreeGraph({
               // "position" -- see positionCategory.js and useForceSimulation.
               const posCategory = s.type === "kanji" && t.type === "word" ? kanjiPositionCategory(t.word, s.char) : null;
               return (
-                <path
+                <line
                   key={`${s.id}->${t.id}`}
-                  d={linkPath(s, t)}
-                  fill="none"
+                  x1={s.x}
+                  y1={s.y}
+                  x2={t.x}
+                  y2={t.y}
                   vectorEffect="non-scaling-stroke"
                   className={`graph-link${posCategory ? ` graph-link--pos-${posCategory}` : ""}`}
                 />
