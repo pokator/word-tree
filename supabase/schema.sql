@@ -27,6 +27,12 @@ create index if not exists words_components_gin_idx on public.words using gin (c
 -- which words appear first when a kanji branch is capped by the client's
 -- "max words per branch" setting.
 alter table public.words add column if not exists rank integer;
+-- Structured per-sense dictionary data (part of speech, usage-register
+-- tags, free-text notes, loanword origin) -- `meaning` stays as a flat,
+-- search-friendly string derived from the same senses at generation time;
+-- `senses` is what the UI renders. Array of
+-- { gloss: string[], pos?: string[], misc?: string[], info?: string[], origin?: string }.
+alter table public.words add column if not exists senses jsonb;
 
 create table if not exists public.user_progress (
   id uuid primary key default gen_random_uuid(),

@@ -1138,19 +1138,61 @@
   margin-top: 16px;
 }
 
-.dictionary-panel__meanings {
+.dictionary-panel__senses {
   margin: 20px 0 0;
   padding-left: 22px;
-  font-size: 17px;
   color: var(--text-h);
-  line-height: 1.6;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 14px;
 }
 
-.dictionary-panel__meanings--single {
+.dictionary-panel__senses--single {
   padding-left: 0;
+}
+
+.dictionary-panel__senses li {
+  padding-left: 4px;
+}
+
+.dictionary-panel__sense-pos {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 3px;
+}
+
+.dictionary-panel__sense-gloss {
+  font-size: 17px;
+  line-height: 1.5;
+}
+
+.dictionary-panel__sense-note {
+  font-size: 13px;
+  color: var(--text);
+  opacity: 0.8;
+  font-style: italic;
+  margin-top: 3px;
+}
+
+.dictionary-panel__sense-origin {
+  font-size: 13px;
+  color: var(--text);
+  opacity: 0.7;
+  margin-top: 3px;
+}
+
+.common-badge {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--node-word);
+  background: color-mix(in srgb, var(--node-word) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--node-word) 45%, transparent);
+  border-radius: 999px;
+  padding: 2px 10px;
+  flex-shrink: 0;
 }
 
 .dictionary-panel__readings {

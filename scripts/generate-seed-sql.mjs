@@ -17,6 +17,7 @@ const CHUNK_SIZE = 500;
 const sqlString = (s) => `'${String(s ?? "").replace(/'/g, "''")}'`;
 const sqlInt = (n) => (n === null || n === undefined ? "null" : String(n));
 const sqlArray = (arr) => (!arr?.length ? "ARRAY[]::text[]" : `ARRAY[${arr.map(sqlString).join(",")}]`);
+const sqlJsonb = (value) => (value === null || value === undefined ? "null" : `${sqlString(JSON.stringify(value))}::jsonb`);
 
 function chunk(arr, size) {
   const out = [];
@@ -38,10 +39,10 @@ function wordInsert(entries) {
   const rows = entries
     .map((w) => {
       const components = extractKanjiComponents(w.word);
-      return `  (${sqlString(w.word)}, ${sqlString(w.reading)}, ${sqlString(w.meaning)}, ${sqlArray(components)}, ${sqlInt(w.rank)})`;
+      return `  (${sqlString(w.word)}, ${sqlString(w.reading)}, ${sqlString(w.meaning)}, ${sqlArray(components)}, ${sqlInt(w.rank)}, ${sqlJsonb(w.senses)})`;
     })
     .join(",\n");
-  return `insert into public.words (word, reading, meaning, components, rank) values\n${rows}\non conflict (word) do update set\n  reading = excluded.reading, meaning = excluded.meaning, components = excluded.components, rank = excluded.rank;`;
+  return `insert into public.words (word, reading, meaning, components, rank, senses) values\n${rows}\non conflict (word) do update set\n  reading = excluded.reading, meaning = excluded.meaning, components = excluded.components, rank = excluded.rank, senses = excluded.senses;`;
 }
 
 const kanjiEntries = Object.values(KANJI);

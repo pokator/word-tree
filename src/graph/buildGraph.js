@@ -80,6 +80,8 @@ function wordNode(dataset, word, { isRoot = false, expanded = false } = {}) {
     word: entry.word,
     reading: entry.reading,
     meaning: entry.meaning,
+    senses: entry.senses,
+    rank: entry.rank,
     isRoot,
     expanded,
   };

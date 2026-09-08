@@ -50,13 +50,18 @@ accounts.
 This is a dictionary first, exploration tool second: type any Japanese
 word — `日本語`, `学校`, `天気`, a word not in the dropdown, even one the
 dictionary doesn't have an entry for — or search by reading/meaning like
-"school", and its entry fills the left panel (headword, reading, numbered
-senses, JLPT level, on'yomi/kun'yomi for a kanji). The word tree graph on
-the right is the secondary, exploratory half of the same view, always
-visible alongside the dictionary entry rather than hidden behind it — drag
-the divider between the two panels to give either one more room (double-
-click the divider to reset the split), or just leave it at the default and
-use both side by side.
+"school", and its entry fills the left panel: headword, reading, a
+"Common word" badge when JMdict tags it as common, JLPT level, and every
+sense JMdict has for it — each with its part of speech (Ichidan verb,
+noun, ...), usage-register notes (archaic, slang, humble language,
+derogatory, ...), and loanword origin/etymology where one exists ("From
+Portuguese: pão"), not just a bare gloss. A kanji entry gets on'yomi/
+kun'yomi instead. The word tree graph on the right is the secondary,
+exploratory half of the same view, always visible alongside the
+dictionary entry rather than hidden behind it — drag the divider between
+the two panels to give either one more room (double-click the divider to
+reset the split), or just leave it at the default and use both side by
+side.
 
 A word typed straight in (not picked from the dropdown) still works as a
 root as long as it contains at least one hiragana/katakana/kanji character
@@ -198,12 +203,20 @@ via the actual [jamdict](https://github.com/neocl/jamdict) Python package's
 own entry/sense/kanji-form assembly rather than hand-rolled joins over its
 underlying tables, after an earlier version of this dataset picked only
 one spelling per entry and silently dropped ~750 legitimate alternate
-spellings as a result. Each word carries every sense JMdict has for it
-(capped at 10 senses, 2 glosses each, for the handful of entries with
-dozens) rather than just the first, and a `rank` (lower = more common,
-from JMdict's own `news`/`ichi`/`spec`/`gai`/`nf##` priority tags, checked
-per spelling) when JMdict tags that spelling as common at all — most
-aren't, and sort last when a kanji branch is capped by "words per branch".
+spellings as a result. Each word carries every sense JMdict has for it as
+a structured `senses` array (capped at 10 senses, 3 glosses each, for the
+handful of entries with dozens) rather than a flattened first-sense-only
+string — part of speech, usage-register tags (archaic, slang, humble
+language, derogatory, ...), free-text notes, and loanword origin/etymology
+("From Portuguese: pão"), all rendered per-sense in the dictionary panel.
+A flat `meaning` string (same senses, joined) is kept alongside `senses`
+purely so search can substring-match one string per word instead of
+flattening a nested array on every keystroke. `rank` (lower = more
+common, from JMdict's own `news`/`ichi`/`spec`/`gai`/`nf##` priority tags,
+checked per spelling) is present when JMdict tags that spelling as common
+at all — most aren't, and sort last when a kanji branch is capped by
+"words per branch"; the dictionary panel shows a "Common word" badge
+whenever it's present.
 A kana-only entry (no kanji spelling) still gets a dictionary entry — it's
 just never reachable by clicking through the graph, since it has no kanji
 to be a component of. Both files were
