@@ -9,6 +9,56 @@ import {
 } from "d3-force";
 import { nodeRadius } from "./layout";
 
+// Where a kanji sits in a word changes what role it's playing (leading a
+// compound vs. modifying one), so words that share a kanji still read as
+// meaningfully different groups depending on its position -- e.g. for 本:
+// 本社/本当/本部 (本 leads) vs. 資本/基本/一本 (本 trails). A single-character
+// word equal to the kanji itself (idx 0 *and* length-1) resolves to "start".
+function kanjiPositionCategory(word, kanjiChar) {
+  const idx = word.indexOf(kanjiChar);
+  if (idx <= 0) return "start";
+  if (idx === word.length - 1) return "end";
+  return "middle";
+}
+
+const POSITION_ORDER = ["start", "middle", "end"];
+
+// Assigns each new sibling an angle around its parent. When the parent is a
+// kanji, siblings are first grouped by kanjiPositionCategory and each group
+// gets a contiguous angular sector sized proportionally to its member
+// count (so e.g. an all-"start" batch just fills the whole circle exactly
+// like before, and a mixed batch visually clusters by role instead of
+// interleaving them by rank). A non-kanji parent (a word revealing its own
+// component kanji) just spaces its siblings evenly -- there's no
+// analogous "position" grouping for that direction.
+function computeSiblingAngles(siblingIds, parentData, graphNodes) {
+  const angleById = new Map();
+  const total = siblingIds.length;
+  if (total === 0) return angleById;
+
+  if (parentData?.type === "kanji") {
+    const buckets = { start: [], middle: [], end: [] };
+    for (const id of siblingIds) {
+      const word = graphNodes.get(id)?.word ?? "";
+      buckets[kanjiPositionCategory(word, parentData.char)].push(id);
+    }
+    let cursor = 0;
+    for (const cat of POSITION_ORDER) {
+      const group = buckets[cat];
+      if (group.length === 0) continue;
+      const sectorSize = (2 * Math.PI * group.length) / total;
+      group.forEach((id, i) => {
+        angleById.set(id, cursor + (sectorSize * (i + 0.5)) / group.length);
+      });
+      cursor += sectorSize;
+    }
+    return angleById;
+  }
+
+  siblingIds.forEach((id, i) => angleById.set(id, (2 * Math.PI * i) / total));
+  return angleById;
+}
+
 /**
  * Runs a persistent d3-force simulation whose node objects live in a Map
  * (keyed by id) so positions survive when the logical graph grows. Returns
@@ -82,10 +132,17 @@ export function useForceSimulation(graph, width, height) {
       }
     }
 
+    // Precompute each parent's sibling angles once (not per-node) since
+    // computeSiblingAngles needs the whole group to size sectors.
+    const anglesByParent = new Map(); // parentId -> Map(siblingId -> angle)
+    for (const [parentId, siblingIds] of newSiblingsByParent) {
+      anglesByParent.set(parentId, computeSiblingAngles(siblingIds, graph.nodes.get(parentId), graph.nodes));
+    }
+
     // Second pass: place each new node. Siblings revealed together fan out
-    // evenly around their parent (a "radial" arrangement, most-common word
-    // first) instead of a random jitter that the force simulation then has
-    // to violently untangle -- see the reduced restart alpha below, which
+    // around their parent (grouped by role, see computeSiblingAngles)
+    // instead of a random jitter that the force simulation then has to
+    // violently untangle -- see the reduced restart alpha below, which
     // this calmer starting layout is what makes possible.
     const SPAWN_RADIUS = 100;
     for (const [id, data] of graph.nodes) {
@@ -100,8 +157,7 @@ export function useForceSimulation(graph, width, height) {
       let spawnX = width / 2 + (Math.random() - 0.5) * 60;
       let spawnY = height / 2 + (Math.random() - 0.5) * 60;
       if (parent) {
-        const siblings = newSiblingsByParent.get(parentId);
-        const angle = (2 * Math.PI * siblings.indexOf(id)) / siblings.length;
+        const angle = anglesByParent.get(parentId).get(id);
         spawnX = parent.x + SPAWN_RADIUS * Math.cos(angle);
         spawnY = parent.y + SPAWN_RADIUS * Math.sin(angle);
       }
