@@ -9,7 +9,9 @@ import SavedWordsPanel from "./components/SavedWordsPanel";
 import GroupsPanel from "./components/GroupsPanel";
 import ReviewMode from "./components/ReviewMode";
 import { useWordData } from "./data/useWordData";
+import { useQuickEntry } from "./data/useQuickEntry";
 import { useRecentRoots } from "./data/useRecentRoots";
+import { isSupabaseConfigured } from "./lib/supabaseClient";
 import { useAuth } from "./auth/useAuth";
 import { useProgress } from "./progress/useProgress";
 import { useSavedWords } from "./progress/useSavedWords";
@@ -24,6 +26,7 @@ import {
   kanjiJlptBucket,
   wordJlptBucket,
 } from "./graph/buildGraph";
+import { extractKanjiComponents } from "./graph/kanji";
 import "./App.css";
 
 const DEFAULT_ROOT = "日本語";
@@ -107,7 +110,32 @@ export default function App() {
     setGraph(createInitialGraph(dataset, rootWord, { isJlptAllowed }));
   }
 
-  const selectedNode = graph?.nodes.get(selectedId) ?? null;
+  // While the full dataset is still loading (the slow path: Supabase's
+  // ~230-request paginated fetch, see useWordData.js), a single fast query
+  // for just the current root word lets the Dictionary panel show a real
+  // definition well before the Explore graph is able to render at all --
+  // decoupling the two instead of making the definition wait on the graph.
+  const quick = useQuickEntry(dataset.loading ? rootWord : null);
+  const quickGraph = useMemo(() => {
+    if (!isSupabaseConfigured || graph || quick.loading) return null;
+    const miniDataset = { WORDS_BY_TEXT: quick.entry ? { [rootWord]: quick.entry } : {}, KANJI: quick.kanjiByChar };
+    return createInitialGraph(miniDataset, rootWord);
+  }, [graph, quick, rootWord]);
+
+  const selectedNode = graph?.nodes.get(selectedId) ?? quickGraph?.nodes.get(selectedId) ?? null;
+  const isQuickLoading = !graph && isSupabaseConfigured && dataset.loading && quick.loading;
+
+  // The word's own component kanji, shown beside its definitions (see
+  // DictionaryPanel) -- read from the quick lookup's tiny kanji set while
+  // the full dataset is still loading, same source the entry itself came
+  // from, so the two are never out of sync with each other.
+  const componentKanji = useMemo(() => {
+    if (!selectedNode || selectedNode.type !== "word") return [];
+    const kanjiSource = graph ? dataset.KANJI : quick.kanjiByChar;
+    return extractKanjiComponents(selectedNode.word)
+      .map((char) => kanjiSource[char])
+      .filter(Boolean);
+  }, [selectedNode, graph, dataset, quick]);
   const selectedItemId = selectedNode && (selectedNode.type === "kanji" ? selectedNode.char : selectedNode.word);
   const selectedJlptLevel = selectedNode
     ? selectedNode.type === "kanji"
@@ -290,7 +318,7 @@ export default function App() {
     <div className="app">
       <header className="app__header">
         <div className="app__title">
-          <h1>言葉の木 &mdash; Word Tree</h1>
+          <h1>元 &mdash; Moto</h1>
         </div>
         <SearchBar words={dataset.WORDS} onSelectWord={handleSelectWord} recents={recents} wordsByText={dataset.WORDS_BY_TEXT} />
         <div className="app__controls">
@@ -337,6 +365,7 @@ export default function App() {
           left={
             <DictionaryPanel
               node={selectedNode}
+              loading={isQuickLoading}
               status={selectedNode && getStatus(selectedNode.type, selectedItemId)}
               onSetStatus={handleSetStatus}
               canSave={Boolean(user)}
@@ -349,7 +378,8 @@ export default function App() {
               jlptLevel={selectedJlptLevel}
               wordStats={wordStats}
               streak={streak}
-              onExpand={() => selectedNode && handleNodeExpand(selectedId)}
+              onExpand={graph && selectedNode ? () => handleNodeExpand(selectedId) : undefined}
+              componentKanji={componentKanji}
             />
           }
           right={

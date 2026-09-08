@@ -1,4 +1,4 @@
-# Word Tree (言葉の木)
+# 元 (Moto)
 
 An interactive, exploratory dictionary: start from **any** Japanese word,
 and expand outward through the components it's built from (in Japanese,

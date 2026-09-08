@@ -1,6 +1,19 @@
 import WordTreeGraph from "./WordTreeGraph";
 import FiltersPanel from "./FiltersPanel";
 
+// True once at least one kanji has been expanded (its links to sibling
+// words are the only ones color-coded by position -- see
+// WordTreeGraph/positionCategory.js) -- gates the second legend row so it
+// doesn't show before there's anything on screen for it to explain.
+function hasPositionGroups(graph) {
+  if (!graph) return false;
+  for (const l of graph.links) {
+    const sourceId = typeof l.source === "object" ? l.source.id : l.source;
+    if (graph.nodes.get(sourceId)?.type === "kanji") return true;
+  }
+  return false;
+}
+
 function LoadingIndicator({ progress }) {
   const pct =
     progress && progress.total ? Math.min(100, Math.round((progress.loaded / progress.total) * 100)) : null;
@@ -117,6 +130,20 @@ export default function GraphPanel({
           <span className="legend__row">
             <span className="legend__swatch legend__swatch--kanji" /> kanji
           </span>
+          {hasPositionGroups(graph) && (
+            <>
+              <span className="legend__divider" />
+              <span className="legend__row">
+                <span className="legend__swatch legend__swatch--line legend__swatch--pos-start" /> kanji at start
+              </span>
+              <span className="legend__row">
+                <span className="legend__swatch legend__swatch--line legend__swatch--pos-middle" /> at middle
+              </span>
+              <span className="legend__row">
+                <span className="legend__swatch legend__swatch--line legend__swatch--pos-end" /> at end
+              </span>
+            </>
+          )}
         </div>
         <p className="graph-panel__stats">
           {stats.words} words &middot; {stats.kanji} kanji shown

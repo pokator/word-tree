@@ -7,7 +7,7 @@
 // TSV fallback in exportFile.js exists specifically for when this fails.
 
 const ANKI_CONNECT_URL = "http://127.0.0.1:8765";
-const DECK_NAME = "Word Tree";
+const DECK_NAME = "元";
 
 async function invoke(action, params = {}) {
   const res = await fetch(ANKI_CONNECT_URL, {
@@ -30,7 +30,7 @@ export async function probeConnection() {
 }
 
 /**
- * Pushes one Anki note per word into the "Word Tree" deck using the
+ * Pushes one Anki note per word into the "元" deck using the
  * built-in Basic note type, so there's no createModel schema to manage.
  * Skips exact duplicates already in the deck.
  */

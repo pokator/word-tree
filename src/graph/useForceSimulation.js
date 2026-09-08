@@ -8,20 +8,7 @@ import {
   forceY,
 } from "d3-force";
 import { nodeRadius } from "./layout";
-
-// Where a kanji sits in a word changes what role it's playing (leading a
-// compound vs. modifying one), so words that share a kanji still read as
-// meaningfully different groups depending on its position -- e.g. for 本:
-// 本社/本当/本部 (本 leads) vs. 資本/基本/一本 (本 trails). A single-character
-// word equal to the kanji itself (idx 0 *and* length-1) resolves to "start".
-function kanjiPositionCategory(word, kanjiChar) {
-  const idx = word.indexOf(kanjiChar);
-  if (idx <= 0) return "start";
-  if (idx === word.length - 1) return "end";
-  return "middle";
-}
-
-const POSITION_ORDER = ["start", "middle", "end"];
+import { kanjiPositionCategory, POSITION_ORDER } from "./positionCategory";
 
 // Assigns each new sibling an angle around its parent. When the parent is a
 // kanji, siblings are first grouped by kanjiPositionCategory and each group

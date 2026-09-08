@@ -4,6 +4,7 @@ import { zoom as d3zoom, zoomIdentity } from "d3-zoom";
 import { useForceSimulation } from "../graph/useForceSimulation";
 import { nodeRadius, nodeFill, nodeOpacity } from "../graph/layout";
 import { readNodeColors } from "../graph/theme";
+import { kanjiPositionCategory } from "../graph/positionCategory";
 
 const DRAG_CLICK_THRESHOLD_PX = 5;
 const DOUBLE_CLICK_MS = 350;
@@ -11,6 +12,13 @@ const noStatus = () => undefined;
 const noGroup = () => false;
 const noDim = () => false;
 const DIMMED_OPACITY = 0.12;
+const ZOOM_STEP = 1.3;
+// How much of the dragged node's motion its direct neighbors inherit while
+// dragging -- 1 would drag the whole cluster as one rigid body (no relative
+// motion at all, which reads as glued together rather than linked); this
+// keeps them visibly following without losing the spring-like give of the
+// link force that's about to take back over once the drag ends.
+const NEIGHBOR_FOLLOW = 0.55;
 
 export default function WordTreeGraph({
   graph,
@@ -26,10 +34,11 @@ export default function WordTreeGraph({
   const svgRef = useRef(null);
   const gRef = useRef(null);
   const zoomTransformRef = useRef(zoomIdentity);
+  const zoomBehaviorRef = useRef(null);
   const lastClickRef = useRef({ id: null, time: 0 });
   const [size, setSize] = useState({ width: 800, height: 600 });
 
-  const { simNodesMapRef } = useForceSimulation(graph, size.width, size.height);
+  const { simNodesMapRef, simulationRef } = useForceSimulation(graph, size.width, size.height);
 
   // Track container size responsively.
   useEffect(() => {
@@ -55,9 +64,25 @@ export default function WordTreeGraph({
         zoomTransformRef.current = event.transform;
         select(gEl).attr("transform", event.transform.toString());
       });
+    zoomBehaviorRef.current = behavior;
     select(svgEl).call(behavior);
     return () => select(svgEl).on(".zoom", null);
   }, []);
+
+  // Scroll-to-zoom and drag-to-pan (wired above) work but aren't
+  // discoverable on their own -- these give trackpad/mouse users an
+  // explicit, visible way to do the same thing.
+  function stepZoom(factor) {
+    const svgEl = svgRef.current;
+    if (!svgEl || !zoomBehaviorRef.current) return;
+    select(svgEl).transition().duration(200).call(zoomBehaviorRef.current.scaleBy, factor);
+  }
+
+  function resetZoom() {
+    const svgEl = svgRef.current;
+    if (!svgEl || !zoomBehaviorRef.current) return;
+    select(svgEl).transition().duration(200).call(zoomBehaviorRef.current.transform, zoomIdentity);
+  }
 
   function handleNodePointerDown(e, node) {
     e.stopPropagation();
@@ -65,8 +90,39 @@ export default function WordTreeGraph({
     const svgRect = svgRef.current.getBoundingClientRect();
     const startClient = { x: e.clientX, y: e.clientY };
     let moved = false;
-    node.fx = node.x;
-    node.fy = node.y;
+    const startX = node.x;
+    const startY = node.y;
+    node.fx = startX;
+    node.fy = startY;
+
+    // Drag pulls the node's direct neighbors along with it too, damped by
+    // NEIGHBOR_FOLLOW -- otherwise a dragged node visibly tears away from
+    // everything it's linked to before the (much weaker) link force
+    // catches up. They're pinned only for the duration of the drag and
+    // released at the same moment the dragged node is, so the simulation's
+    // own link/charge/collision forces immediately take back over rather
+    // than leaving the cluster stuck wherever the drag left it.
+    const neighborIds = new Set();
+    for (const l of graph.links) {
+      const s = typeof l.source === "object" ? l.source.id : l.source;
+      const t = typeof l.target === "object" ? l.target.id : l.target;
+      if (s === node.id) neighborIds.add(t);
+      else if (t === node.id) neighborIds.add(s);
+    }
+    const neighbors = Array.from(neighborIds)
+      .map((id) => simNodesMapRef.current.get(id))
+      .filter(Boolean)
+      .map((n) => ({ n, startX: n.x, startY: n.y }));
+
+    // A drag on a long-settled graph (alpha decayed to ~0) needs the
+    // simulation nudged awake, or nothing re-renders while dragging -- the
+    // tick handler is what schedules those re-renders (see
+    // useForceSimulation), and it stops firing once alpha bottoms out.
+    function wake() {
+      const sim = simulationRef.current;
+      if (sim) sim.alpha(Math.max(sim.alpha(), 0.3)).restart();
+    }
+    wake();
 
     function toLocal(clientX, clientY) {
       const t = zoomTransformRef.current;
@@ -82,6 +138,13 @@ export default function WordTreeGraph({
       const [lx, ly] = toLocal(ev.clientX, ev.clientY);
       node.fx = lx;
       node.fy = ly;
+      const dxTotal = lx - startX;
+      const dyTotal = ly - startY;
+      for (const { n, startX: nx, startY: ny } of neighbors) {
+        n.fx = nx + dxTotal * NEIGHBOR_FOLLOW;
+        n.fy = ny + dyTotal * NEIGHBOR_FOLLOW;
+      }
+      wake();
     }
 
     function onUp() {
@@ -89,7 +152,14 @@ export default function WordTreeGraph({
       window.removeEventListener("pointerup", onUp);
       node.fx = null;
       node.fy = null;
-      if (moved) return;
+      for (const { n } of neighbors) {
+        n.fx = null;
+        n.fy = null;
+      }
+      if (moved) {
+        wake();
+        return;
+      }
 
       // A click always just selects (shows its definition) -- it never
       // expands on its own, so you can browse without the graph growing
@@ -121,6 +191,17 @@ export default function WordTreeGraph({
 
   return (
     <div ref={containerRef} className="graph-container">
+      <div className="graph-zoom-controls">
+        <button type="button" onClick={() => stepZoom(ZOOM_STEP)} title="Zoom in" aria-label="Zoom in">
+          +
+        </button>
+        <button type="button" onClick={() => stepZoom(1 / ZOOM_STEP)} title="Zoom out" aria-label="Zoom out">
+          &minus;
+        </button>
+        <button type="button" onClick={resetZoom} title="Reset zoom" aria-label="Reset zoom">
+          &#8634;
+        </button>
+      </div>
       <svg ref={svgRef} width={size.width} height={size.height}>
         <g ref={gRef}>
           <g className="links">
@@ -128,6 +209,10 @@ export default function WordTreeGraph({
               const s = nodesById.get(typeof l.source === "object" ? l.source.id : l.source);
               const t = nodesById.get(typeof l.target === "object" ? l.target.id : l.target);
               if (!s || !t) return null;
+              // Only a kanji revealing its sibling words (not the reverse --
+              // a word revealing its own component kanji) has a meaningful
+              // "position" -- see positionCategory.js and useForceSimulation.
+              const posCategory = s.type === "kanji" && t.type === "word" ? kanjiPositionCategory(t.word, s.char) : null;
               return (
                 <line
                   key={`${s.id}->${t.id}`}
@@ -135,7 +220,7 @@ export default function WordTreeGraph({
                   y1={s.y}
                   x2={t.x}
                   y2={t.y}
-                  className="graph-link"
+                  className={`graph-link${posCategory ? ` graph-link--pos-${posCategory}` : ""}`}
                 />
               );
             })}

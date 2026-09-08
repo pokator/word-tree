@@ -37,7 +37,7 @@ export default function SavedWordsPanel({ dataset, saved, onClose }) {
         saved.markExported(items.map((i) => i.word));
         setMessage({ kind: "info", text: `Sent ${items.length} card(s) to Anki.` });
       } else {
-        downloadTextFile("word-tree-export.tsv", buildAnkiTsv(items));
+        downloadTextFile("moto-export.tsv", buildAnkiTsv(items));
         setMessage({ kind: "info", text: "Downloaded a .tsv file -- import it in Anki via File → Import." });
       }
     } catch (err) {

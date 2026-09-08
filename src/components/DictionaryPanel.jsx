@@ -102,6 +102,32 @@ function ExpandButton({ node, onExpand }) {
   );
 }
 
+/** The word's own component kanji, shown beside its definitions so you don't
+ * have to leave the entry (or expand the graph) to see what each character
+ * means -- one small card per kanji, in the word's reading order. */
+function ComponentKanjiList({ kanjiList }) {
+  if (!kanjiList.length) return null;
+  return (
+    <div className="dictionary-panel__entry-kanji">
+      <span className="dictionary-panel__section-label">Kanji</span>
+      <div className="dictionary-panel__kanji-list">
+        {kanjiList.map((k) => (
+          <div key={k.char} className="dictionary-panel__kanji-card">
+            <div className="dictionary-panel__kanji-card-char">{k.char}</div>
+            {k.meaning && <div className="dictionary-panel__kanji-card-meaning">{k.meaning}</div>}
+            {(k.onyomi?.length > 0 || k.kunyomi?.length > 0) && (
+              <div className="dictionary-panel__kanji-card-readings">
+                {k.onyomi?.length > 0 && <div>{k.onyomi.join("、")}</div>}
+                {k.kunyomi?.length > 0 && <div>{k.kunyomi.join("、")}</div>}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function CommonBadge({ isCommon }) {
   if (!isCommon) return null;
   return (
@@ -175,6 +201,7 @@ function Senses({ senses, meanings }) {
  */
 export default function DictionaryPanel({
   node,
+  loading,
   status,
   onSetStatus,
   canSave,
@@ -188,8 +215,17 @@ export default function DictionaryPanel({
   wordStats,
   streak,
   onExpand,
+  componentKanji = [],
 }) {
   if (!node) {
+    if (loading) {
+      return (
+        <div className="dictionary-panel dictionary-panel--empty">
+          <p className="dictionary-panel__empty-title">Loading definition&hellip;</p>
+          <p className="dictionary-panel__empty-hint">The full explorable graph will follow shortly.</p>
+        </div>
+      );
+    }
     return (
       <div className="dictionary-panel dictionary-panel--empty">
         <p className="dictionary-panel__empty-title">Search a word to get started</p>
@@ -209,35 +245,39 @@ export default function DictionaryPanel({
   return (
     <div className="dictionary-panel" key={node.id}>
       <div className="dictionary-panel__entry">
-        <div className="dictionary-panel__headword-row">
-          <h2 className="dictionary-panel__headword">{headword}</h2>
-          <CommonBadge isCommon={isCommon} />
-          <JlptBadge level={jlptLevel} />
-        </div>
-        {!isKanji && node.reading && <div className="dictionary-panel__reading">{node.reading}</div>}
-
-        {isMissing ? (
-          <p className="dictionary-panel__missing">Not in the dictionary &mdash; exploring by its kanji only.</p>
-        ) : (
-          <Senses senses={node.senses} meanings={splitMeanings(node.meaning)} />
-        )}
-
-        {hasReadings && (
-          <div className="dictionary-panel__readings">
-            {node.onyomi.length > 0 && (
-              <div className="dictionary-panel__reading-row">
-                <span className="dictionary-panel__label">On&rsquo;yomi</span>
-                <span>{node.onyomi.join("、")}</span>
-              </div>
-            )}
-            {node.kunyomi.length > 0 && (
-              <div className="dictionary-panel__reading-row">
-                <span className="dictionary-panel__label">Kun&rsquo;yomi</span>
-                <span>{node.kunyomi.join("、")}</span>
-              </div>
-            )}
+        <div className="dictionary-panel__entry-main">
+          <div className="dictionary-panel__headword-row">
+            <h2 className="dictionary-panel__headword">{headword}</h2>
+            <CommonBadge isCommon={isCommon} />
+            <JlptBadge level={jlptLevel} />
           </div>
-        )}
+          {!isKanji && node.reading && <div className="dictionary-panel__reading">{node.reading}</div>}
+
+          {isMissing ? (
+            <p className="dictionary-panel__missing">Not in the dictionary &mdash; exploring by its kanji only.</p>
+          ) : (
+            <Senses senses={node.senses} meanings={splitMeanings(node.meaning)} />
+          )}
+
+          {hasReadings && (
+            <div className="dictionary-panel__readings">
+              {node.onyomi.length > 0 && (
+                <div className="dictionary-panel__reading-row">
+                  <span className="dictionary-panel__label">On&rsquo;yomi</span>
+                  <span>{node.onyomi.join("、")}</span>
+                </div>
+              )}
+              {node.kunyomi.length > 0 && (
+                <div className="dictionary-panel__reading-row">
+                  <span className="dictionary-panel__label">Kun&rsquo;yomi</span>
+                  <span>{node.kunyomi.join("、")}</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {!isKanji && <ComponentKanjiList kanjiList={componentKanji} />}
       </div>
 
       <ExpandButton node={node} onExpand={onExpand} />

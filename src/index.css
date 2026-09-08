@@ -20,6 +20,14 @@
   --node-kanji: #3f4b63;
   --node-word: #4b6355;
 
+  /* Kanji-position colors -- which arc of a kanji's revealed words a given
+     word belongs to (start/middle/end of the word, see graph/positionCategory.js).
+     Deliberately distinct from the node/accent hues above so the two color
+     systems never read as the same signal. */
+  --pos-start: #b5651d;
+  --pos-middle: #6a4c93;
+  --pos-end: #1f7a8c;
+
   --sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
   --heading: 'Shippori Mincho', serif;
   --heading-weight: 500;
@@ -58,6 +66,10 @@
     --node-kanji: #00b8d9;
     --node-word: #ffb000;
 
+    --pos-start: #ff9f43;
+    --pos-middle: #c77dff;
+    --pos-end: #34d399;
+
     --heading: 'Inter', system-ui, sans-serif;
     --heading-weight: 800;
   }
@@ -77,6 +89,10 @@
   --node-root: #ff3d71;
   --node-kanji: #00b8d9;
   --node-word: #ffb000;
+
+  --pos-start: #ff9f43;
+  --pos-middle: #c77dff;
+  --pos-end: #34d399;
 
   --heading: 'Inter', system-ui, sans-serif;
   --heading-weight: 800;
