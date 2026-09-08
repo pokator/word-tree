@@ -22,8 +22,8 @@ function tinyFallbackDataset() {
   };
 }
 
-async function fetchJson(url) {
-  const res = await fetch(url);
+async function fetchJson(url, signal) {
+  const res = await fetch(url, { signal });
   if (!res.ok) throw new Error(`Failed to fetch ${url}: ${res.status}`);
   return res.json();
 }
@@ -37,11 +37,29 @@ async function fetchJson(url) {
 // this table needs -- in bounded-concurrency batches rather than one giant
 // Promise.all, so a 228k-row table doesn't fire ~230 simultaneous requests
 // at Supabase's connection pooler.
+//
+// `.range()` pagination is only guaranteed gap-free and non-overlapping
+// when the query has a deterministic `.order()` -- without one, Postgres
+// is free to return rows in a different physical order across separate
+// requests (query plan choice, concurrent autovacuum, etc.), which can
+// silently duplicate some rows across two pages while dropping others.
+// That's an intermittent bug, not a hypothetical one: it showed up here as
+// a duplicate word surfacing a "two children with the same key" React
+// warning -- made easy to trigger by React StrictMode's dev-mode double
+// effect invocation (see useWordData below) doubling concurrent load
+// against the same tables. `orderColumn` should always be the table's
+// primary key so the order is also unique (an order on a non-unique
+// column can still tie and drift between requests). The post-fetch dedup
+// below is a second, independent line of defense against the same
+// failure mode.
 const SUPABASE_PAGE_SIZE = 1000;
 const PAGE_FETCH_CONCURRENCY = 8;
 
-async function fetchAllRows(table) {
-  const { count, error: countError } = await supabase.from(table).select("*", { count: "exact", head: true });
+async function fetchAllRows(table, orderColumn, signal) {
+  const { count, error: countError } = await supabase
+    .from(table)
+    .select("*", { count: "exact", head: true })
+    .abortSignal(signal);
   if (countError) return { data: null, error: countError };
 
   const totalPages = Math.max(1, Math.ceil((count ?? 0) / SUPABASE_PAGE_SIZE));
@@ -50,7 +68,9 @@ async function fetchAllRows(table) {
     const batchPages = [];
     for (let page = batchStart; page < Math.min(batchStart + PAGE_FETCH_CONCURRENCY, totalPages); page++) {
       const from = page * SUPABASE_PAGE_SIZE;
-      batchPages.push(supabase.from(table).select("*").range(from, from + SUPABASE_PAGE_SIZE - 1));
+      batchPages.push(
+        supabase.from(table).select("*").order(orderColumn).range(from, from + SUPABASE_PAGE_SIZE - 1).abortSignal(signal)
+      );
     }
     const batchResults = await Promise.all(batchPages);
     for (const { data, error } of batchResults) {
@@ -58,11 +78,20 @@ async function fetchAllRows(table) {
       rows.push(...data);
     }
   }
-  return { data: rows, error: null };
+
+  const seen = new Set();
+  const deduped = [];
+  for (const row of rows) {
+    const key = row[orderColumn];
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(row);
+  }
+  return { data: deduped, error: null };
 }
 
-async function loadLocalDataset() {
-  const [KANJI, WORDS] = await Promise.all([fetchJson(LOCAL_KANJI_URL), fetchJson(LOCAL_WORDS_URL)]);
+async function loadLocalDataset(signal) {
+  const [KANJI, WORDS] = await Promise.all([fetchJson(LOCAL_KANJI_URL, signal), fetchJson(LOCAL_WORDS_URL, signal)]);
   const { WORDS_BY_TEXT, WORDS_CONTAINING_KANJI } = buildIndexes(WORDS);
   return { KANJI, WORDS, WORDS_BY_TEXT, WORDS_CONTAINING_KANJI, source: "local", loading: false };
 }
@@ -87,10 +116,20 @@ export function useWordData() {
 
   useEffect(() => {
     let cancelled = false;
+    // React StrictMode deliberately double-invokes effects in development
+    // (mount -> cleanup -> mount again) to surface exactly this kind of
+    // bug. Without aborting it, the discarded first invocation's ~230
+    // paginated Supabase requests keep running in the background purely
+    // wasted, doubling load against the same tables the real invocation is
+    // also paginating -- see the note on fetchAllRows above.
+    const controller = new AbortController();
 
     async function load() {
       if (isSupabaseConfigured) {
-        const [kanjiRes, wordsRes] = await Promise.all([fetchAllRows("kanji"), fetchAllRows("words")]);
+        const [kanjiRes, wordsRes] = await Promise.all([
+          fetchAllRows("kanji", "char", controller.signal),
+          fetchAllRows("words", "word", controller.signal),
+        ]);
         if (cancelled) return;
         if (!kanjiRes.error && !wordsRes.error && kanjiRes.data?.length && wordsRes.data?.length) {
           const KANJI = Object.fromEntries(kanjiRes.data.map((k) => [k.char, k]));
@@ -103,7 +142,7 @@ export function useWordData() {
       }
 
       try {
-        const local = await loadLocalDataset();
+        const local = await loadLocalDataset(controller.signal);
         if (!cancelled) setDataset(local);
       } catch {
         if (!cancelled) setDataset(tinyFallbackDataset());
@@ -116,6 +155,7 @@ export function useWordData() {
 
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, []);
 
