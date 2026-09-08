@@ -14,6 +14,31 @@ export function nodeFill(node, { root, colors }) {
   return node.type === "kanji" ? colors.kanji : colors.word;
 }
 
+// First segment of a "a / b / c" or "a; b; c" style flat gloss string --
+// used as the short definition shown at high zoom (see nodeDetailText).
+function firstGloss(str) {
+  if (!str) return "";
+  const sep = [";", "/", ","].find((s) => str.includes(s));
+  return (sep ? str.split(sep)[0] : str).trim();
+}
+
+// Reading + short definition shown alongside the label once the user has
+// zoomed in far enough to want it (see WordTreeGraph's detail tier) -- the
+// same reading/meaning data already shown in the dictionary panel, just
+// abbreviated to a single line each so it fits next to a small graph node.
+export function nodeDetailText(node) {
+  if (node.type === "kanji") {
+    return {
+      reading: node.kunyomi?.[0] || node.onyomi?.[0] || "",
+      gloss: firstGloss(node.meaning),
+    };
+  }
+  return {
+    reading: node.reading || "",
+    gloss: node.senses?.[0]?.gloss?.[0] || firstGloss(node.meaning),
+  };
+}
+
 const MASTERY_OPACITY = { new: 0.45, learning: 0.75, known: 1 };
 
 // `status` is undefined until mastery tracking is wired up to a node

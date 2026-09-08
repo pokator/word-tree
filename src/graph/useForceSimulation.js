@@ -26,18 +26,44 @@ export function baseLinkDistance(siblingCount) {
   return BASE_LINK_DISTANCE + Math.max(0, siblingCount - DENSE_THRESHOLD) * DISTANCE_PER_EXTRA_SIBLING;
 }
 
-// Assigns each new sibling an angle around its parent. When the parent is a
-// kanji, siblings are first grouped by kanjiPositionCategory and each group
-// gets a contiguous angular sector sized proportionally to its member
-// count (so e.g. an all-"start" batch just fills the whole circle exactly
-// like before, and a mixed batch visually clusters by role instead of
-// interleaving them by rank). A non-kanji parent (a word revealing its own
-// component kanji) just spaces its siblings evenly -- there's no
-// analogous "position" grouping for that direction.
-function computeSiblingAngles(siblingIds, parentData, graphNodes) {
+// Full 360° fan-out is what causes "expansions collide with the existing
+// graph": a hub anywhere but dead center will happily aim new children back
+// toward the branch it grew out of. Past a handful of siblings the sector
+// widens (still short of a full circle) so a dense hub isn't crammed into a
+// too-narrow wedge -- baseLinkDistance already grows the ring radius for the
+// same reason, this is the angular half of that.
+const FULL_CIRCLE = Math.PI * 2;
+const MIN_OUTWARD_SECTOR = (140 * Math.PI) / 180;
+const MAX_OUTWARD_SECTOR = (300 * Math.PI) / 180;
+const OUTWARD_SECTOR_GROWTH_PER_SIBLING = (6 * Math.PI) / 180;
+
+export function outwardSectorWidth(siblingCount) {
+  return Math.min(
+    MAX_OUTWARD_SECTOR,
+    MIN_OUTWARD_SECTOR + Math.max(0, siblingCount - DENSE_THRESHOLD) * OUTWARD_SECTOR_GROWTH_PER_SIBLING
+  );
+}
+
+// Assigns each new sibling an angle around its parent. `baseAngle` (radians,
+// or null) is the "outward" direction -- away from wherever the parent
+// itself came from -- and `sectorWidth` how much of the circle around that
+// direction siblings may use; null baseAngle means no established direction
+// yet (the root's own first ring) so the full circle is fair game, same as
+// before. When the parent is a kanji, siblings are first grouped by
+// kanjiPositionCategory and each group gets a contiguous sub-sector sized
+// proportionally to its member count (so e.g. an all-"start" batch just
+// fills the whole sector exactly like before, and a mixed batch visually
+// clusters by role instead of interleaving them by rank). A non-kanji parent
+// (a word revealing its own component kanji) just spaces its siblings evenly
+// across the sector -- there's no analogous "position" grouping for that
+// direction.
+function computeSiblingAngles(siblingIds, parentData, graphNodes, { baseAngle = null, sectorWidth = FULL_CIRCLE } = {}) {
   const angleById = new Map();
   const total = siblingIds.length;
   if (total === 0) return angleById;
+
+  const span = baseAngle === null ? FULL_CIRCLE : sectorWidth;
+  const start = (baseAngle ?? 0) - span / 2;
 
   if (parentData?.type === "kanji") {
     const buckets = { start: [], middle: [], end: [] };
@@ -45,11 +71,11 @@ function computeSiblingAngles(siblingIds, parentData, graphNodes) {
       const word = graphNodes.get(id)?.word ?? "";
       buckets[kanjiPositionCategory(word, parentData.char)].push(id);
     }
-    let cursor = 0;
+    let cursor = start;
     for (const cat of POSITION_ORDER) {
       const group = buckets[cat];
       if (group.length === 0) continue;
-      const sectorSize = (2 * Math.PI * group.length) / total;
+      const sectorSize = (span * group.length) / total;
       group.forEach((id, i) => {
         angleById.set(id, cursor + (sectorSize * (i + 0.5)) / group.length);
       });
@@ -58,7 +84,10 @@ function computeSiblingAngles(siblingIds, parentData, graphNodes) {
     return angleById;
   }
 
-  siblingIds.forEach((id, i) => angleById.set(id, (2 * Math.PI * i) / total));
+  siblingIds.forEach((id, i) => {
+    const t = total === 1 ? 0.5 : (i + 0.5) / total;
+    angleById.set(id, start + span * t);
+  });
   return angleById;
 }
 
@@ -84,6 +113,14 @@ export function useForceSimulation(graph, width, height) {
   // reconciliation effect below) -- a one-time nudge per word, not a
   // standing constraint, so it doesn't keep fighting a user's own drag.
   const bridgedWordsRef = useRef(new Set());
+  // nodeId -> id of the node that first revealed it (its true hierarchical
+  // parent, as opposed to just any already-placed link neighbor -- once a
+  // hub has children of its own placed, findParentId below would happily
+  // return one of THOSE instead if re-run against it, since both are valid
+  // links). Recorded once, at placement time, and never touched again, so
+  // it stays a stable "which way is outward" reference for that node's own
+  // future children regardless of what else attaches to it later.
+  const originParentRef = useRef(new Map());
   const [, forceRerender] = useReducer((x) => x + 1, 0);
 
   // Create the simulation once.
@@ -134,6 +171,9 @@ export function useForceSimulation(graph, width, height) {
 
     for (const id of Array.from(simNodesMap.keys())) {
       if (!graph.nodes.has(id)) simNodesMap.delete(id);
+    }
+    for (const id of Array.from(originParentRef.current.keys())) {
+      if (!graph.nodes.has(id)) originParentRef.current.delete(id);
     }
 
     const idOf = (endpoint) => (typeof endpoint === "object" ? endpoint.id : endpoint);
@@ -195,10 +235,30 @@ export function useForceSimulation(graph, width, height) {
     }
 
     // Precompute each parent's sibling angles once (not per-node) since
-    // computeSiblingAngles needs the whole group to size sectors.
+    // computeSiblingAngles needs the whole group to size sectors. Each
+    // parent's own origin (recorded when IT was placed) gives the direction
+    // it grew outward from its own parent -- new siblings continue growing
+    // in that same direction rather than fanning back over it. No origin
+    // (the root, or the origin not yet placed) falls back to a full circle.
     const anglesByParent = new Map(); // parentId -> Map(siblingId -> angle)
     for (const [parentId, siblingIds] of newSiblingsByParent) {
-      anglesByParent.set(parentId, computeSiblingAngles(siblingIds, graph.nodes.get(parentId), graph.nodes));
+      const parentNode = simNodesMap.get(parentId);
+      const originId = originParentRef.current.get(parentId);
+      const originNode = originId ? simNodesMap.get(originId) : null;
+      let baseAngle = null;
+      let sectorWidth = FULL_CIRCLE;
+      if (parentNode && originNode) {
+        const dx = parentNode.x - originNode.x;
+        const dy = parentNode.y - originNode.y;
+        if (Math.hypot(dx, dy) > 1) {
+          baseAngle = Math.atan2(dy, dx);
+          sectorWidth = outwardSectorWidth(siblingIds.length);
+        }
+      }
+      anglesByParent.set(
+        parentId,
+        computeSiblingAngles(siblingIds, graph.nodes.get(parentId), graph.nodes, { baseAngle, sectorWidth })
+      );
     }
 
     // A word shared by several kanji (e.g. 日本, once both 日 and 本 have
@@ -261,6 +321,7 @@ export function useForceSimulation(graph, width, height) {
       }
 
       const parentId = parentOf.get(id);
+      if (parentId) originParentRef.current.set(id, parentId);
       const parent = parentId ? simNodesMap.get(parentId) : null;
       let spawnX = width / 2 + (Math.random() - 0.5) * 60;
       let spawnY = height / 2 + (Math.random() - 0.5) * 60;

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { select } from "d3-selection";
 import { zoom as d3zoom, zoomIdentity } from "d3-zoom";
 import { useForceSimulation } from "../graph/useForceSimulation";
-import { nodeRadius, nodeFill, nodeOpacity } from "../graph/layout";
+import { nodeRadius, nodeFill, nodeOpacity, nodeDetailText } from "../graph/layout";
 import { readNodeColors } from "../graph/theme";
 import { kanjiPositionCategory } from "../graph/positionCategory";
 import { linkDistanceKey } from "../graph/linkDistanceKey";
@@ -21,6 +21,19 @@ const ZOOM_STEP = 1.3;
 // keeps them visibly following without losing the spring-like give of the
 // link force that's about to take back over once the drag ends.
 const NEIGHBOR_FOLLOW = 0.55;
+// Zoom-based level of detail: past DETAIL_ZOOM_ENTER, nodes grow a reading +
+// short definition under the label; below DETAIL_ZOOM_EXIT, they drop back
+// to just the word/kanji. The two thresholds differ (rather than one shared
+// value) so hovering right at the boundary doesn't flicker the detail lines
+// in and out on every minor scroll -- you have to cross a small dead zone
+// to flip state, in either direction.
+const DETAIL_ZOOM_ENTER = 1.6;
+const DETAIL_ZOOM_EXIT = 1.3;
+const DETAIL_TEXT_MAX_CHARS = 20;
+
+function truncate(str, max) {
+  return str.length > max ? `${str.slice(0, max - 1).trimEnd()}…` : str;
+}
 
 export default function WordTreeGraph({
   graph,
@@ -40,6 +53,12 @@ export default function WordTreeGraph({
   const zoomBehaviorRef = useRef(null);
   const lastClickRef = useRef({ id: null, time: 0 });
   const [size, setSize] = useState({ width: 800, height: 600 });
+  // Mirrors detailTier but read synchronously inside the zoom handler (state
+  // updates are async/batched) so repeated zoom events while already past
+  // the threshold don't keep calling setDetailTier and scheduling no-op
+  // renders every tick.
+  const detailTierRef = useRef(false);
+  const [detailTier, setDetailTier] = useState(false);
 
   const { simNodesMapRef, simulationRef, linkDistanceRef } = useForceSimulation(graph, size.width, size.height);
 
@@ -74,6 +93,12 @@ export default function WordTreeGraph({
         // zooming never triggers a re-render of every node just to redraw
         // text at the right size.
         gEl.style.setProperty("--zoom-inv", String(1 / event.transform.k));
+        const k = event.transform.k;
+        const nowDetailed = detailTierRef.current ? k >= DETAIL_ZOOM_EXIT : k >= DETAIL_ZOOM_ENTER;
+        if (nowDetailed !== detailTierRef.current) {
+          detailTierRef.current = nowDetailed;
+          setDetailTier(nowDetailed);
+        }
       });
     zoomBehaviorRef.current = behavior;
     select(svgEl).call(behavior);
@@ -326,6 +351,29 @@ export default function WordTreeGraph({
                     {node.type === "word" && isInGroup(node.word) && (
                       <circle cx={r * 0.68} cy={-r * 0.68} r={4.5} className="graph-node__group-dot" />
                     )}
+                    {detailTier &&
+                      (() => {
+                        const { reading, gloss } = nodeDetailText(node);
+                        if (!reading && !gloss) return null;
+                        return (
+                          <>
+                            {reading && (
+                              <text textAnchor="middle" y={r + 12} className="graph-node__detail">
+                                {truncate(reading, DETAIL_TEXT_MAX_CHARS)}
+                              </text>
+                            )}
+                            {gloss && (
+                              <text
+                                textAnchor="middle"
+                                y={r + (reading ? 23 : 12)}
+                                className="graph-node__detail graph-node__detail--gloss"
+                              >
+                                {truncate(gloss, DETAIL_TEXT_MAX_CHARS)}
+                              </text>
+                            )}
+                          </>
+                        );
+                      })()}
                   </g>
                 </g>
               );

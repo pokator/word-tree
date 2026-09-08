@@ -1339,6 +1339,27 @@
   font-size: 17px;
 }
 
+/* Reading + short gloss shown under a node's label past DETAIL_ZOOM_ENTER
+   (see WordTreeGraph) -- unlike the main label, this does NOT counter-scale
+   against zoom, so it grows a little as you zoom in further past the
+   threshold rather than staying pinned to one size, reinforcing "zoom in
+   for more detail" instead of just popping in at a fixed size. */
+.graph-node__detail {
+  font-size: 7px;
+  font-weight: 500;
+  fill: #fff;
+  pointer-events: none;
+  paint-order: stroke;
+  stroke: rgba(0, 0, 0, 0.45);
+  stroke-width: 2px;
+  stroke-linejoin: round;
+  opacity: 0.85;
+}
+
+.graph-node__detail--gloss {
+  opacity: 0.68;
+}
+
 .graph-node__expand-ring {
   stroke: currentColor;
   color: var(--text);
