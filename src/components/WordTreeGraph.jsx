@@ -6,6 +6,7 @@ import { nodeRadius, nodeFill, nodeOpacity } from "../graph/layout";
 import { readNodeColors } from "../graph/theme";
 
 const DRAG_CLICK_THRESHOLD_PX = 5;
+const DOUBLE_CLICK_MS = 350;
 const noStatus = () => undefined;
 const noGroup = () => false;
 const noDim = () => false;
@@ -15,6 +16,7 @@ export default function WordTreeGraph({
   graph,
   selectedId,
   onNodeClick,
+  onNodeExpand,
   getStatus = noStatus,
   isInGroup = noGroup,
   isDimmed = noDim,
@@ -24,6 +26,7 @@ export default function WordTreeGraph({
   const svgRef = useRef(null);
   const gRef = useRef(null);
   const zoomTransformRef = useRef(zoomIdentity);
+  const lastClickRef = useRef({ id: null, time: 0 });
   const [size, setSize] = useState({ width: 800, height: 600 });
 
   const { simNodesMapRef } = useForceSimulation(graph, size.width, size.height);
@@ -86,7 +89,17 @@ export default function WordTreeGraph({
       window.removeEventListener("pointerup", onUp);
       node.fx = null;
       node.fy = null;
-      if (!moved) onNodeClick(node.id);
+      if (moved) return;
+
+      // A click always just selects (shows its definition) -- it never
+      // expands on its own, so you can browse without the graph growing
+      // out from under you. Expanding is a deliberate second action: a
+      // double-click here, or the "Expand" button in the dictionary panel.
+      const now = Date.now();
+      const isDoubleClick = lastClickRef.current.id === node.id && now - lastClickRef.current.time < DOUBLE_CLICK_MS;
+      lastClickRef.current = { id: node.id, time: now };
+      onNodeClick(node.id);
+      if (isDoubleClick) onNodeExpand?.(node.id);
     }
 
     window.addEventListener("pointermove", onMove);
@@ -148,6 +161,7 @@ export default function WordTreeGraph({
                   style={{ opacity }}
                 >
                   <g className="graph-node__pop">
+                    {!node.expanded && <title>Double-click to reveal more</title>}
                     <circle r={r} fill={nodeFill(node, { root: node.isRoot, colors })} />
                     {!node.expanded && (
                       <circle r={r + 5} className="graph-node__expand-ring" fill="none" />

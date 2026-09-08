@@ -231,7 +231,14 @@ export default function App() {
     focusGroupId !== null ||
     maxWords !== 8;
 
-  const handleNodeClick = useCallback(
+  // A click only selects (shows its definition) -- it never expands the
+  // graph on its own, so browsing what's already there never surprises you
+  // with new nodes. Expanding is the separate, deliberate action below.
+  const handleNodeSelect = useCallback((nodeId) => {
+    setSelectedId(nodeId);
+  }, []);
+
+  const handleNodeExpand = useCallback(
     (nodeId) => {
       setSelectedId(nodeId);
       setGraph((prev) => {
@@ -342,13 +349,15 @@ export default function App() {
               jlptLevel={selectedJlptLevel}
               wordStats={wordStats}
               streak={streak}
+              onExpand={() => selectedNode && handleNodeExpand(selectedId)}
             />
           }
           right={
             <GraphPanel
               graph={graph}
               selectedId={selectedId}
-              onNodeClick={handleNodeClick}
+              onNodeClick={handleNodeSelect}
+              onNodeExpand={handleNodeExpand}
               getStatus={getStatus}
               isInGroup={isInGroup}
               isDimmed={isNodeDimmed}
@@ -357,6 +366,7 @@ export default function App() {
               stats={stats}
               datasetSource={dataset.source}
               datasetLoading={dataset.loading}
+              datasetProgress={dataset.progress}
               isFiltersPanelOpen={isFiltersPanelOpen}
               onToggleFiltersPanel={() => setIsFiltersPanelOpen((v) => !v)}
               onCloseFiltersPanel={() => setIsFiltersPanelOpen(false)}

@@ -69,11 +69,14 @@ root as long as it contains at least one hiragana/katakana/kanji character
 it works the same way even if the word itself isn't in the dictionary
 (the entry just won't have a reading/meaning for it).
 
-In the graph: click any kanji to reveal other words containing it; click
-any word to reveal its own kanji and simultaneously update the dictionary
-panel to that word's entry. Nodes with a dashed ring haven't been (fully)
-expanded yet. Drag nodes to rearrange, scroll/pinch to zoom, drag the
-background to pan.
+In the graph: click any node to select it and load its entry into the
+dictionary panel -- a single click never changes the graph, so browsing
+around what's already there is always safe. To reveal what a node connects
+to (other words sharing a kanji, or a word's own kanji), double-click it,
+or use the "Show related words"/"Show kanji breakdown" button that
+appears in the dictionary panel for any selected, not-yet-expanded node.
+Nodes with a dashed ring haven't been (fully) expanded yet. Drag nodes to
+rearrange, scroll/pinch to zoom, drag the background to pan.
 
 **Filters** (graph panel toolbar) — three ways to control what the graph
 shows:

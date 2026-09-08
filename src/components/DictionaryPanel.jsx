@@ -92,6 +92,16 @@ function JlptBadge({ level }) {
   );
 }
 
+function ExpandButton({ node, onExpand }) {
+  if (!node || node.expanded || !onExpand) return null;
+  const label = node.type === "kanji" ? "Show words with this kanji" : "Show kanji breakdown";
+  return (
+    <button type="button" className="dictionary-panel__expand-btn" onClick={onExpand}>
+      {label} &rarr;
+    </button>
+  );
+}
+
 function CommonBadge({ isCommon }) {
   if (!isCommon) return null;
   return (
@@ -177,6 +187,7 @@ export default function DictionaryPanel({
   jlptLevel,
   wordStats,
   streak,
+  onExpand,
 }) {
   if (!node) {
     return (
@@ -228,6 +239,8 @@ export default function DictionaryPanel({
           </div>
         )}
       </div>
+
+      <ExpandButton node={node} onExpand={onExpand} />
 
       <div className="dictionary-panel__actions">
         <MasteryControl status={status} onSetStatus={onSetStatus} />

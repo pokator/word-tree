@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase, isSupabaseConfigured } from "../lib/supabaseClient";
 import { buildIndexes } from "./deriveIndexes";
 import { KANJI as TINY_KANJI, WORDS as TINY_WORDS } from "./japaneseData";
+import { readDatasetCache, writeDatasetCache } from "./wordDataCache";
 
 // Bundled JMdict-derived dataset (~228k words) + a trimmed KANJIDIC2
 // reference (~13k kanji) -- see public/data/README.md for provenance. This
@@ -28,15 +29,20 @@ async function fetchJson(url, signal) {
   return res.json();
 }
 
+async function getRowCount(table, signal) {
+  const { count, error } = await supabase.from(table).select("*", { count: "exact", head: true }).abortSignal(signal);
+  if (error) return { count: null, error };
+  return { count, error: null };
+}
+
 // PostgREST (Supabase's REST API) caps a single request at a server-side
 // row limit (1000 by default) regardless of how many rows actually match --
 // a plain `.select("*")` on a 228k-row table silently returns only the
 // first page with no error, no warning, nothing to indicate the other
-// ~227k rows were ever missing. Get the real count first (a `head: true`
-// request has no body, so it's cheap), then fetch every `.range()` page
-// this table needs -- in bounded-concurrency batches rather than one giant
-// Promise.all, so a 228k-row table doesn't fire ~230 simultaneous requests
-// at Supabase's connection pooler.
+// ~227k rows were ever missing. Fetch every `.range()` page this table
+// needs in bounded-concurrency batches rather than one giant Promise.all,
+// so a 228k-row table doesn't fire ~230 simultaneous requests at
+// Supabase's connection pooler.
 //
 // `.range()` pagination is only guaranteed gap-free and non-overlapping
 // when the query has a deterministic `.order()` -- without one, Postgres
@@ -53,15 +59,12 @@ async function fetchJson(url, signal) {
 // below is a second, independent line of defense against the same
 // failure mode.
 const SUPABASE_PAGE_SIZE = 1000;
+// 16 reliably triggered intermittent 500s from Supabase's free-tier
+// connection pooler under the heavier per-row payload structured senses
+// added; 8 was clean across repeated tests in the same conditions.
 const PAGE_FETCH_CONCURRENCY = 8;
 
-async function fetchAllRows(table, orderColumn, signal) {
-  const { count, error: countError } = await supabase
-    .from(table)
-    .select("*", { count: "exact", head: true })
-    .abortSignal(signal);
-  if (countError) return { data: null, error: countError };
-
+async function fetchAllRows(table, orderColumn, count, signal, onProgress) {
   const totalPages = Math.max(1, Math.ceil((count ?? 0) / SUPABASE_PAGE_SIZE));
   const rows = [];
   for (let batchStart = 0; batchStart < totalPages; batchStart += PAGE_FETCH_CONCURRENCY) {
@@ -77,6 +80,7 @@ async function fetchAllRows(table, orderColumn, signal) {
       if (error) return { data: null, error };
       rows.push(...data);
     }
+    onProgress?.(rows.length, count ?? rows.length);
   }
 
   const seen = new Set();
@@ -96,6 +100,11 @@ async function loadLocalDataset(signal) {
   return { KANJI, WORDS, WORDS_BY_TEXT, WORDS_CONTAINING_KANJI, source: "local", loading: false };
 }
 
+function datasetFromRows(KANJI, WORDS, source) {
+  const { WORDS_BY_TEXT, WORDS_CONTAINING_KANJI } = buildIndexes(WORDS);
+  return { KANJI, WORDS, WORDS_BY_TEXT, WORDS_CONTAINING_KANJI, source, loading: false };
+}
+
 /**
  * Loads kanji/words from Supabase when configured, falling back to the
  * bundled local dataset (public/data/{kanji,words}.json) when it isn't
@@ -103,6 +112,13 @@ async function loadLocalDataset(signal) {
  * (src/data/japaneseData.js) only if even that local fetch somehow fails --
  * so the app is never broken by a missing/misconfigured backend, just less
  * rich (no accounts, no cross-device persistence).
+ *
+ * The Supabase path is cached in IndexedDB (see wordDataCache.js): row
+ * counts are checked with two cheap `head: true` requests first, and only
+ * if they've changed since the last cache write does the full ~230-request
+ * paginated fetch actually run. `progress` reports { loaded, total } words
+ * fetched so far while that's happening (cache hits report nothing, since
+ * there's nothing to wait for).
  */
 export function useWordData() {
   const [dataset, setDataset] = useState({
@@ -112,6 +128,7 @@ export function useWordData() {
     WORDS_CONTAINING_KANJI: {},
     source: isSupabaseConfigured ? "supabase" : "local",
     loading: true,
+    progress: null,
   });
 
   useEffect(() => {
@@ -124,19 +141,43 @@ export function useWordData() {
     // also paginating -- see the note on fetchAllRows above.
     const controller = new AbortController();
 
+    function setProgress(loaded, total) {
+      if (!cancelled) setDataset((prev) => ({ ...prev, progress: { loaded, total } }));
+    }
+
     async function load() {
       if (isSupabaseConfigured) {
-        const [kanjiRes, wordsRes] = await Promise.all([
-          fetchAllRows("kanji", "char", controller.signal),
-          fetchAllRows("words", "word", controller.signal),
+        const [kanjiCountRes, wordsCountRes] = await Promise.all([
+          getRowCount("kanji", controller.signal),
+          getRowCount("words", controller.signal),
         ]);
         if (cancelled) return;
-        if (!kanjiRes.error && !wordsRes.error && kanjiRes.data?.length && wordsRes.data?.length) {
-          const KANJI = Object.fromEntries(kanjiRes.data.map((k) => [k.char, k]));
-          const WORDS = wordsRes.data;
-          const { WORDS_BY_TEXT, WORDS_CONTAINING_KANJI } = buildIndexes(WORDS);
-          setDataset({ KANJI, WORDS, WORDS_BY_TEXT, WORDS_CONTAINING_KANJI, source: "supabase", loading: false });
-          return;
+
+        if (!kanjiCountRes.error && !wordsCountRes.error && kanjiCountRes.count && wordsCountRes.count) {
+          const cached = await readDatasetCache();
+          if (cancelled) return;
+          if (cached && cached.kanjiCount === kanjiCountRes.count && cached.wordsCount === wordsCountRes.count) {
+            setDataset(datasetFromRows(cached.KANJI, cached.WORDS, "supabase"));
+            return;
+          }
+
+          const [kanjiRes, wordsRes] = await Promise.all([
+            fetchAllRows("kanji", "char", kanjiCountRes.count, controller.signal),
+            fetchAllRows("words", "word", wordsCountRes.count, controller.signal, setProgress),
+          ]);
+          if (cancelled) return;
+          if (!kanjiRes.error && !wordsRes.error && kanjiRes.data?.length && wordsRes.data?.length) {
+            const KANJI = Object.fromEntries(kanjiRes.data.map((k) => [k.char, k]));
+            const WORDS = wordsRes.data;
+            setDataset(datasetFromRows(KANJI, WORDS, "supabase"));
+            writeDatasetCache({
+              kanjiCount: kanjiCountRes.count,
+              wordsCount: wordsCountRes.count,
+              KANJI,
+              WORDS,
+            });
+            return;
+          }
         }
         // Configured but empty/erroring -- fall through to the local dataset.
       }

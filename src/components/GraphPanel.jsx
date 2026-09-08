@@ -1,6 +1,26 @@
 import WordTreeGraph from "./WordTreeGraph";
 import FiltersPanel from "./FiltersPanel";
 
+function LoadingIndicator({ progress }) {
+  const pct =
+    progress && progress.total ? Math.min(100, Math.round((progress.loaded / progress.total) * 100)) : null;
+  return (
+    <div className="loading-indicator">
+      <div className="loading-indicator__bar">
+        <div
+          className={`loading-indicator__fill${pct === null ? " loading-indicator__fill--indeterminate" : ""}`}
+          style={pct !== null ? { width: `${pct}%` } : undefined}
+        />
+      </div>
+      <p className="loading-indicator__label">
+        {pct !== null
+          ? `Loading dictionary… ${progress.loaded.toLocaleString()} / ${progress.total.toLocaleString()} words`
+          : "Loading word data…"}
+      </p>
+    </div>
+  );
+}
+
 /**
  * The secondary, exploratory tool alongside DictionaryPanel: the word-tree
  * graph plus everything that controls what it shows (Filters, Reset) and
@@ -11,6 +31,7 @@ export default function GraphPanel({
   graph,
   selectedId,
   onNodeClick,
+  onNodeExpand,
   getStatus,
   isInGroup,
   isDimmed,
@@ -19,6 +40,7 @@ export default function GraphPanel({
   stats,
   datasetSource,
   datasetLoading,
+  datasetProgress,
   isFiltersPanelOpen,
   onToggleFiltersPanel,
   onCloseFiltersPanel,
@@ -72,13 +94,16 @@ export default function GraphPanel({
           graph={graph}
           selectedId={selectedId}
           onNodeClick={onNodeClick}
+          onNodeExpand={onNodeExpand}
           getStatus={getStatus}
           isInGroup={isInGroup}
           isDimmed={isDimmed}
           theme={theme}
         />
       ) : (
-        <div className="graph-container graph-container--loading">Loading word data&hellip;</div>
+        <div className="graph-container graph-container--loading">
+          <LoadingIndicator progress={datasetProgress} />
+        </div>
       )}
 
       <div className="graph-panel__footer">
