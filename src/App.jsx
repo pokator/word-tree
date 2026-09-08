@@ -136,6 +136,21 @@ export default function App() {
       .map((char) => kanjiSource[char])
       .filter(Boolean);
   }, [selectedNode, graph, dataset, quick]);
+
+  // The top 5 most common words sharing this kanji, shown beside its
+  // on'yomi/kun'yomi (see DictionaryPanel) -- same "Kanji" column idea as
+  // componentKanji above, mirrored for the kanji-entry view. Only available
+  // once the full dataset (and its containing-words index) has loaded.
+  const relatedWords = useMemo(() => {
+    if (!selectedNode || selectedNode.type !== "kanji" || !dataset.WORDS_CONTAINING_KANJI) return [];
+    const candidates = dataset.WORDS_CONTAINING_KANJI[selectedNode.char] ?? [];
+    return candidates
+      .slice()
+      .sort((a, b) => (dataset.WORDS_BY_TEXT[a]?.rank ?? 999) - (dataset.WORDS_BY_TEXT[b]?.rank ?? 999))
+      .slice(0, 5)
+      .map((word) => dataset.WORDS_BY_TEXT[word])
+      .filter(Boolean);
+  }, [selectedNode, dataset]);
   const selectedItemId = selectedNode && (selectedNode.type === "kanji" ? selectedNode.char : selectedNode.word);
   const selectedJlptLevel = selectedNode
     ? selectedNode.type === "kanji"
@@ -380,6 +395,7 @@ export default function App() {
               streak={streak}
               onExpand={graph && selectedNode ? () => handleNodeExpand(selectedId) : undefined}
               componentKanji={componentKanji}
+              relatedWords={relatedWords}
             />
           }
           right={

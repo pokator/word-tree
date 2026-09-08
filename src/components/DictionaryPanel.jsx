@@ -128,6 +128,28 @@ function ComponentKanjiList({ kanjiList }) {
   );
 }
 
+/** The kanji's top 5 most common related words, shown beside its
+ * on'yomi/kun'yomi -- the kanji-view mirror of ComponentKanjiList above, so
+ * either direction (word -> its kanji, kanji -> its words) surfaces the
+ * other side of the relationship without leaving the entry. */
+function RelatedWordsList({ words }) {
+  if (!words.length) return null;
+  return (
+    <div className="dictionary-panel__entry-words">
+      <span className="dictionary-panel__section-label">Related words</span>
+      <div className="dictionary-panel__word-list">
+        {words.map((w) => (
+          <div key={w.word} className="dictionary-panel__word-card">
+            <div className="dictionary-panel__word-card-word">{w.word}</div>
+            {w.reading && <div className="dictionary-panel__word-card-reading">{w.reading}</div>}
+            {w.meaning && <div className="dictionary-panel__word-card-meaning">{w.meaning}</div>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function CommonBadge({ isCommon }) {
   if (!isCommon) return null;
   return (
@@ -216,6 +238,7 @@ export default function DictionaryPanel({
   streak,
   onExpand,
   componentKanji = [],
+  relatedWords = [],
 }) {
   if (!node) {
     if (loading) {
@@ -278,6 +301,7 @@ export default function DictionaryPanel({
         </div>
 
         {!isKanji && <ComponentKanjiList kanjiList={componentKanji} />}
+        {isKanji && <RelatedWordsList words={relatedWords} />}
       </div>
 
       <ExpandButton node={node} onExpand={onExpand} />
