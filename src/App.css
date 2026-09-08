@@ -1902,16 +1902,28 @@
 .search-results__word {
   font-weight: 600;
   color: var(--text-h);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .search-results__reading {
   font-size: 12px;
   color: var(--text);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .search-results__meaning {
   font-size: 12px;
   color: var(--text);
   margin-left: auto;
   text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* Flex items default to min-width:auto, which for nowrap text equals its
+     full unwrapped width -- the browser would rather overflow the row than
+     shrink below that, which silently defeats text-overflow. This is what
+     actually lets it shrink small enough for the ellipsis to kick in. */
+  min-width: 0;
 }
 
 .search-results__section-label {
