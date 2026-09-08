@@ -257,7 +257,7 @@
   background: var(--border);
 }
 .saved-panel__dot--connected {
-  background: var(--node-word);
+  background: var(--success);
 }
 .saved-panel__dot--not-connected {
   background: var(--node-root);
@@ -301,7 +301,7 @@
 .saved-panel__exported {
   margin-left: auto;
   font-size: 11px;
-  color: var(--node-word);
+  color: var(--success);
   flex-shrink: 0;
 }
 
@@ -825,7 +825,7 @@
   border-color: var(--node-root);
 }
 .review-card__grade--good:hover {
-  border-color: var(--node-word);
+  border-color: var(--success);
 }
 
 .review-card__empty,
@@ -856,7 +856,7 @@
   font-size: 13px;
 }
 .review-card__tally-good {
-  color: var(--node-word);
+  color: var(--success);
 }
 .review-card__tally-again {
   color: var(--node-root);
@@ -885,7 +885,7 @@
   transition: width 300ms ease;
 }
 .progress-stats__seg--known {
-  background: var(--node-word);
+  background: var(--success);
 }
 .progress-stats__seg--learning {
   background: var(--accent);
@@ -1365,9 +1365,9 @@
 .common-badge {
   font-size: 12px;
   font-weight: 600;
-  color: var(--node-word);
-  background: color-mix(in srgb, var(--node-word) 14%, transparent);
-  border: 1px solid color-mix(in srgb, var(--node-word) 45%, transparent);
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--success) 45%, transparent);
   border-radius: 999px;
   padding: 2px 10px;
   flex-shrink: 0;

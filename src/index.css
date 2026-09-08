@@ -32,6 +32,13 @@
   --pos-middle: #6a4c93;
   --pos-end: #1f7a8c;
 
+  /* Semantic "known/good" status color for UI text (export tags, review
+     tallies, mastery badges) -- kept separate from --node-neutral above.
+     That token is deliberately desaturated for the graph canvas; reused as
+     foreground text it fails WCAG AA (~2.6:1 on paper). This is the old
+     word-node green, kept only where it's read as text. */
+  --success: #3f6b4f;
+
   --sans: 'Instrument Sans', system-ui, 'Segoe UI', Roboto, sans-serif;
   --heading: 'Shippori Mincho', serif;
   --heading-weight: 500;
@@ -75,6 +82,8 @@
     --pos-start: #ff9f43;
     --pos-middle: #c77dff;
     --pos-end: #34d399;
+
+    --success: #7fbf9a;
   }
 }
 
@@ -97,6 +106,8 @@
   --pos-start: #ff9f43;
   --pos-middle: #c77dff;
   --pos-end: #34d399;
+
+  --success: #7fbf9a;
 }
 
 /* Without this, any `width: 100%` element that also has padding/border
