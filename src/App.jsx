@@ -171,14 +171,21 @@ export default function App() {
 
   const { user } = useAuth();
   const saved = useSavedWords();
-  const [isSavedPanelOpen, setIsSavedPanelOpen] = useState(false);
   const handleToggleSave = useCallback(() => {
     if (selectedNode?.type === "word") saved.toggleSave(selectedNode.word);
   }, [selectedNode, saved]);
 
   const groupsApi = useGroups();
-  const [isGroupsPanelOpen, setIsGroupsPanelOpen] = useState(false);
   const memberOf = selectedNode?.type === "word" ? groupsApi.groupsForWord(selectedNode.word) : [];
+
+  // Saved and Groups share one side panel slot -- opening one always closes
+  // the other, rather than tracking two independent booleans that could
+  // both end up true. null closes the panel entirely.
+  const [activeSidebar, setActiveSidebar] = useState(null); // null | "saved" | "groups"
+  const toggleSidebar = useCallback((key) => {
+    setActiveSidebar((prev) => (prev === key ? null : key));
+  }, []);
+  const closeSidebar = useCallback(() => setActiveSidebar(null), []);
   const handleToggleGroup = useCallback(
     (groupId) => {
       if (selectedNode?.type !== "word") return;
@@ -353,9 +360,9 @@ export default function App() {
     (group) => {
       const pool = group.words.map((w) => dataset.WORDS_BY_TEXT[w]).filter(Boolean);
       setReviewSession({ title: `Quiz: ${group.name}`, words: pool });
-      setIsGroupsPanelOpen(false);
+      closeSidebar();
     },
-    [dataset]
+    [dataset, closeSidebar]
   );
 
   const stats = useMemo(() => {
@@ -385,28 +392,44 @@ export default function App() {
             Review ({wordStats.new + wordStats.learning})
           </button>
           <ThemeToggle theme={theme} onToggle={toggleTheme} />
-          <div className="saved-panel-wrap">
-            <button className="reset-btn" onClick={() => setIsSavedPanelOpen((v) => !v)}>
-              Saved ({saved.words.length})
-            </button>
-            {isSavedPanelOpen && (
-              <SavedWordsPanel dataset={dataset} saved={saved} onClose={() => setIsSavedPanelOpen(false)} />
-            )}
-          </div>
-          <div className="groups-panel-wrap">
-            <button className="reset-btn" onClick={() => setIsGroupsPanelOpen((v) => !v)}>
-              Groups ({groupsApi.groups.length})
-            </button>
-            {isGroupsPanelOpen && (
-              <GroupsPanel
-                dataset={dataset}
-                groupsApi={groupsApi}
-                onSelectWord={handleSelectWord}
-                onQuizGroup={startGroupQuiz}
-                onClose={() => setIsGroupsPanelOpen(false)}
+          <button
+            type="button"
+            className={`icon-btn${activeSidebar === "saved" ? " is-active" : ""}`}
+            onClick={() => toggleSidebar("saved")}
+            aria-pressed={activeSidebar === "saved"}
+            aria-label={`Saved words (${saved.words.length})`}
+            title="Saved words"
+          >
+            <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
+              <path
+                d="M6.5 3.75h11a.75.75 0 0 1 .75.75v16l-6.25-3.6-6.25 3.6v-16a.75.75 0 0 1 .75-.75Z"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinejoin="round"
               />
-            )}
-          </div>
+            </svg>
+            {saved.words.length > 0 && <span className="icon-btn__badge">{saved.words.length}</span>}
+          </button>
+          <button
+            type="button"
+            className={`icon-btn${activeSidebar === "groups" ? " is-active" : ""}`}
+            onClick={() => toggleSidebar("groups")}
+            aria-pressed={activeSidebar === "groups"}
+            aria-label={`Groups (${groupsApi.groups.length})`}
+            title="Groups"
+          >
+            <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
+              <path
+                d="M4 6.75A1.25 1.25 0 0 1 5.25 5.5h4.19a1.25 1.25 0 0 1 .93.42l1.4 1.58h7.02a1.25 1.25 0 0 1 1.25 1.25v9A1.25 1.25 0 0 1 18.75 19H5.25A1.25 1.25 0 0 1 4 17.75Z"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinejoin="round"
+              />
+            </svg>
+            {groupsApi.groups.length > 0 && <span className="icon-btn__badge">{groupsApi.groups.length}</span>}
+          </button>
           <AuthPanel />
         </div>
       </header>
@@ -473,6 +496,22 @@ export default function App() {
             />
           }
         />
+        {activeSidebar && (
+          <aside className="side-panel" aria-label={activeSidebar === "saved" ? "Saved words" : "Groups"}>
+            {activeSidebar === "saved" && (
+              <SavedWordsPanel dataset={dataset} saved={saved} onSelectWord={handleSelectWord} onClose={closeSidebar} />
+            )}
+            {activeSidebar === "groups" && (
+              <GroupsPanel
+                dataset={dataset}
+                groupsApi={groupsApi}
+                onSelectWord={handleSelectWord}
+                onQuizGroup={startGroupQuiz}
+                onClose={closeSidebar}
+              />
+            )}
+          </aside>
+        )}
       </main>
 
       {reviewSession && (
