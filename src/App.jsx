@@ -22,7 +22,9 @@ import {
   createInitialGraph,
   expandKanji,
   expandWord,
+  revealLink,
   wordNodeId,
+  kanjiNodeId,
   kanjiJlptBucket,
   wordJlptBucket,
 } from "./graph/buildGraph";
@@ -36,6 +38,7 @@ const JLPT_FILTER_KEY = "word-tree:jlpt-filter";
 const MAX_WORDS_OPTIONS = [5, 8, 12, 20, 40, Infinity];
 const DEFAULT_MASTERY_FILTER = { new: true, learning: true, known: true };
 const DEFAULT_JLPT_FILTER = { n5: true, n4: true, n3: true, n2: true, n1: true, unrated: true };
+const EMPTY_SET = new Set();
 
 function loadMaxWords() {
   try {
@@ -295,6 +298,43 @@ export default function App() {
     [dataset, maxWords, isJlptAllowed]
   );
 
+  // Clicking a card in the dictionary panel's "Kanji" (word view) or
+  // "Related words" (kanji view) column reveals just that one link -- see
+  // revealLink -- and selects the clicked side, without touching anything
+  // else already on the graph. Distinct from handleSelectWord (search bar),
+  // which re-centers the whole graph on a new root; this stays within the
+  // current graph, same as clicking a node directly.
+  const handleSelectRelated = useCallback(
+    (type, key) => {
+      if (!selectedNode) return;
+      setGraph((prev) => {
+        if (!prev) return prev;
+        if (type === "kanji" && selectedNode.type === "word") {
+          return revealLink(dataset, prev, { kanjiChar: key, word: selectedNode.word });
+        }
+        if (type === "word" && selectedNode.type === "kanji") {
+          return revealLink(dataset, prev, { kanjiChar: selectedNode.char, word: key });
+        }
+        return prev;
+      });
+      setSelectedId(type === "kanji" ? kanjiNodeId(key) : wordNodeId(key));
+    },
+    [dataset, selectedNode]
+  );
+
+  // Hovering one of those cards highlights where it relates to on the graph
+  // (the current node it would attach to, plus the card's own node if
+  // already revealed) -- see hintedIds below -- rather than making the user
+  // guess what a click will do.
+  const [hoverRelated, setHoverRelated] = useState(null); // { type, key } | null
+  const handleHoverRelated = useCallback((type, key) => setHoverRelated({ type, key }), []);
+  const handleHoverRelatedEnd = useCallback(() => setHoverRelated(null), []);
+  const hintedIds = useMemo(() => {
+    if (!hoverRelated || !selectedId) return EMPTY_SET;
+    const targetId = hoverRelated.type === "kanji" ? kanjiNodeId(hoverRelated.key) : wordNodeId(hoverRelated.key);
+    return new Set([selectedId, targetId]);
+  }, [hoverRelated, selectedId]);
+
   const handleGradeReview = useCallback(
     (word, grade) => {
       setMasteryStatus("word", word, grade === "good" ? "known" : "learning");
@@ -396,6 +436,9 @@ export default function App() {
               onExpand={graph && selectedNode ? () => handleNodeExpand(selectedId) : undefined}
               componentKanji={componentKanji}
               relatedWords={relatedWords}
+              onSelectRelated={graph ? handleSelectRelated : undefined}
+              onHoverRelated={graph ? handleHoverRelated : undefined}
+              onHoverRelatedEnd={graph ? handleHoverRelatedEnd : undefined}
             />
           }
           right={
@@ -426,6 +469,7 @@ export default function App() {
               onSetFocusGroup={setFocusGroupId}
               maxWords={maxWords}
               onSetMaxWords={handleMaxWordsChange}
+              hintedIds={hintedIds}
             />
           }
         />

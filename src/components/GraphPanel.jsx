@@ -67,6 +67,7 @@ export default function GraphPanel({
   onSetFocusGroup,
   maxWords,
   onSetMaxWords,
+  hintedIds,
 }) {
   return (
     <div className="graph-panel">
@@ -112,6 +113,7 @@ export default function GraphPanel({
           isInGroup={isInGroup}
           isDimmed={isDimmed}
           theme={theme}
+          hintedIds={hintedIds}
         />
       ) : (
         <div className="graph-container graph-container--loading">

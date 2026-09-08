@@ -12,6 +12,7 @@ const DOUBLE_CLICK_MS = 350;
 const noStatus = () => undefined;
 const noGroup = () => false;
 const noDim = () => false;
+const EMPTY_SET = new Set();
 const DIMMED_OPACITY = 0.12;
 const ZOOM_STEP = 1.3;
 // How much of the dragged node's motion its direct neighbors inherit while
@@ -30,6 +31,7 @@ export default function WordTreeGraph({
   isInGroup = noGroup,
   isDimmed = noDim,
   theme,
+  hintedIds = EMPTY_SET,
 }) {
   const containerRef = useRef(null);
   const svgRef = useRef(null);
@@ -299,7 +301,7 @@ export default function WordTreeGraph({
                   onPointerDown={(e) => handleNodePointerDown(e, node)}
                   className={`graph-node graph-node--${node.type}${selected ? " is-selected" : ""}${
                     node.isRoot ? " is-root" : ""
-                  }`}
+                  }${hintedIds.has(node.id) ? " graph-node--hint" : ""}`}
                   style={{ opacity }}
                 >
                   <g className="graph-node__pop">

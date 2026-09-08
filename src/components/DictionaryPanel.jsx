@@ -102,17 +102,46 @@ function ExpandButton({ node, onExpand }) {
   );
 }
 
+/** Spreads onto a card to make it act like a button (click + Enter/Space,
+ * with a real focus stop) without changing its element or styling -- shared
+ * by ComponentKanjiList and RelatedWordsList below. Omitted entirely (cards
+ * render inert, as before) when `onSelect` isn't provided -- see
+ * DictionaryPanel's onSelectRelated prop for when that happens. */
+function cardInteractionProps(onSelect, onHover, onHoverEnd, key) {
+  if (!onSelect) return {};
+  return {
+    role: "button",
+    tabIndex: 0,
+    onClick: () => onSelect(key),
+    onMouseEnter: () => onHover?.(key),
+    onMouseLeave: () => onHoverEnd?.(),
+    onFocus: () => onHover?.(key),
+    onBlur: () => onHoverEnd?.(),
+    onKeyDown: (e) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      e.preventDefault();
+      onSelect(key);
+    },
+  };
+}
+
 /** The word's own component kanji, shown beside its definitions so you don't
  * have to leave the entry (or expand the graph) to see what each character
- * means -- one small card per kanji, in the word's reading order. */
-function ComponentKanjiList({ kanjiList }) {
+ * means -- one small card per kanji, in the word's reading order. Clicking a
+ * card reveals/selects that kanji (see onSelect); hovering highlights where
+ * it relates to on the graph (see onHover). */
+function ComponentKanjiList({ kanjiList, onSelect, onHover, onHoverEnd }) {
   if (!kanjiList.length) return null;
   return (
     <div className="dictionary-panel__entry-kanji">
       <span className="dictionary-panel__section-label">Kanji</span>
       <div className="dictionary-panel__kanji-list">
         {kanjiList.map((k) => (
-          <div key={k.char} className="dictionary-panel__kanji-card">
+          <div
+            key={k.char}
+            className={`dictionary-panel__kanji-card${onSelect ? " dictionary-panel__kanji-card--clickable" : ""}`}
+            {...cardInteractionProps(onSelect, onHover, onHoverEnd, k.char)}
+          >
             <div className="dictionary-panel__kanji-card-char">{k.char}</div>
             {k.meaning && <div className="dictionary-panel__kanji-card-meaning">{k.meaning}</div>}
             {(k.onyomi?.length > 0 || k.kunyomi?.length > 0) && (
@@ -131,15 +160,20 @@ function ComponentKanjiList({ kanjiList }) {
 /** The kanji's top 5 most common related words, shown beside its
  * on'yomi/kun'yomi -- the kanji-view mirror of ComponentKanjiList above, so
  * either direction (word -> its kanji, kanji -> its words) surfaces the
- * other side of the relationship without leaving the entry. */
-function RelatedWordsList({ words }) {
+ * other side of the relationship without leaving the entry. Same
+ * click-to-reveal/select, hover-to-highlight behavior as that list. */
+function RelatedWordsList({ words, onSelect, onHover, onHoverEnd }) {
   if (!words.length) return null;
   return (
     <div className="dictionary-panel__entry-words">
       <span className="dictionary-panel__section-label">Related words</span>
       <div className="dictionary-panel__word-list">
         {words.map((w) => (
-          <div key={w.word} className="dictionary-panel__word-card">
+          <div
+            key={w.word}
+            className={`dictionary-panel__word-card${onSelect ? " dictionary-panel__word-card--clickable" : ""}`}
+            {...cardInteractionProps(onSelect, onHover, onHoverEnd, w.word)}
+          >
             <div className="dictionary-panel__word-card-word">{w.word}</div>
             {w.reading && <div className="dictionary-panel__word-card-reading">{w.reading}</div>}
             {w.meaning && <div className="dictionary-panel__word-card-meaning">{w.meaning}</div>}
@@ -239,6 +273,9 @@ export default function DictionaryPanel({
   onExpand,
   componentKanji = [],
   relatedWords = [],
+  onSelectRelated,
+  onHoverRelated,
+  onHoverRelatedEnd,
 }) {
   if (!node) {
     if (loading) {
@@ -300,8 +337,22 @@ export default function DictionaryPanel({
           )}
         </div>
 
-        {!isKanji && <ComponentKanjiList kanjiList={componentKanji} />}
-        {isKanji && <RelatedWordsList words={relatedWords} />}
+        {!isKanji && (
+          <ComponentKanjiList
+            kanjiList={componentKanji}
+            onSelect={onSelectRelated && ((char) => onSelectRelated("kanji", char))}
+            onHover={onHoverRelated && ((char) => onHoverRelated("kanji", char))}
+            onHoverEnd={onHoverRelatedEnd}
+          />
+        )}
+        {isKanji && (
+          <RelatedWordsList
+            words={relatedWords}
+            onSelect={onSelectRelated && ((word) => onSelectRelated("word", word))}
+            onHover={onHoverRelated && ((word) => onHoverRelated("word", word))}
+            onHoverEnd={onHoverRelatedEnd}
+          />
+        )}
       </div>
 
       <ExpandButton node={node} onExpand={onExpand} />

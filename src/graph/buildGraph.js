@@ -188,6 +188,28 @@ export function expandWord(dataset, graph, word, { isJlptAllowed = alwaysAllowed
   return { nodes, links };
 }
 
+/**
+ * Reveal exactly one word<->kanji link (adding either endpoint as a new
+ * node if it isn't already in the graph), without touching anything else --
+ * unlike expandKanji/expandWord, which reveal every related item at once
+ * (up to maxWords). Used when a single card in the dictionary panel's
+ * "Kanji"/"Related words" column is clicked directly. No-ops (returns the
+ * same graph reference) if the link already exists.
+ */
+export function revealLink(dataset, graph, { kanjiChar, word }) {
+  const kId = kanjiNodeId(kanjiChar);
+  const wId = wordNodeId(word);
+  if (graph.links.some((l) => linkKey(l) === linkKey({ source: kId, target: wId }))) return graph;
+
+  const nodes = new Map(graph.nodes);
+  const links = [...graph.links];
+  if (!nodes.has(kId)) nodes.set(kId, kanjiNode(dataset, kanjiChar));
+  if (!nodes.has(wId)) nodes.set(wId, wordNode(dataset, word));
+  links.push({ source: kId, target: wId });
+
+  return { nodes, links };
+}
+
 function linkKey(l) {
   const s = typeof l.source === "object" ? l.source.id : l.source;
   const t = typeof l.target === "object" ? l.target.id : l.target;
