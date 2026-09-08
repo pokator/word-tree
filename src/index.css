@@ -36,6 +36,20 @@
   --pos-middle: #6a4c93;
   --pos-end: #1f7a8c;
 
+  /* JLPT difficulty ring, opt-in via Filters -> "color by difficulty" (see
+     WordTreeGraph's colorByDifficulty prop). An ordered easy-to-hard ramp,
+     not a category hue set like the position colors above -- green (N5) to
+     purple (N1), skipping red/orange-red entirely so the hardest level is
+     never confused with --accent on the root/selected node. Only drawn as a
+     ring around the existing kanji/word fill, so this never has to replace
+     that signal, only add to it. */
+  --jlpt-n5: #4c8c5c;
+  --jlpt-n4: #3f8f8a;
+  --jlpt-n3: #c99a3d;
+  --jlpt-n2: #c2703a;
+  --jlpt-n1: #8659a6;
+  --jlpt-unrated: #9a9482;
+
   /* Semantic "known/good" status color for UI text (export tags, review
      tallies, mastery badges) -- kept separate from the node colors above.
      Those are deliberately desaturated for the graph canvas; reused as
@@ -86,6 +100,13 @@
     --pos-middle: #c77dff;
     --pos-end: #34d399;
 
+    --jlpt-n5: #6fbf7f;
+    --jlpt-n4: #5cc2bd;
+    --jlpt-n3: #e0b85c;
+    --jlpt-n2: #e08f5c;
+    --jlpt-n1: #b389d9;
+    --jlpt-unrated: #7a7f8c;
+
     --success: #7fbf9a;
   }
 }
@@ -108,6 +129,13 @@
   --pos-start: #ff9f43;
   --pos-middle: #c77dff;
   --pos-end: #34d399;
+
+  --jlpt-n5: #6fbf7f;
+  --jlpt-n4: #5cc2bd;
+  --jlpt-n3: #e0b85c;
+  --jlpt-n2: #e08f5c;
+  --jlpt-n1: #b389d9;
+  --jlpt-unrated: #7a7f8c;
 
   --success: #7fbf9a;
 }

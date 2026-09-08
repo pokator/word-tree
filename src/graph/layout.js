@@ -14,6 +14,13 @@ export function nodeFill(node, { root, colors }) {
   return node.type === "kanji" ? colors.kanji : colors.word;
 }
 
+// Ring color for the opt-in "color by difficulty" view (see WordTreeGraph's
+// colorByDifficulty prop) -- a word's bucket is its hardest tagged
+// component kanji, a kanji's is its own (see buildGraph.js's jlptBucket).
+export function nodeDifficultyColor(node, colors) {
+  return colors.jlpt[node.jlptBucket] ?? colors.jlpt.unrated;
+}
+
 // First segment of a "a / b / c" or "a; b; c" style flat gloss string --
 // used as the short definition shown at high zoom (see nodeDetailText).
 function firstGloss(str) {

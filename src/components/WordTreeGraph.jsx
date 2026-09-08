@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { select } from "d3-selection";
 import { zoom as d3zoom, zoomIdentity } from "d3-zoom";
 import { useForceSimulation } from "../graph/useForceSimulation";
-import { nodeRadius, nodeFill, nodeOpacity, nodeDetailText } from "../graph/layout";
+import { nodeRadius, nodeFill, nodeOpacity, nodeDetailText, nodeDifficultyColor } from "../graph/layout";
 import { readNodeColors } from "../graph/theme";
 import { kanjiPositionCategory } from "../graph/positionCategory";
 import { linkDistanceKey } from "../graph/linkDistanceKey";
@@ -57,6 +57,7 @@ export default function WordTreeGraph({
   isDimmed = noDim,
   theme,
   hintedIds = EMPTY_SET,
+  colorByDifficulty = false,
 }) {
   const containerRef = useRef(null);
   const svgRef = useRef(null);
@@ -330,6 +331,12 @@ export default function WordTreeGraph({
               const baseOpacity = nodeOpacity(getStatus(node.type, itemId));
               const dimmed = !node.isRoot && isDimmed(node);
               const opacity = dimmed ? Math.min(baseOpacity, DIMMED_OPACITY) : baseOpacity;
+              // The root already carries --accent as its whole identity --
+              // a difficulty ring on top of that would compete with, not
+              // add to, its one job of reading as "the mark." Everything
+              // else gets one if it has a bucket to show (see
+              // buildGraph.js's jlptBucket) and the Filters toggle is on.
+              const showDifficulty = colorByDifficulty && !node.isRoot && Boolean(node.jlptBucket);
               // Only computed when detailTier is on -- this render runs on
               // every simulation tick, so doing this unconditionally would
               // mean parsing reading/gloss for every node on every frame
@@ -348,8 +355,10 @@ export default function WordTreeGraph({
                   onPointerDown={(e) => handleNodePointerDown(e, node)}
                   className={`graph-node graph-node--${node.type}${selected ? " is-selected" : ""}${
                     node.isRoot ? " is-root" : ""
-                  }${hintedIds.has(node.id) ? " graph-node--hint" : ""}`}
-                  style={{ opacity }}
+                  }${hintedIds.has(node.id) ? " graph-node--hint" : ""}${
+                    showDifficulty ? " graph-node--difficulty" : ""
+                  }`}
+                  style={showDifficulty ? { opacity, "--node-jlpt-stroke": nodeDifficultyColor(node, colors) } : { opacity }}
                 >
                   <g className="graph-node__pop">
                     {!node.expanded && <title>Double-click to reveal more</title>}

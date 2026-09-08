@@ -1407,8 +1407,21 @@
   }
 }
 
-.graph-node.is-selected circle:first-child {
+/* :first-of-type, not :first-child -- an unexpanded node renders a <title>
+   tooltip before its fill circle (see WordTreeGraph), which would make the
+   fill circle the second CHILD but is still the first CIRCLE either way. */
+.graph-node.is-selected circle:first-of-type {
   stroke: var(--accent);
+  stroke-width: 3px;
+}
+
+/* Difficulty ring, opt-in via Filters -> "color by difficulty" (see
+   WordTreeGraph's colorByDifficulty prop and --node-jlpt-stroke, set inline
+   per node from graph/theme.js's jlpt colors). Excluded while selected so
+   it never competes with the accent selection stroke above -- the ring
+   reappears the moment the node is deselected, no extra state needed. */
+.graph-node--difficulty:not(.is-selected) circle:first-of-type {
+  stroke: var(--node-jlpt-stroke);
   stroke-width: 3px;
 }
 
@@ -1417,7 +1430,7 @@
    already revealed) and, always, the current node it would attach to. A
    glow rather than a literal cross-panel arrow: it holds up under panel
    resizing/scrolling and needs no coordinate math between the two panels. */
-.graph-node--hint circle:first-child {
+.graph-node--hint circle:first-of-type {
   animation: node-hint-pulse 1.1s ease-in-out infinite;
 }
 
@@ -1432,7 +1445,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .graph-node--hint circle:first-child {
+  .graph-node--hint circle:first-of-type {
     animation: none;
     filter: drop-shadow(0 0 5px var(--accent));
   }
@@ -1998,6 +2011,33 @@
   width: 16px;
   height: 3px;
   border-radius: 2px;
+}
+
+/* Difficulty rows mirror the actual on-graph marker -- a ring, not a fill
+   (see .graph-node--difficulty in the styles above) -- so the legend swatch
+   is a hollow circle with a colored border rather than a solid dot. */
+.legend__swatch--ring {
+  box-sizing: border-box;
+  background: transparent;
+  border: 2px solid transparent;
+}
+.legend__swatch--jlpt-n5 {
+  border-color: var(--jlpt-n5);
+}
+.legend__swatch--jlpt-n4 {
+  border-color: var(--jlpt-n4);
+}
+.legend__swatch--jlpt-n3 {
+  border-color: var(--jlpt-n3);
+}
+.legend__swatch--jlpt-n2 {
+  border-color: var(--jlpt-n2);
+}
+.legend__swatch--jlpt-n1 {
+  border-color: var(--jlpt-n1);
+}
+.legend__swatch--jlpt-unrated {
+  border-color: var(--jlpt-unrated);
 }
 .legend__swatch--pos-start {
   background: var(--pos-start);

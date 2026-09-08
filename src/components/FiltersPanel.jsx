@@ -25,6 +25,8 @@ export default function FiltersPanel({
   onSetFocusGroup,
   maxWords,
   onSetMaxWords,
+  colorByDifficulty,
+  onToggleColorByDifficulty,
   onClose,
 }) {
   return (
@@ -66,6 +68,24 @@ export default function FiltersPanel({
         <p className="filters-panel__hint">
           Based on a word&rsquo;s hardest kanji. Narrowing this only limits new reveals -- hit Reset to fully apply
           to what&rsquo;s already on screen.
+        </p>
+      </div>
+
+      <div className="filters-panel__section">
+        <span className="filters-panel__label">Graph coloring</span>
+        <div className="filters-panel__chips">
+          <button
+            type="button"
+            className={`filters-panel__chip${colorByDifficulty ? " is-active" : ""}`}
+            onClick={onToggleColorByDifficulty}
+            aria-pressed={colorByDifficulty}
+          >
+            Color by difficulty
+          </button>
+        </div>
+        <p className="filters-panel__hint">
+          Rings each node by JLPT level -- N5 (easiest) to N1 (hardest): a word&rsquo;s hardest kanji, or the
+          kanji&rsquo;s own level.
         </p>
       </div>
 

@@ -53,6 +53,11 @@ function kanjiNode(dataset, char) {
     onyomi: entry?.onyomi ?? [],
     kunyomi: entry?.kunyomi ?? [],
     jlpt: entry?.jlpt,
+    // Bucketed once here (rather than re-derived at render time from the
+    // raw `jlpt` field above) so the graph/color layer has one consistent
+    // "n5".."n1"/"unrated" shape to key off for both node types -- see
+    // wordJlptBucket below for why a word needs the derived, not raw, form.
+    jlptBucket: kanjiJlptBucket(dataset, char),
     expanded: false,
   };
 }
@@ -72,6 +77,7 @@ function wordNode(dataset, word, { isRoot = false, expanded = false } = {}) {
       isRoot,
       expanded,
       isUnlisted: true,
+      jlptBucket: wordJlptBucket(dataset, word),
     };
   }
   return {
@@ -84,6 +90,7 @@ function wordNode(dataset, word, { isRoot = false, expanded = false } = {}) {
     rank: entry.rank,
     isRoot,
     expanded,
+    jlptBucket: wordJlptBucket(dataset, word),
   };
 }
 

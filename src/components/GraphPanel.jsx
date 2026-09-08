@@ -14,6 +14,17 @@ function hasPositionGroups(graph) {
   return false;
 }
 
+// Ordered easiest-to-hardest so the legend reads as a ramp, not a random
+// list -- matches JLPT_OPTIONS in FiltersPanel.jsx.
+const JLPT_LEGEND = [
+  { value: "n5", label: "N5" },
+  { value: "n4", label: "N4" },
+  { value: "n3", label: "N3" },
+  { value: "n2", label: "N2" },
+  { value: "n1", label: "N1" },
+  { value: "unrated", label: "unrated" },
+];
+
 function LoadingIndicator({ progress }) {
   const pct =
     progress && progress.total ? Math.min(100, Math.round((progress.loaded / progress.total) * 100)) : null;
@@ -68,6 +79,8 @@ export default function GraphPanel({
   maxWords,
   onSetMaxWords,
   hintedIds,
+  colorByDifficulty,
+  onToggleColorByDifficulty,
 }) {
   return (
     <div className="graph-panel">
@@ -93,6 +106,8 @@ export default function GraphPanel({
                 onSetFocusGroup={onSetFocusGroup}
                 maxWords={maxWords}
                 onSetMaxWords={onSetMaxWords}
+                colorByDifficulty={colorByDifficulty}
+                onToggleColorByDifficulty={onToggleColorByDifficulty}
                 onClose={onCloseFiltersPanel}
               />
             )}
@@ -114,6 +129,7 @@ export default function GraphPanel({
           isDimmed={isDimmed}
           theme={theme}
           hintedIds={hintedIds}
+          colorByDifficulty={colorByDifficulty}
         />
       ) : (
         <div className="graph-container graph-container--loading">
@@ -144,6 +160,16 @@ export default function GraphPanel({
               <span className="legend__row">
                 <span className="legend__swatch legend__swatch--line legend__swatch--pos-end" /> at end
               </span>
+            </>
+          )}
+          {colorByDifficulty && (
+            <>
+              <span className="legend__divider" />
+              {JLPT_LEGEND.map(({ value, label }) => (
+                <span className="legend__row" key={value}>
+                  <span className={`legend__swatch legend__swatch--ring legend__swatch--jlpt-${value}`} /> {label}
+                </span>
+              ))}
             </>
           )}
         </div>
