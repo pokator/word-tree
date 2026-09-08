@@ -22,14 +22,26 @@ const ZOOM_STEP = 1.3;
 // link force that's about to take back over once the drag ends.
 const NEIGHBOR_FOLLOW = 0.55;
 // Zoom-based level of detail: past DETAIL_ZOOM_ENTER, nodes grow a reading +
-// short definition under the label; below DETAIL_ZOOM_EXIT, they drop back
-// to just the word/kanji. The two thresholds differ (rather than one shared
-// value) so hovering right at the boundary doesn't flicker the detail lines
-// in and out on every minor scroll -- you have to cross a small dead zone
-// to flip state, in either direction.
+// short definition stacked inside the bubble, below the label; below
+// DETAIL_ZOOM_EXIT, they drop back to just the word/kanji. The two
+// thresholds differ (rather than one shared value) so hovering right at the
+// boundary doesn't flicker the detail lines in and out on every minor
+// scroll -- you have to cross a small dead zone to flip state, in either
+// direction.
 const DETAIL_ZOOM_ENTER = 1.6;
 const DETAIL_ZOOM_EXIT = 1.3;
-const DETAIL_TEXT_MAX_CHARS = 20;
+// Short enough that a truncated reading/gloss still fits inside the grown
+// bubble's chord width at its vertical offset, not just its diameter.
+const DETAIL_TEXT_MAX_CHARS = 12;
+// How much the bubble grows (in local graph units, so it scales with zoom
+// like everything else in the graph) to make room for the extra two lines
+// once detailed -- see DETAIL_LABEL_Y/READING_Y/GLOSS_Y below for how
+// they're stacked inside it.
+const DETAIL_RADIUS_PAD = 15;
+const DETAIL_LABEL_Y = -9;
+const DETAIL_READING_Y = 6;
+const DETAIL_GLOSS_Y = 17;
+const DETAIL_GLOSS_Y_NO_READING = 7;
 
 function truncate(str, max) {
   return str.length > max ? `${str.slice(0, max - 1).trimEnd()}…` : str;
@@ -318,6 +330,16 @@ export default function WordTreeGraph({
               const baseOpacity = nodeOpacity(getStatus(node.type, itemId));
               const dimmed = !node.isRoot && isDimmed(node);
               const opacity = dimmed ? Math.min(baseOpacity, DIMMED_OPACITY) : baseOpacity;
+              // Only computed when detailTier is on -- this render runs on
+              // every simulation tick, so doing this unconditionally would
+              // mean parsing reading/gloss for every node on every frame
+              // even when nothing is ever going to show it.
+              const { reading, gloss } = detailTier ? nodeDetailText(node) : { reading: "", gloss: "" };
+              const hasDetail = detailTier && (reading || gloss);
+              // The bubble itself grows to hold the extra two lines rather
+              // than spilling them outside its edge -- displayR (not r)
+              // drives everything drawn against this node from here down.
+              const displayR = hasDetail ? r + DETAIL_RADIUS_PAD : r;
               return (
                 <g
                   key={node.id}
@@ -331,10 +353,14 @@ export default function WordTreeGraph({
                 >
                   <g className="graph-node__pop">
                     {!node.expanded && <title>Double-click to reveal more</title>}
-                    <circle r={r} fill={nodeFill(node, { root: node.isRoot, colors })} vectorEffect="non-scaling-stroke" />
+                    <circle
+                      r={displayR}
+                      fill={nodeFill(node, { root: node.isRoot, colors })}
+                      vectorEffect="non-scaling-stroke"
+                    />
                     {!node.expanded && (
                       <circle
-                        r={r + 5}
+                        r={displayR + 5}
                         className="graph-node__expand-ring"
                         fill="none"
                         vectorEffect="non-scaling-stroke"
@@ -343,37 +369,33 @@ export default function WordTreeGraph({
                     <text
                       textAnchor="middle"
                       dominantBaseline="central"
+                      y={hasDetail ? DETAIL_LABEL_Y : 0}
                       className="graph-node__label"
                       style={{ transform: "scale(var(--zoom-inv, 1))" }}
                     >
                       {label}
                     </text>
-                    {node.type === "word" && isInGroup(node.word) && (
-                      <circle cx={r * 0.68} cy={-r * 0.68} r={4.5} className="graph-node__group-dot" />
+                    {hasDetail && (
+                      <>
+                        {reading && (
+                          <text textAnchor="middle" y={DETAIL_READING_Y} className="graph-node__detail">
+                            {truncate(reading, DETAIL_TEXT_MAX_CHARS)}
+                          </text>
+                        )}
+                        {gloss && (
+                          <text
+                            textAnchor="middle"
+                            y={reading ? DETAIL_GLOSS_Y : DETAIL_GLOSS_Y_NO_READING}
+                            className="graph-node__detail graph-node__detail--gloss"
+                          >
+                            {truncate(gloss, DETAIL_TEXT_MAX_CHARS)}
+                          </text>
+                        )}
+                      </>
                     )}
-                    {detailTier &&
-                      (() => {
-                        const { reading, gloss } = nodeDetailText(node);
-                        if (!reading && !gloss) return null;
-                        return (
-                          <>
-                            {reading && (
-                              <text textAnchor="middle" y={r + 12} className="graph-node__detail">
-                                {truncate(reading, DETAIL_TEXT_MAX_CHARS)}
-                              </text>
-                            )}
-                            {gloss && (
-                              <text
-                                textAnchor="middle"
-                                y={r + (reading ? 23 : 12)}
-                                className="graph-node__detail graph-node__detail--gloss"
-                              >
-                                {truncate(gloss, DETAIL_TEXT_MAX_CHARS)}
-                              </text>
-                            )}
-                          </>
-                        );
-                      })()}
+                    {node.type === "word" && isInGroup(node.word) && (
+                      <circle cx={displayR * 0.68} cy={-displayR * 0.68} r={4.5} className="graph-node__group-dot" />
+                    )}
                   </g>
                 </g>
               );
