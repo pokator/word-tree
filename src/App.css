@@ -1108,6 +1108,13 @@
   stroke: rgba(0, 0, 0, 0.45);
   stroke-width: 3px;
   stroke-linejoin: round;
+  /* Counter-scales against zoom (set on the graph via --zoom-inv, see
+     WordTreeGraph's zoom handler) so labels stay a constant on-screen size
+     across the whole zoom range -- node circles and links still scale
+     normally with zoom, only text stays legible when zoomed out to see a
+     large graph at once. */
+  transform-box: fill-box;
+  transform-origin: center;
 }
 
 .graph-node--kanji .graph-node__label {

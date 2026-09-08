@@ -5,6 +5,7 @@ import { useForceSimulation } from "../graph/useForceSimulation";
 import { nodeRadius, nodeFill, nodeOpacity } from "../graph/layout";
 import { readNodeColors } from "../graph/theme";
 import { kanjiPositionCategory } from "../graph/positionCategory";
+import { linkDistanceKey } from "../graph/linkDistanceKey";
 
 const DRAG_CLICK_THRESHOLD_PX = 5;
 const DOUBLE_CLICK_MS = 350;
@@ -19,6 +20,26 @@ const ZOOM_STEP = 1.3;
 // keeps them visibly following without losing the spring-like give of the
 // link force that's about to take back over once the drag ends.
 const NEIGHBOR_FOLLOW = 0.55;
+
+// A gentle, constant-direction bow instead of a straight line -- in a
+// radial hub-and-spoke layout like this one there's little actual edge
+// CROSSING for a curve to disentangle, but a uniform curve still reads as
+// noticeably calmer than dead-straight spokes converging on one point (the
+// same reason mind-map / org-chart tools default to curved edges), and
+// pairs well with the position-category coloring by turning each hub's
+// fan-out into more of a "flower" than a starburst. Always bowing the same
+// rotational direction (rather than alternating per-link) keeps that
+// flower reading as intentional rather than jittery. Scales with length,
+// capped, so short links don't kink and long ones don't over-bow.
+function linkPath(s, t) {
+  const dx = t.x - s.x;
+  const dy = t.y - s.y;
+  const len = Math.hypot(dx, dy) || 1;
+  const bow = Math.min(24, len * 0.12);
+  const midX = (s.x + t.x) / 2 + (-dy / len) * bow;
+  const midY = (s.y + t.y) / 2 + (dx / len) * bow;
+  return `M ${s.x} ${s.y} Q ${midX} ${midY} ${t.x} ${t.y}`;
+}
 
 export default function WordTreeGraph({
   graph,
@@ -38,7 +59,7 @@ export default function WordTreeGraph({
   const lastClickRef = useRef({ id: null, time: 0 });
   const [size, setSize] = useState({ width: 800, height: 600 });
 
-  const { simNodesMapRef, simulationRef } = useForceSimulation(graph, size.width, size.height);
+  const { simNodesMapRef, simulationRef, linkDistanceRef } = useForceSimulation(graph, size.width, size.height);
 
   // Track container size responsively.
   useEffect(() => {
@@ -63,6 +84,14 @@ export default function WordTreeGraph({
       .on("zoom", (event) => {
         zoomTransformRef.current = event.transform;
         select(gEl).attr("transform", event.transform.toString());
+        // Labels counter-scale against zoom (see .graph-node__label in
+        // App.css) so zooming out to see more of a large graph doesn't
+        // shrink text into illegibility -- node/circle sizes still scale
+        // normally, only the label stays a constant on-screen size. Set as
+        // a CSS var mutated directly here (not React state) so panning/
+        // zooming never triggers a re-render of every node just to redraw
+        // text at the right size.
+        gEl.style.setProperty("--zoom-inv", String(1 / event.transform.k));
       });
     zoomBehaviorRef.current = behavior;
     select(svgEl).call(behavior);
@@ -95,24 +124,39 @@ export default function WordTreeGraph({
     node.fx = startX;
     node.fy = startY;
 
-    // Drag pulls the node's direct neighbors along with it too, damped by
-    // NEIGHBOR_FOLLOW -- otherwise a dragged node visibly tears away from
+    // Drag pulls the node's CHILDREN along with it too, damped by
+    // NEIGHBOR_FOLLOW -- otherwise a dragged hub visibly tears away from
     // everything it's linked to before the (much weaker) link force
     // catches up. They're pinned only for the duration of the drag and
     // released at the same moment the dragged node is, so the simulation's
     // own link/charge/collision forces immediately take back over rather
     // than leaving the cluster stuck wherever the drag left it.
-    const neighborIds = new Set();
+    //
+    // Deliberately one-directional -- only children (links where this node
+    // is the source, see positionCategory.js's kanji-source convention)
+    // follow, never a PARENT. If dragging a word away from its kanji also
+    // dragged that kanji along, the two would end up about as close as
+    // they started (both having moved the same way), which is exactly the
+    // "can't create lasting space from a parent" problem this whole
+    // mechanism exists to fix. The parent itself is left alone during the
+    // drag, but its distance is still persisted on release below -- only
+    // the dragged node moved, so that final distance is exactly what the
+    // drag was trying to create.
+    const childIds = new Set();
+    const parentIds = new Set(); // usually one, but a multi-kanji word can have several
     for (const l of graph.links) {
       const s = typeof l.source === "object" ? l.source.id : l.source;
       const t = typeof l.target === "object" ? l.target.id : l.target;
-      if (s === node.id) neighborIds.add(t);
-      else if (t === node.id) neighborIds.add(s);
+      if (s === node.id) childIds.add(t);
+      else if (t === node.id) parentIds.add(s);
     }
-    const neighbors = Array.from(neighborIds)
+    const children = Array.from(childIds)
       .map((id) => simNodesMapRef.current.get(id))
       .filter(Boolean)
       .map((n) => ({ n, startX: n.x, startY: n.y }));
+    const parents = Array.from(parentIds)
+      .map((id) => simNodesMapRef.current.get(id))
+      .filter(Boolean);
 
     // A drag on a long-settled graph (alpha decayed to ~0) needs the
     // simulation nudged awake, or nothing re-renders while dragging -- the
@@ -123,6 +167,17 @@ export default function WordTreeGraph({
       if (sim) sim.alpha(Math.max(sim.alpha(), 0.3)).restart();
     }
     wake();
+
+    // d3-force's forceLink only evaluates its distance/strength accessors
+    // when .links() is (re)assigned -- it caches the results per link for
+    // performance rather than re-reading them every tick. So writing a new
+    // value into linkDistanceRef alone changes nothing; the link force has
+    // to be handed its links again to re-bake against the updated map.
+    function rebakeLinkDistances() {
+      const sim = simulationRef.current;
+      const linkForce = sim?.force("link");
+      if (linkForce) linkForce.links(linkForce.links());
+    }
 
     function toLocal(clientX, clientY) {
       const t = zoomTransformRef.current;
@@ -140,7 +195,7 @@ export default function WordTreeGraph({
       node.fy = ly;
       const dxTotal = lx - startX;
       const dyTotal = ly - startY;
-      for (const { n, startX: nx, startY: ny } of neighbors) {
+      for (const { n, startX: nx, startY: ny } of children) {
         n.fx = nx + dxTotal * NEIGHBOR_FOLLOW;
         n.fy = ny + dyTotal * NEIGHBOR_FOLLOW;
       }
@@ -150,13 +205,34 @@ export default function WordTreeGraph({
     function onUp() {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
+
+      // Read every final position from fx/fy (guaranteed current -- it's
+      // exactly what the last pointermove set) before nulling any of them:
+      // x/y only catch up to fx/fy on the next simulation tick, so reading
+      // x/y here instead could race a drag ending between animation frames.
+      // Parents were never pinned, so their x/y (not fx/fy, which is null)
+      // is already exactly where they are.
+      const finalX = node.fx;
+      const finalY = node.fy;
+      const childFinals = children.map(({ n }) => ({ n, x: n.fx, y: n.fy }));
+      const parentFinals = parents.map((n) => ({ n, x: n.x, y: n.y }));
       node.fx = null;
       node.fy = null;
-      for (const { n } of neighbors) {
+      for (const { n } of children) {
         n.fx = null;
         n.fy = null;
       }
       if (moved) {
+        // Persist the distance this drag left between the node and each of
+        // its parents and children as that link's new target -- without
+        // this, the link force pulls everything straight back to the
+        // degree-based default the instant it's released, which is
+        // exactly the "dragging can't create lasting space" problem this
+        // is meant to fix.
+        for (const { n, x: nx, y: ny } of [...childFinals, ...parentFinals]) {
+          linkDistanceRef.current.set(linkDistanceKey(node.id, n.id), Math.hypot(finalX - nx, finalY - ny));
+        }
+        rebakeLinkDistances();
         wake();
         return;
       }
@@ -214,12 +290,11 @@ export default function WordTreeGraph({
               // "position" -- see positionCategory.js and useForceSimulation.
               const posCategory = s.type === "kanji" && t.type === "word" ? kanjiPositionCategory(t.word, s.char) : null;
               return (
-                <line
+                <path
                   key={`${s.id}->${t.id}`}
-                  x1={s.x}
-                  y1={s.y}
-                  x2={t.x}
-                  y2={t.y}
+                  d={linkPath(s, t)}
+                  fill="none"
+                  vectorEffect="non-scaling-stroke"
                   className={`graph-link${posCategory ? ` graph-link--pos-${posCategory}` : ""}`}
                 />
               );
@@ -247,11 +322,21 @@ export default function WordTreeGraph({
                 >
                   <g className="graph-node__pop">
                     {!node.expanded && <title>Double-click to reveal more</title>}
-                    <circle r={r} fill={nodeFill(node, { root: node.isRoot, colors })} />
+                    <circle r={r} fill={nodeFill(node, { root: node.isRoot, colors })} vectorEffect="non-scaling-stroke" />
                     {!node.expanded && (
-                      <circle r={r + 5} className="graph-node__expand-ring" fill="none" />
+                      <circle
+                        r={r + 5}
+                        className="graph-node__expand-ring"
+                        fill="none"
+                        vectorEffect="non-scaling-stroke"
+                      />
                     )}
-                    <text textAnchor="middle" dominantBaseline="central" className="graph-node__label">
+                    <text
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                      className="graph-node__label"
+                      style={{ transform: "scale(var(--zoom-inv, 1))" }}
+                    >
                       {label}
                     </text>
                     {node.type === "word" && isInGroup(node.word) && (

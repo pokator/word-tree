@@ -9,6 +9,22 @@ import {
 } from "d3-force";
 import { nodeRadius } from "./layout";
 import { kanjiPositionCategory, POSITION_ORDER } from "./positionCategory";
+import { linkDistanceKey } from "./linkDistanceKey";
+
+// A hub with many revealed siblings needs a bigger ring than one with just
+// two or three -- a flat distance packs a 20-word fan-out into the same
+// circumference as a 3-word one, which is exactly the "kanji blur into each
+// other" crowding this scales away from. Below DENSE_THRESHOLD siblings this
+// is just the flat base distance (unchanged from before); past it, distance
+// grows with sibling count so the arc length between neighbors stays roughly
+// proportional to how many have to fit on the ring.
+const BASE_LINK_DISTANCE = 110;
+const DENSE_THRESHOLD = 4;
+const DISTANCE_PER_EXTRA_SIBLING = 14;
+
+export function baseLinkDistance(siblingCount) {
+  return BASE_LINK_DISTANCE + Math.max(0, siblingCount - DENSE_THRESHOLD) * DISTANCE_PER_EXTRA_SIBLING;
+}
 
 // Assigns each new sibling an angle around its parent. When the parent is a
 // kanji, siblings are first grouped by kanjiPositionCategory and each group
@@ -54,14 +70,40 @@ function computeSiblingAngles(siblingIds, parentData, graphNodes) {
 export function useForceSimulation(graph, width, height) {
   const simNodesMapRef = useRef(new Map());
   const simulationRef = useRef(null);
+  // parentId -> sibling count sharing that parent, recomputed whenever the
+  // graph's links change (see the reconciliation effect below) -- read by
+  // the link force's distance accessor so hub spacing scales with fan-out.
+  const parentDegreeRef = useRef(new Map());
+  // linkDistanceKey(a,b) -> a user-dragged distance override (see
+  // WordTreeGraph's drag handler) that takes precedence over the
+  // degree-based default -- this is what makes dragging a node away from
+  // its parent an actual, persistent way to create room, instead of the
+  // link force pulling it straight back once the drag ends.
+  const linkDistanceRef = useRef(new Map());
   const [, forceRerender] = useReducer((x) => x + 1, 0);
 
   // Create the simulation once.
   useEffect(() => {
+    const idOf = (endpoint) => (typeof endpoint === "object" ? endpoint.id : endpoint);
     const sim = forceSimulation([])
-      .force("charge", forceManyBody().strength(-220))
-      .force("collide", forceCollide().radius((d) => nodeRadius(d) + 22))
-      .force("link", forceLink([]).id((d) => d.id).distance(110).strength(0.5))
+      .force("charge", forceManyBody().strength(-240))
+      .force(
+        "collide",
+        forceCollide().radius((d) => nodeRadius(d) + (d.type === "kanji" ? 30 : 20))
+      )
+      .force(
+        "link",
+        forceLink([])
+          .id((d) => d.id)
+          .distance((l) => {
+            const key = linkDistanceKey(idOf(l.source), idOf(l.target));
+            const custom = linkDistanceRef.current.get(key);
+            if (custom !== undefined) return custom;
+            const degree = parentDegreeRef.current.get(idOf(l.source)) ?? 1;
+            return baseLinkDistance(degree);
+          })
+          .strength(0.5)
+      )
       .force("x", forceX(width / 2).strength(0.03))
       .force("y", forceY(height / 2).strength(0.03))
       .on("tick", forceRerender);
@@ -91,6 +133,20 @@ export function useForceSimulation(graph, width, height) {
     }
 
     const idOf = (endpoint) => (typeof endpoint === "object" ? endpoint.id : endpoint);
+
+    // Recomputed from scratch each time since it's cheap (one pass over the
+    // links) and needs to reflect every link, not just this batch's new
+    // ones -- a hub revealed across several "show more" batches needs its
+    // ring sized for its TOTAL sibling count, not just the latest addition.
+    const parentDegree = new Map();
+    for (const l of graph.links) {
+      const s = idOf(l.source);
+      if (graph.nodes.get(s)?.type === "kanji") {
+        parentDegree.set(s, (parentDegree.get(s) ?? 0) + 1);
+      }
+    }
+    parentDegreeRef.current = parentDegree;
+
     const findParentId = (id) => {
       const link = graph.links.find((l) => {
         const s = idOf(l.source);
@@ -130,8 +186,11 @@ export function useForceSimulation(graph, width, height) {
     // around their parent (grouped by role, see computeSiblingAngles)
     // instead of a random jitter that the force simulation then has to
     // violently untangle -- see the reduced restart alpha below, which
-    // this calmer starting layout is what makes possible.
-    const SPAWN_RADIUS = 100;
+    // this calmer starting layout is what makes possible. The spawn radius
+    // uses the same degree-scaled distance the link force will settle
+    // toward (see baseLinkDistance above), so a big fan-out starts out
+    // already roughly as spread as it'll end up, rather than spawning
+    // tight and visibly shoving itself apart after the fact.
     for (const [id, data] of graph.nodes) {
       const prev = simNodesMap.get(id);
       if (prev) {
@@ -145,8 +204,9 @@ export function useForceSimulation(graph, width, height) {
       let spawnY = height / 2 + (Math.random() - 0.5) * 60;
       if (parent) {
         const angle = anglesByParent.get(parentId).get(id);
-        spawnX = parent.x + SPAWN_RADIUS * Math.cos(angle);
-        spawnY = parent.y + SPAWN_RADIUS * Math.sin(angle);
+        const spawnRadius = baseLinkDistance(parentDegree.get(parentId) ?? 1);
+        spawnX = parent.x + spawnRadius * Math.cos(angle);
+        spawnY = parent.y + spawnRadius * Math.sin(angle);
       }
       simNodesMap.set(id, { ...data, x: spawnX, y: spawnY });
     }
@@ -159,5 +219,5 @@ export function useForceSimulation(graph, width, height) {
     sim.alpha(0.5).restart();
   }, [graph, width, height]);
 
-  return { simNodesMapRef, simulationRef };
+  return { simNodesMapRef, simulationRef, linkDistanceRef };
 }
