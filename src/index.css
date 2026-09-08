@@ -14,15 +14,19 @@
     rgba(28, 26, 20, 0.12) 0 10px 15px -3px, rgba(28, 26, 20, 0.06) 0 4px 6px -2px;
 
   /* Node/edge semantic colors. The root node always carries --accent (it's
-     the one thing on screen that should always read as "the mark"); kanji
-     and word nodes share one restrained neutral -- they're already told
-     apart by shape/size/label content, so a second and third saturated hue
-     here only adds competing signal as the graph grows. Selection state
-     (see .graph-node.is-selected) is what earns a node the accent color. */
-  --node-neutral: #8a8371;
+     the one thing on screen that should always read as "the mark"). Kanji
+     and word nodes were briefly unified onto one shared neutral on the
+     theory that shape/size/label already told them apart -- in practice
+     that read as flat/low-contrast rather than restrained (see Decisions
+     Log), so they're back to two distinct muted tones: kanji stays the
+     original warm taupe (the "ink stroke" component), word gets a cool
+     slate blue (the "compound" it builds into). Same hue pairing in both
+     themes, only lightness shifts -- see the dark block below. Selection
+     state (see .graph-node.is-selected) is what earns a node the accent
+     color on top of either. */
   --node-root: var(--accent);
-  --node-kanji: var(--node-neutral);
-  --node-word: var(--node-neutral);
+  --node-kanji: #8a8371;
+  --node-word: #56697c;
 
   /* Kanji-position colors -- which arc of a kanji's revealed words a given
      word belongs to (start/middle/end of the word, see graph/positionCategory.js).
@@ -33,9 +37,9 @@
   --pos-end: #1f7a8c;
 
   /* Semantic "known/good" status color for UI text (export tags, review
-     tallies, mastery badges) -- kept separate from --node-neutral above.
-     That token is deliberately desaturated for the graph canvas; reused as
-     foreground text it fails WCAG AA (~2.6:1 on paper). This is the old
+     tallies, mastery badges) -- kept separate from the node colors above.
+     Those are deliberately desaturated for the graph canvas; reused as
+     foreground text they fail WCAG AA (~2.6:1 on paper). This is the old
      word-node green, kept only where it's read as text. */
   --success: #3f6b4f;
 
@@ -74,10 +78,9 @@
     --accent-border: rgba(255, 106, 77, 0.5);
     --shadow: rgba(0, 0, 0, 0.5) 0 10px 15px -3px, rgba(0, 0, 0, 0.3) 0 4px 6px -2px;
 
-    --node-neutral: #6b7182;
     --node-root: var(--accent);
-    --node-kanji: var(--node-neutral);
-    --node-word: var(--node-neutral);
+    --node-kanji: #a89a7e;
+    --node-word: #6b7182;
 
     --pos-start: #ff9f43;
     --pos-middle: #c77dff;
@@ -98,10 +101,9 @@
   --accent-border: rgba(255, 106, 77, 0.5);
   --shadow: rgba(0, 0, 0, 0.5) 0 10px 15px -3px, rgba(0, 0, 0, 0.3) 0 4px 6px -2px;
 
-  --node-neutral: #6b7182;
   --node-root: var(--accent);
-  --node-kanji: var(--node-neutral);
-  --node-word: var(--node-neutral);
+  --node-kanji: #a89a7e;
+  --node-word: #6b7182;
 
   --pos-start: #ff9f43;
   --pos-middle: #c77dff;

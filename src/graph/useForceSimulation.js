@@ -206,11 +206,25 @@ export function useForceSimulation(graph, width, height) {
     }
     parentDegreeRef.current = parentDegree;
 
+    // A node counts as "known" (usable as a parent) once it's either already
+    // in the simulation from an earlier reconciliation, or already walked
+    // past earlier in THIS SAME first pass below -- without the latter, the
+    // very first graph (root + its own kanji, all brand new in one batch)
+    // could never resolve a parent for those kanji, since the root they
+    // link to isn't "already placed" by any previous render either. It's
+    // only placed a few lines earlier in this same loop. buildGraph.js
+    // always nodes.set()s a parent before any of its new children (root
+    // before its kanji, a kanji/word before anything it later reveals), so
+    // insertion order alone is enough to guarantee the true parent is
+    // already in `seenThisPass` by the time its children are visited.
+    const seenThisPass = new Set();
     const findParentId = (id) => {
       const link = graph.links.find((l) => {
         const s = idOf(l.source);
         const t = idOf(l.target);
-        return (t === id && simNodesMap.has(s)) || (s === id && simNodesMap.has(t));
+        const sKnown = simNodesMap.has(s) || seenThisPass.has(s);
+        const tKnown = simNodesMap.has(t) || seenThisPass.has(t);
+        return (t === id && sKnown) || (s === id && tKnown);
       });
       if (!link) return null;
       const s = idOf(link.source);
@@ -225,9 +239,13 @@ export function useForceSimulation(graph, width, height) {
     const newSiblingsByParent = new Map(); // parentId -> [newNodeId, ...]
     const parentOf = new Map(); // newNodeId -> parentId | null
     for (const id of graph.nodes.keys()) {
-      if (simNodesMap.has(id)) continue;
+      if (simNodesMap.has(id)) {
+        seenThisPass.add(id);
+        continue;
+      }
       const parentId = findParentId(id);
       parentOf.set(id, parentId);
+      seenThisPass.add(id);
       if (parentId) {
         if (!newSiblingsByParent.has(parentId)) newSiblingsByParent.set(parentId, []);
         newSiblingsByParent.get(parentId).push(id);
