@@ -49,6 +49,11 @@ export default function SearchBar({ words, onSelectWord, recents = [], wordsByTe
     choose(q);
   }
 
+  function submit() {
+    if (matches.length > 0) choose(matches[0].word);
+    else chooseTyped();
+  }
+
   const exactMatch = query.trim() && matches.some((w) => w.word === query.trim());
 
   return (
@@ -66,10 +71,21 @@ export default function SearchBar({ words, onSelectWord, recents = [], wordsByTe
         onBlur={() => setTimeout(() => setIsOpen(false), 120)}
         onKeyDown={(e) => {
           if (e.key !== "Enter") return;
-          if (matches.length > 0) choose(matches[0].word);
-          else chooseTyped();
+          submit();
         }}
       />
+      <button
+        type="button"
+        className="search-bar__submit"
+        aria-label="Search"
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={submit}
+      >
+        <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true">
+          <circle cx="8.5" cy="8.5" r="6" fill="none" stroke="currentColor" strokeWidth="1.8" />
+          <line x1="13.2" y1="13.2" x2="18" y2="18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        </svg>
+      </button>
       {isOpen && query.trim() && (
         <ul className="search-results">
           {matches.map((w) => (
