@@ -1049,22 +1049,24 @@
 
 /* Color-codes a word's link back to the kanji that revealed it, by where
    that kanji sits in the word (start/middle/end) -- see
-   graph/positionCategory.js. Thicker + more opaque than the default link so
-   the grouping reads clearly even with many overlapping lines. */
+   graph/positionCategory.js. Kept as a quiet hint rather than a competing
+   saturated signal -- with the accent now reserved solely for the selected
+   node, these should read as "a hint of grouping" at a glance, not fight
+   for attention as the graph grows dense. */
 .graph-link--pos-start {
   stroke: var(--pos-start);
-  stroke-width: 2px;
-  opacity: 0.8;
+  stroke-width: 1.75px;
+  opacity: 0.55;
 }
 .graph-link--pos-middle {
   stroke: var(--pos-middle);
-  stroke-width: 2px;
-  opacity: 0.8;
+  stroke-width: 1.75px;
+  opacity: 0.55;
 }
 .graph-link--pos-end {
   stroke: var(--pos-end);
-  stroke-width: 2px;
-  opacity: 0.8;
+  stroke-width: 1.75px;
+  opacity: 0.55;
 }
 
 .graph-zoom-controls {

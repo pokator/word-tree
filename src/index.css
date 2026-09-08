@@ -13,12 +13,16 @@
   --shadow:
     rgba(28, 26, 20, 0.12) 0 10px 15px -3px, rgba(28, 26, 20, 0.06) 0 4px 6px -2px;
 
-  /* Node/edge semantic colors -- kept separate from --accent so the root
-     node's color and general UI chrome (buttons, links) never compete for
-     the same visual signal. */
+  /* Node/edge semantic colors. The root node always carries --accent (it's
+     the one thing on screen that should always read as "the mark"); kanji
+     and word nodes share one restrained neutral -- they're already told
+     apart by shape/size/label content, so a second and third saturated hue
+     here only adds competing signal as the graph grows. Selection state
+     (see .graph-node.is-selected) is what earns a node the accent color. */
+  --node-neutral: #8a8371;
   --node-root: var(--accent);
-  --node-kanji: #3f4b63;
-  --node-word: #4b6355;
+  --node-kanji: var(--node-neutral);
+  --node-word: var(--node-neutral);
 
   /* Kanji-position colors -- which arc of a kanji's revealed words a given
      word belongs to (start/middle/end of the word, see graph/positionCategory.js).
@@ -28,7 +32,7 @@
   --pos-middle: #6a4c93;
   --pos-end: #1f7a8c;
 
-  --sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --sans: 'Instrument Sans', system-ui, 'Segoe UI', Roboto, sans-serif;
   --heading: 'Shippori Mincho', serif;
   --heading-weight: 500;
 
@@ -49,29 +53,28 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    /* Dark theme -- "Modern Tokyo signage": train-line maps and night
-       shop signage. Deliberate blue-black ground, bold sans headings,
-       saturated color-coded accents for each node type. */
+    /* Dark theme -- "Ink at night": the same shodo/paper concept as light
+       mode, not a different product. Deep blue-black ground stands in for
+       night rather than paper; heading font, accent hue family (vermillion),
+       and restrained node coloring all carry over unchanged. */
     --bg: #0b0c10;
     --code-bg: #16181f;
     --border: #2a2d38;
     --text: #a9afc0;
     --text-h: #f5f6fa;
-    --accent: #7c5cff;
-    --accent-bg: rgba(124, 92, 255, 0.15);
-    --accent-border: rgba(124, 92, 255, 0.5);
+    --accent: #ff6a4d;
+    --accent-bg: rgba(255, 106, 77, 0.15);
+    --accent-border: rgba(255, 106, 77, 0.5);
     --shadow: rgba(0, 0, 0, 0.5) 0 10px 15px -3px, rgba(0, 0, 0, 0.3) 0 4px 6px -2px;
 
-    --node-root: #ff3d71;
-    --node-kanji: #00b8d9;
-    --node-word: #ffb000;
+    --node-neutral: #6b7182;
+    --node-root: var(--accent);
+    --node-kanji: var(--node-neutral);
+    --node-word: var(--node-neutral);
 
     --pos-start: #ff9f43;
     --pos-middle: #c77dff;
     --pos-end: #34d399;
-
-    --heading: 'Inter', system-ui, sans-serif;
-    --heading-weight: 800;
   }
 }
 
@@ -81,21 +84,19 @@
   --border: #2a2d38;
   --text: #a9afc0;
   --text-h: #f5f6fa;
-  --accent: #7c5cff;
-  --accent-bg: rgba(124, 92, 255, 0.15);
-  --accent-border: rgba(124, 92, 255, 0.5);
+  --accent: #ff6a4d;
+  --accent-bg: rgba(255, 106, 77, 0.15);
+  --accent-border: rgba(255, 106, 77, 0.5);
   --shadow: rgba(0, 0, 0, 0.5) 0 10px 15px -3px, rgba(0, 0, 0, 0.3) 0 4px 6px -2px;
 
-  --node-root: #ff3d71;
-  --node-kanji: #00b8d9;
-  --node-word: #ffb000;
+  --node-neutral: #6b7182;
+  --node-root: var(--accent);
+  --node-kanji: var(--node-neutral);
+  --node-word: var(--node-neutral);
 
   --pos-start: #ff9f43;
   --pos-middle: #c77dff;
   --pos-end: #34d399;
-
-  --heading: 'Inter', system-ui, sans-serif;
-  --heading-weight: 800;
 }
 
 /* Without this, any `width: 100%` element that also has padding/border
