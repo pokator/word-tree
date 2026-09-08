@@ -55,8 +55,8 @@
 
 .theme-toggle {
   font-size: 16px;
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   border: 1px solid var(--border);
   background: var(--code-bg);
@@ -1076,14 +1076,14 @@
   z-index: 2;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .graph-zoom-controls button {
-  width: 30px;
-  height: 30px;
+  width: 44px;
+  height: 44px;
   font: inherit;
-  font-size: 16px;
+  font-size: 18px;
   line-height: 1;
   border-radius: 6px;
   border: 1px solid var(--border);
