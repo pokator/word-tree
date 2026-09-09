@@ -179,99 +179,104 @@ export default function GraphPanel({
         </div>
       </div>
 
-      {graph ? (
-        <WordTreeGraph
-          graph={graph}
-          selectedId={selectedId}
-          onNodeClick={onNodeClick}
-          onNodeExpand={onNodeExpand}
-          getStatus={getStatus}
-          isInGroup={isInGroup}
-          isDimmed={combinedIsDimmed}
-          theme={theme}
-          hintedIds={hintedIds}
-          colorByDifficulty={colorByDifficulty}
-        />
-      ) : (
-        <div className="graph-container graph-container--loading">
-          <LoadingIndicator progress={datasetProgress} />
-        </div>
-      )}
+      <div className="graph-canvas">
+        {graph ? (
+          <WordTreeGraph
+            graph={graph}
+            selectedId={selectedId}
+            onNodeClick={onNodeClick}
+            onNodeExpand={onNodeExpand}
+            getStatus={getStatus}
+            isInGroup={isInGroup}
+            isDimmed={combinedIsDimmed}
+            theme={theme}
+            hintedIds={hintedIds}
+            colorByDifficulty={colorByDifficulty}
+          />
+        ) : (
+          <div className="graph-container graph-container--loading">
+            <LoadingIndicator progress={datasetProgress} />
+          </div>
+        )}
 
-      <div className="graph-panel__footer">
-        <div className="legend">
-          <span className="legend__row">
-            <span className="legend__swatch legend__swatch--root" /> Root
-          </span>
-          <button
-            type="button"
-            className={`legend__row${typeLegend.word ? "" : " is-inactive"}`}
-            onClick={() => toggleType("word")}
-            aria-pressed={typeLegend.word}
-            title={typeLegend.word ? "Click to dim word nodes" : "Click to un-dim word nodes"}
-          >
-            <span className="legend__swatch legend__swatch--word" /> Word
-          </button>
-          <button
-            type="button"
-            className={`legend__row${typeLegend.kanji ? "" : " is-inactive"}`}
-            onClick={() => toggleType("kanji")}
-            aria-pressed={typeLegend.kanji}
-            title={typeLegend.kanji ? "Click to dim kanji nodes" : "Click to un-dim kanji nodes"}
-          >
-            <span className="legend__swatch legend__swatch--kanji" /> Kanji
-          </button>
-          {showPositionLegend && (
-            <>
-              <span className="legend__divider" />
-              <span className="legend__group-label">Position</span>
+        {graph && (
+          <div className="graph-legend">
+            <div className="graph-legend__group">
+              <span className="legend__row">
+                <span className="legend__swatch legend__swatch--root" /> Root
+              </span>
               <button
                 type="button"
-                className={`legend__row${positionLegend.start ? "" : " is-inactive"}`}
-                onClick={() => togglePosition("start")}
-                aria-pressed={positionLegend.start}
-                title="Where the kanji sits in the word"
+                className={`legend__row${typeLegend.word ? "" : " is-inactive"}`}
+                onClick={() => toggleType("word")}
+                aria-pressed={typeLegend.word}
+                title={typeLegend.word ? "Click to dim word nodes" : "Click to un-dim word nodes"}
               >
-                <span className="legend__swatch legend__swatch--line legend__swatch--pos-start" /> Start
+                <span className="legend__swatch legend__swatch--word" /> Word
               </button>
               <button
                 type="button"
-                className={`legend__row${positionLegend.middle ? "" : " is-inactive"}`}
-                onClick={() => togglePosition("middle")}
-                aria-pressed={positionLegend.middle}
-                title="Where the kanji sits in the word"
+                className={`legend__row${typeLegend.kanji ? "" : " is-inactive"}`}
+                onClick={() => toggleType("kanji")}
+                aria-pressed={typeLegend.kanji}
+                title={typeLegend.kanji ? "Click to dim kanji nodes" : "Click to un-dim kanji nodes"}
               >
-                <span className="legend__swatch legend__swatch--line legend__swatch--pos-middle" /> Middle
+                <span className="legend__swatch legend__swatch--kanji" /> Kanji
               </button>
-              <button
-                type="button"
-                className={`legend__row${positionLegend.end ? "" : " is-inactive"}`}
-                onClick={() => togglePosition("end")}
-                aria-pressed={positionLegend.end}
-                title="Where the kanji sits in the word"
-              >
-                <span className="legend__swatch legend__swatch--line legend__swatch--pos-end" /> End
-              </button>
-            </>
-          )}
-          {colorByDifficulty && (
-            <>
-              <span className="legend__divider" />
-              <span className="legend__group-label">JLPT</span>
-              {JLPT_LEGEND.map(({ value, label }) => (
+            </div>
+            {showPositionLegend && (
+              <div className="graph-legend__group">
+                <span className="legend__group-label">Position</span>
                 <button
                   type="button"
-                  className={`legend__row${jlptLegend[value] ? "" : " is-inactive"}`}
-                  onClick={() => toggleJlpt(value)}
-                  aria-pressed={jlptLegend[value]}
-                  key={value}
+                  className={`legend__row${positionLegend.start ? "" : " is-inactive"}`}
+                  onClick={() => togglePosition("start")}
+                  aria-pressed={positionLegend.start}
+                  title="Where the kanji sits in the word"
                 >
-                  <span className={`legend__swatch legend__swatch--ring legend__swatch--jlpt-${value}`} /> {label}
+                  <span className="legend__swatch legend__swatch--line legend__swatch--pos-start" /> Start
                 </button>
-              ))}
-            </>
-          )}
-        </div>
+                <button
+                  type="button"
+                  className={`legend__row${positionLegend.middle ? "" : " is-inactive"}`}
+                  onClick={() => togglePosition("middle")}
+                  aria-pressed={positionLegend.middle}
+                  title="Where the kanji sits in the word"
+                >
+                  <span className="legend__swatch legend__swatch--line legend__swatch--pos-middle" /> Middle
+                </button>
+                <button
+                  type="button"
+                  className={`legend__row${positionLegend.end ? "" : " is-inactive"}`}
+                  onClick={() => togglePosition("end")}
+                  aria-pressed={positionLegend.end}
+                  title="Where the kanji sits in the word"
+                >
+                  <span className="legend__swatch legend__swatch--line legend__swatch--pos-end" /> End
+                </button>
+              </div>
+            )}
+            {colorByDifficulty && (
+              <div className="graph-legend__group">
+                <span className="legend__group-label">JLPT</span>
+                {JLPT_LEGEND.map(({ value, label }) => (
+                  <button
+                    type="button"
+                    className={`legend__row${jlptLegend[value] ? "" : " is-inactive"}`}
+                    onClick={() => toggleJlpt(value)}
+                    aria-pressed={jlptLegend[value]}
+                    key={value}
+                  >
+                    <span className={`legend__swatch legend__swatch--ring legend__swatch--jlpt-${value}`} /> {label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="graph-panel__footer">
         <p className="graph-panel__stats">
           {stats.words} words &middot; {stats.kanji} kanji shown
           {datasetSource === "local" && !datasetLoading ? " · local dataset" : ""}
