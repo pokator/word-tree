@@ -66,8 +66,7 @@ export default function FiltersPanel({
           ))}
         </div>
         <p className="filters-panel__hint">
-          Based on a word&rsquo;s hardest kanji. Narrowing this only limits new reveals -- hit Reset to fully apply
-          to what&rsquo;s already on screen.
+          Based on a word&rsquo;s hardest kanji. Narrowing this limits new reveals. Click Reset to fully apply.
         </p>
       </div>
 
@@ -80,13 +79,9 @@ export default function FiltersPanel({
             onClick={onToggleColorByDifficulty}
             aria-pressed={colorByDifficulty}
           >
-            Color by difficulty
+            Color by JLPT Level
           </button>
         </div>
-        <p className="filters-panel__hint">
-          Rings each node by JLPT level -- N5 (easiest) to N1 (hardest): a word&rsquo;s hardest kanji, or the
-          kanji&rsquo;s own level.
-        </p>
       </div>
 
       <div className="filters-panel__section">

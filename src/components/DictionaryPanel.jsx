@@ -340,6 +340,19 @@ export default function DictionaryPanel({
               )}
             </div>
           )}
+          <ExpandButton node={node} onExpand={onExpand} />
+
+          {wordStats && <ProgressStats wordStats={wordStats} streak={streak} />}
+
+          {!isKanji && onToggleGroup && (
+            <GroupMembership
+              word={node.word}
+              groups={groups}
+              memberOf={memberOf}
+              onToggleGroup={onToggleGroup}
+              onCreateGroup={onCreateGroup}
+            />
+          )}
         </div>
 
         {!isKanji && (
@@ -360,24 +373,12 @@ export default function DictionaryPanel({
         )}
       </div>
 
-      <ExpandButton node={node} onExpand={onExpand} />
-
       <div className="dictionary-panel__actions">
         <MasteryControl status={status} onSetStatus={onSetStatus} />
         {!isKanji && <SaveToggle canSave={canSave} isSaved={isSaved} onToggleSave={onToggleSave} />}
       </div>
 
-      {wordStats && <ProgressStats wordStats={wordStats} streak={streak} />}
-
-      {!isKanji && onToggleGroup && (
-        <GroupMembership
-          word={node.word}
-          groups={groups}
-          memberOf={memberOf}
-          onToggleGroup={onToggleGroup}
-          onCreateGroup={onCreateGroup}
-        />
-      )}
+      
     </div>
   );
 }

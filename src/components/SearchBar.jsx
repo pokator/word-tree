@@ -60,7 +60,7 @@ export default function SearchBar({ words, onSelectWord, recents = [], wordsByTe
     <div className="search-bar">
       <input
         type="text"
-        placeholder="Search or type any word (e.g. 日本語, 勉強する, nihongo)..."
+        placeholder="Search"
         value={query}
         onChange={(e) => {
           setQuery(e.target.value);
