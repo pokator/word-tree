@@ -1,5 +1,7 @@
+import { useCallback, useState } from "react";
 import WordTreeGraph from "./WordTreeGraph";
 import FiltersPanel from "./FiltersPanel";
+import { kanjiPositionCategory } from "../graph/positionCategory";
 
 // True once at least one kanji has been expanded (its links to sibling
 // words are the only ones color-coded by position -- see
@@ -24,6 +26,31 @@ const JLPT_LEGEND = [
   { value: "n1", label: "N1" },
   { value: "unrated", label: "unrated" },
 ];
+
+const DEFAULT_TYPE_LEGEND = { word: true, kanji: true };
+const DEFAULT_JLPT_LEGEND = { n5: true, n4: true, n3: true, n2: true, n1: true, unrated: true };
+const DEFAULT_POSITION_LEGEND = { start: true, middle: true, end: true };
+
+function toggled(prev, key) {
+  return { ...prev, [key]: !prev[key] };
+}
+
+// Every kanji that reveals this word and the role it plays relative to that
+// specific kanji (a bridge word shared by several kanji can be "start" for
+// one and "end" for another) -- used so the position legend only dims a
+// word once NONE of its roles are still active, not the moment any one of
+// them is toggled off.
+function wordPositionCategories(graph, word) {
+  const categories = new Set();
+  for (const l of graph.links) {
+    const s = typeof l.source === "object" ? l.source.id : l.source;
+    const t = typeof l.target === "object" ? l.target.id : l.target;
+    if (t !== word.id) continue;
+    const sourceNode = graph.nodes.get(s);
+    if (sourceNode?.type === "kanji") categories.add(kanjiPositionCategory(word.word, sourceNode.char));
+  }
+  return categories;
+}
 
 function LoadingIndicator({ progress }) {
   const pct =
@@ -82,6 +109,40 @@ export default function GraphPanel({
   colorByDifficulty,
   onToggleColorByDifficulty,
 }) {
+  // Legend rows double as highlight toggles: clicking one dims every node
+  // it covers, independent of (and layered on top of) the Filters-driven
+  // dimming already coming in as `isDimmed`. Kept local to this component
+  // rather than lifted to App -- it's a pure graph-view highlight, not a
+  // filter that should persist across root-word changes or survive a
+  // reload. The root swatch stays a plain, non-clickable label: it's a
+  // single always-shown anchor node, and WordTreeGraph already refuses to
+  // dim it regardless of what isDimmed returns (see its `!node.isRoot &&`
+  // guard), so a toggle for it would silently do nothing.
+  const [typeLegend, setTypeLegend] = useState(DEFAULT_TYPE_LEGEND);
+  const [jlptLegend, setJlptLegend] = useState(DEFAULT_JLPT_LEGEND);
+  const [positionLegend, setPositionLegend] = useState(DEFAULT_POSITION_LEGEND);
+
+  const toggleType = useCallback((key) => setTypeLegend((prev) => toggled(prev, key)), []);
+  const toggleJlpt = useCallback((key) => setJlptLegend((prev) => toggled(prev, key)), []);
+  const togglePosition = useCallback((key) => setPositionLegend((prev) => toggled(prev, key)), []);
+
+  const showPositionLegend = hasPositionGroups(graph);
+
+  const legendDimmed = useCallback(
+    (node) => {
+      if (!node.isRoot && typeLegend[node.type] === false) return true;
+      if (colorByDifficulty && node.jlptBucket && jlptLegend[node.jlptBucket] === false) return true;
+      if (showPositionLegend && node.type === "word" && graph) {
+        const categories = wordPositionCategories(graph, node);
+        if (categories.size > 0 && ![...categories].some((c) => positionLegend[c])) return true;
+      }
+      return false;
+    },
+    [typeLegend, jlptLegend, positionLegend, colorByDifficulty, showPositionLegend, graph]
+  );
+
+  const combinedIsDimmed = useCallback((node) => isDimmed(node) || legendDimmed(node), [isDimmed, legendDimmed]);
+
   return (
     <div className="graph-panel">
       <div className="graph-panel__toolbar">
@@ -126,7 +187,7 @@ export default function GraphPanel({
           onNodeExpand={onNodeExpand}
           getStatus={getStatus}
           isInGroup={isInGroup}
-          isDimmed={isDimmed}
+          isDimmed={combinedIsDimmed}
           theme={theme}
           hintedIds={hintedIds}
           colorByDifficulty={colorByDifficulty}
@@ -142,33 +203,66 @@ export default function GraphPanel({
           <span className="legend__row">
             <span className="legend__swatch legend__swatch--root" /> root
           </span>
-          <span className="legend__row">
+          <button
+            type="button"
+            className={`legend__row${typeLegend.word ? "" : " is-inactive"}`}
+            onClick={() => toggleType("word")}
+            aria-pressed={typeLegend.word}
+            title={typeLegend.word ? "Click to dim word nodes" : "Click to un-dim word nodes"}
+          >
             <span className="legend__swatch legend__swatch--word" /> word
-          </span>
-          <span className="legend__row">
+          </button>
+          <button
+            type="button"
+            className={`legend__row${typeLegend.kanji ? "" : " is-inactive"}`}
+            onClick={() => toggleType("kanji")}
+            aria-pressed={typeLegend.kanji}
+            title={typeLegend.kanji ? "Click to dim kanji nodes" : "Click to un-dim kanji nodes"}
+          >
             <span className="legend__swatch legend__swatch--kanji" /> kanji
-          </span>
-          {hasPositionGroups(graph) && (
+          </button>
+          {showPositionLegend && (
             <>
               <span className="legend__divider" />
-              <span className="legend__row">
+              <button
+                type="button"
+                className={`legend__row${positionLegend.start ? "" : " is-inactive"}`}
+                onClick={() => togglePosition("start")}
+                aria-pressed={positionLegend.start}
+              >
                 <span className="legend__swatch legend__swatch--line legend__swatch--pos-start" /> kanji at start
-              </span>
-              <span className="legend__row">
+              </button>
+              <button
+                type="button"
+                className={`legend__row${positionLegend.middle ? "" : " is-inactive"}`}
+                onClick={() => togglePosition("middle")}
+                aria-pressed={positionLegend.middle}
+              >
                 <span className="legend__swatch legend__swatch--line legend__swatch--pos-middle" /> at middle
-              </span>
-              <span className="legend__row">
+              </button>
+              <button
+                type="button"
+                className={`legend__row${positionLegend.end ? "" : " is-inactive"}`}
+                onClick={() => togglePosition("end")}
+                aria-pressed={positionLegend.end}
+              >
                 <span className="legend__swatch legend__swatch--line legend__swatch--pos-end" /> at end
-              </span>
+              </button>
             </>
           )}
           {colorByDifficulty && (
             <>
               <span className="legend__divider" />
               {JLPT_LEGEND.map(({ value, label }) => (
-                <span className="legend__row" key={value}>
+                <button
+                  type="button"
+                  className={`legend__row${jlptLegend[value] ? "" : " is-inactive"}`}
+                  onClick={() => toggleJlpt(value)}
+                  aria-pressed={jlptLegend[value]}
+                  key={value}
+                >
                   <span className={`legend__swatch legend__swatch--ring legend__swatch--jlpt-${value}`} /> {label}
-                </span>
+                </button>
               ))}
             </>
           )}

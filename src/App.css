@@ -2003,6 +2003,35 @@
   opacity: 0.85;
 }
 
+/* Legend rows double as highlight toggles (see GraphPanel) -- the "root"
+   row stays a plain <span> (there's only one root, and it's never dimmable
+   regardless, see WordTreeGraph), everything else is a <button> reset back
+   down to look like the same label, just interactive. */
+button.legend__row {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+}
+button.legend__row:hover {
+  opacity: 1;
+}
+button.legend__row:focus-visible {
+  outline: 2px solid var(--accent-border);
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+/* Muted like the graph nodes this row dims (see DIMMED_OPACITY in
+   WordTreeGraph) -- not the same value, since a legend label still needs
+   to stay legible enough to click again and turn back on. */
+button.legend__row.is-inactive {
+  opacity: 0.32;
+}
+button.legend__row.is-inactive:hover {
+  opacity: 0.55;
+}
+
 .legend__swatch {
   width: 10px;
   height: 10px;
