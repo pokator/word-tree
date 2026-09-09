@@ -85,8 +85,13 @@ function SaveToggle({ canSave, isSaved, onToggleSave }) {
 
 function JlptBadge({ level }) {
   if (!level) return null;
+  // Colored per level (N5 green .. N1 purple) to match the graph's own
+  // JLPT ring legend (see GraphPanel/index.css's --jlpt-n5.."n1) -- the two
+  // used to disagree: this always rendered accent/vermillion regardless of
+  // level, so a user who'd just learned the graph's color key would see an
+  // uncoded badge here.
   return (
-    <span className="jlpt-badge" title="JLPT level">
+    <span className={`jlpt-badge jlpt-badge--n${level}`} title="JLPT level">
       N{level}
     </span>
   );

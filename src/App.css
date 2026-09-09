@@ -1774,12 +1774,44 @@
 .jlpt-badge {
   font-size: 13px;
   font-weight: 700;
-  color: var(--accent);
-  background: var(--accent-bg);
-  border: 1px solid var(--accent-border);
   border-radius: 999px;
   padding: 2px 10px;
   flex-shrink: 0;
+  /* Accent is the fallback for a browser without color-mix() support --
+     each --jlpt-nN variant below overrides all three properties. */
+  color: var(--accent);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
+}
+
+/* Colored per level to match the graph's own JLPT ring legend (see
+   GraphPanel) -- tint ratios (12%/45%) mirror --accent-bg/--accent-border's
+   own opacity against the same base color, just derived from --jlpt-nN at
+   render time instead of hand-authored per-color rgba() literals. */
+.jlpt-badge--n5 {
+  color: var(--jlpt-n5);
+  background: color-mix(in srgb, var(--jlpt-n5) 12%, transparent);
+  border-color: color-mix(in srgb, var(--jlpt-n5) 45%, transparent);
+}
+.jlpt-badge--n4 {
+  color: var(--jlpt-n4);
+  background: color-mix(in srgb, var(--jlpt-n4) 12%, transparent);
+  border-color: color-mix(in srgb, var(--jlpt-n4) 45%, transparent);
+}
+.jlpt-badge--n3 {
+  color: var(--jlpt-n3);
+  background: color-mix(in srgb, var(--jlpt-n3) 12%, transparent);
+  border-color: color-mix(in srgb, var(--jlpt-n3) 45%, transparent);
+}
+.jlpt-badge--n2 {
+  color: var(--jlpt-n2);
+  background: color-mix(in srgb, var(--jlpt-n2) 12%, transparent);
+  border-color: color-mix(in srgb, var(--jlpt-n2) 45%, transparent);
+}
+.jlpt-badge--n1 {
+  color: var(--jlpt-n1);
+  background: color-mix(in srgb, var(--jlpt-n1) 12%, transparent);
+  border-color: color-mix(in srgb, var(--jlpt-n1) 45%, transparent);
 }
 
 .graph-panel {
