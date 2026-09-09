@@ -22,6 +22,16 @@ const BASE_LINK_DISTANCE = 110;
 const DENSE_THRESHOLD = 4;
 const DISTANCE_PER_EXTRA_SIBLING = 14;
 
+// Both floating overlays (the legend, bottom-left; zoom controls,
+// bottom-right, see WordTreeGraph) permanently occupy the two bottom
+// corners of the canvas. Biasing the vertical centering force upward (a
+// plain fraction of height, not a true corner-avoidance force -- see the
+// commit this constant shipped in for why a full fix is deferred) pulls
+// the graph's whole center of mass away from that crowded edge, so a node
+// is less likely to end up settled behind either overlay as the graph
+// grows. Doesn't guarantee it never happens -- just measurably rarer.
+const CENTER_Y_BIAS = 0.42;
+
 export function baseLinkDistance(siblingCount) {
   return BASE_LINK_DISTANCE + Math.max(0, siblingCount - DENSE_THRESHOLD) * DISTANCE_PER_EXTRA_SIBLING;
 }
@@ -146,7 +156,7 @@ export function useForceSimulation(graph, width, height) {
           .strength(0.5)
       )
       .force("x", forceX(width / 2).strength(0.03))
-      .force("y", forceY(height / 2).strength(0.03))
+      .force("y", forceY(height * CENTER_Y_BIAS).strength(0.03))
       .on("tick", forceRerender);
     simulationRef.current = sim;
     return () => sim.stop();
@@ -158,7 +168,7 @@ export function useForceSimulation(graph, width, height) {
     const sim = simulationRef.current;
     if (!sim) return;
     sim.force("x", forceX(width / 2).strength(0.03));
-    sim.force("y", forceY(height / 2).strength(0.03));
+    sim.force("y", forceY(height * CENTER_Y_BIAS).strength(0.03));
     sim.alpha(Math.max(sim.alpha(), 0.1)).restart();
   }, [width, height]);
 
