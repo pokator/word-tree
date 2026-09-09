@@ -388,6 +388,21 @@ export default function WordTreeGraph({
                         vectorEffect="non-scaling-stroke"
                       />
                     )}
+                    {/* Selection state is its own outer ring rather than a
+                        stroke on the fill circle itself -- that circle's
+                        stroke is already spoken for by the difficulty ring
+                        (see graph-node--difficulty below), and having
+                        selection borrow the same channel used to hide it
+                        the moment a node was clicked, the one time you'd
+                        most want to check a node's difficulty. */}
+                    {selected && (
+                      <circle
+                        r={displayR + 9}
+                        className="graph-node__select-ring"
+                        fill="none"
+                        vectorEffect="non-scaling-stroke"
+                      />
+                    )}
                     <text
                       textAnchor="middle"
                       dominantBaseline="central"
