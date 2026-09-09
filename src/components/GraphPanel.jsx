@@ -202,6 +202,7 @@ export default function GraphPanel({
         {graph && (
           <div className="graph-legend">
             <div className="graph-legend__group">
+              <span className="legend__group-label">Type</span>
               <span className="legend__row">
                 <span className="legend__swatch legend__swatch--root" /> Root
               </span>
@@ -257,7 +258,7 @@ export default function GraphPanel({
               </div>
             )}
             {colorByDifficulty && (
-              <div className="graph-legend__group">
+              <div className="graph-legend__group graph-legend__group--grid">
                 <span className="legend__group-label">JLPT</span>
                 {JLPT_LEGEND.map(({ value, label }) => (
                   <button

@@ -1994,20 +1994,23 @@
 
 /* Floats over the bottom-left corner of the canvas, the mirror image of
    .graph-zoom-controls at bottom-right -- a small card rather than a bar
-   sharing the footer with the stats line, so it can stack vertically
-   without fighting that footer for horizontal room (see graph-legend__group
-   below). Matches Obsidian's own graph-view legend, this app's one direct
-   design precedent for the graph panel (see DESIGN.md). */
+   sharing the footer with the stats line. Matches Obsidian's own
+   graph-view legend, this app's one direct design precedent for the graph
+   panel (see DESIGN.md). Three sections side by side (type / position /
+   JLPT, see graph-legend__group below) rather than one tall stack -- each
+   section tops out around 3 rows (JLPT packs its 6 levels into 2 columns
+   to match), so the card reads as one wide, short block instead of a
+   narrow, tall one. */
 .graph-legend {
   position: absolute;
   left: 16px;
   bottom: 16px;
   z-index: 2;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 10px 12px;
-  max-width: 200px;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 10px 14px;
   background: var(--code-bg);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -2020,8 +2023,22 @@
   gap: 5px;
 }
 .graph-legend__group + .graph-legend__group {
-  padding-top: 8px;
-  border-top: 1px solid var(--border);
+  padding-left: 16px;
+  border-left: 1px solid var(--border);
+}
+
+/* JLPT's 6 levels in 2 columns instead of 1 tall column -- keeps this
+   section the same ~3-row height as its neighbors. Row-major order (N5/N4,
+   N3/N2, N1/Unrated) so it still reads easiest-to-hardest, left to right
+   then down. */
+.graph-legend__group--grid {
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  column-gap: 12px;
+  row-gap: 4px;
+}
+.graph-legend__group--grid .legend__group-label {
+  grid-column: 1 / -1;
 }
 
 .legend__row {
