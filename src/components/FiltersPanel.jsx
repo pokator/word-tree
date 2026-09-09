@@ -27,6 +27,8 @@ export default function FiltersPanel({
   onSetMaxWords,
   colorByDifficulty,
   onToggleColorByDifficulty,
+  colorByReading,
+  onToggleColorByReading,
   onClose,
 }) {
   return (
@@ -81,7 +83,19 @@ export default function FiltersPanel({
           >
             Color by JLPT Level
           </button>
+          <button
+            type="button"
+            className={`filters-panel__chip${colorByReading ? " is-active" : ""}`}
+            onClick={onToggleColorByReading}
+            aria-pressed={colorByReading}
+          >
+            Color by Reading
+          </button>
         </div>
+        <p className="filters-panel__hint">
+          Color links by whether a word uses a kanji&rsquo;s on&rsquo;yomi or kun&rsquo;yomi (best-effort; irregular
+          readings show as unclear). Click a Reading row in the legend to focus just that type.
+        </p>
       </div>
 
       <div className="filters-panel__section">

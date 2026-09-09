@@ -58,6 +58,7 @@ export default function WordTreeGraph({
   theme,
   hintedIds = EMPTY_SET,
   colorByDifficulty = false,
+  colorByReading = false,
 }) {
   const containerRef = useRef(null);
   const svgRef = useRef(null);
@@ -307,8 +308,20 @@ export default function WordTreeGraph({
               if (!s || !t) return null;
               // Only a kanji revealing its sibling words (not the reverse --
               // a word revealing its own component kanji) has a meaningful
-              // "position" -- see positionCategory.js and useForceSimulation.
-              const posCategory = s.type === "kanji" && t.type === "word" ? kanjiPositionCategory(t.word, s.char) : null;
+              // "position" or "reading" role -- see positionCategory.js,
+              // readingType.js and useForceSimulation. The two color a link
+              // the same way (mutually exclusive, not stacked) -- reading
+              // takes over from position while its Filters toggle is on,
+              // see GraphPanel's showReadingLegend/showPositionLegend.
+              const isKanjiToWord = s.type === "kanji" && t.type === "word";
+              const readingCategory =
+                colorByReading && isKanjiToWord ? (t.kanjiReadingTypes?.[s.char] ?? "unknown") : null;
+              const posCategory = !readingCategory && isKanjiToWord ? kanjiPositionCategory(t.word, s.char) : null;
+              const linkClass = readingCategory
+                ? ` graph-link--reading-${readingCategory}`
+                : posCategory
+                  ? ` graph-link--pos-${posCategory}`
+                  : "";
               return (
                 <line
                   key={`${s.id}->${t.id}`}
@@ -317,7 +330,7 @@ export default function WordTreeGraph({
                   x2={t.x}
                   y2={t.y}
                   vectorEffect="non-scaling-stroke"
-                  className={`graph-link${posCategory ? ` graph-link--pos-${posCategory}` : ""}`}
+                  className={`graph-link${linkClass}`}
                 />
               );
             })}

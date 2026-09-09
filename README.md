@@ -92,6 +92,13 @@ shows:
   kanji stays in its "click for more" (dashed ring) state — click it again
   for the next batch. Handy for keeping a very common kanji (like 日 or
   人) from instantly flooding the graph.
+- **Color by Reading** color-codes each kanji→word link by whether that
+  word uses the kanji's on'yomi or kun'yomi (e.g. 毎日's 日 is on'yomi,
+  誕生日's is kun'yomi) — best-effort, so an irregular/heavily-sound-shifted
+  reading (jukujikun like 今日) shows as "Unclear" rather than a guess.
+  Replaces the always-on start/middle/end position coloring on screen while
+  it's active; click a row in the graph's Reading legend to focus on just
+  on'yomi, kun'yomi, or unclear words.
 
 The dictionary panel, for the currently-selected word or kanji, lets you:
 - **Mark mastery** — New / Learning / Known. This dims or brightens the
