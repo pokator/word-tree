@@ -1990,17 +1990,32 @@
 .legend {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
 .legend__row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   color: var(--text);
   font-size: 12px;
   opacity: 0.85;
+  white-space: nowrap;
+}
+
+/* Names the group that follows (Position, JLPT) so each button can just say
+   "Start"/"N5" instead of spelling out its own context ("kanji at start") --
+   one label per group instead of repeated per item. Mirrors the small-caps
+   section-label convention already used in FiltersPanel/DictionaryPanel. */
+.legend__group-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text);
+  opacity: 0.6;
+  white-space: nowrap;
 }
 
 /* Legend rows double as highlight toggles (see GraphPanel) -- the "root"

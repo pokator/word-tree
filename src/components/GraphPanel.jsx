@@ -24,7 +24,7 @@ const JLPT_LEGEND = [
   { value: "n3", label: "N3" },
   { value: "n2", label: "N2" },
   { value: "n1", label: "N1" },
-  { value: "unrated", label: "unrated" },
+  { value: "unrated", label: "Unrated" },
 ];
 
 const DEFAULT_TYPE_LEGEND = { word: true, kanji: true };
@@ -201,7 +201,7 @@ export default function GraphPanel({
       <div className="graph-panel__footer">
         <div className="legend">
           <span className="legend__row">
-            <span className="legend__swatch legend__swatch--root" /> root
+            <span className="legend__swatch legend__swatch--root" /> Root
           </span>
           <button
             type="button"
@@ -210,7 +210,7 @@ export default function GraphPanel({
             aria-pressed={typeLegend.word}
             title={typeLegend.word ? "Click to dim word nodes" : "Click to un-dim word nodes"}
           >
-            <span className="legend__swatch legend__swatch--word" /> word
+            <span className="legend__swatch legend__swatch--word" /> Word
           </button>
           <button
             type="button"
@@ -219,40 +219,45 @@ export default function GraphPanel({
             aria-pressed={typeLegend.kanji}
             title={typeLegend.kanji ? "Click to dim kanji nodes" : "Click to un-dim kanji nodes"}
           >
-            <span className="legend__swatch legend__swatch--kanji" /> kanji
+            <span className="legend__swatch legend__swatch--kanji" /> Kanji
           </button>
           {showPositionLegend && (
             <>
               <span className="legend__divider" />
+              <span className="legend__group-label">Position</span>
               <button
                 type="button"
                 className={`legend__row${positionLegend.start ? "" : " is-inactive"}`}
                 onClick={() => togglePosition("start")}
                 aria-pressed={positionLegend.start}
+                title="Where the kanji sits in the word"
               >
-                <span className="legend__swatch legend__swatch--line legend__swatch--pos-start" /> kanji at start
+                <span className="legend__swatch legend__swatch--line legend__swatch--pos-start" /> Start
               </button>
               <button
                 type="button"
                 className={`legend__row${positionLegend.middle ? "" : " is-inactive"}`}
                 onClick={() => togglePosition("middle")}
                 aria-pressed={positionLegend.middle}
+                title="Where the kanji sits in the word"
               >
-                <span className="legend__swatch legend__swatch--line legend__swatch--pos-middle" /> at middle
+                <span className="legend__swatch legend__swatch--line legend__swatch--pos-middle" /> Middle
               </button>
               <button
                 type="button"
                 className={`legend__row${positionLegend.end ? "" : " is-inactive"}`}
                 onClick={() => togglePosition("end")}
                 aria-pressed={positionLegend.end}
+                title="Where the kanji sits in the word"
               >
-                <span className="legend__swatch legend__swatch--line legend__swatch--pos-end" /> at end
+                <span className="legend__swatch legend__swatch--line legend__swatch--pos-end" /> End
               </button>
             </>
           )}
           {colorByDifficulty && (
             <>
               <span className="legend__divider" />
+              <span className="legend__group-label">JLPT</span>
               {JLPT_LEGEND.map(({ value, label }) => (
                 <button
                   type="button"
