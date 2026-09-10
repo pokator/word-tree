@@ -13,6 +13,7 @@
 
 import { extractKanjiComponents } from "./kanji";
 import { wordComponents } from "../data/deriveIndexes";
+import { kanjiReadingTypes } from "./readingType";
 
 export const wordNodeId = (word) => `word:${word}`;
 export const kanjiNodeId = (char) => `kanji:${char}`;
@@ -78,6 +79,7 @@ function wordNode(dataset, word, { isRoot = false, expanded = false } = {}) {
       expanded,
       isUnlisted: true,
       jlptBucket: wordJlptBucket(dataset, word),
+      kanjiReadingTypes: kanjiReadingTypes(dataset, word, ""),
     };
   }
   return {
@@ -91,6 +93,13 @@ function wordNode(dataset, word, { isRoot = false, expanded = false } = {}) {
     isRoot,
     expanded,
     jlptBucket: wordJlptBucket(dataset, word),
+    // Which of each component kanji's on'yomi/kun'yomi this word's reading
+    // actually uses -- see graph/readingType.js. Computed once here (needs
+    // every component kanji's reading data at once to align against the
+    // word's own reading), keyed by kanji char so a kanji->word link can
+    // look up its own role without redoing the alignment -- see
+    // WordTreeGraph's colorByReading.
+    kanjiReadingTypes: kanjiReadingTypes(dataset, entry.word, entry.reading),
   };
 }
 

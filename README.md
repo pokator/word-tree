@@ -92,6 +92,13 @@ shows:
   kanji stays in its "click for more" (dashed ring) state — click it again
   for the next batch. Handy for keeping a very common kanji (like 日 or
   人) from instantly flooding the graph.
+- **Color by Reading** color-codes each kanji→word link by whether that
+  word uses the kanji's on'yomi or kun'yomi (e.g. 毎日's 日 is on'yomi,
+  誕生日's is kun'yomi) — best-effort, so an irregular/heavily-sound-shifted
+  reading (jukujikun like 今日) shows as "Unclear" rather than a guess.
+  Replaces the always-on start/middle/end position coloring on screen while
+  it's active; click a row in the graph's Reading legend to focus on just
+  on'yomi, kun'yomi, or unclear words.
 
 The dictionary panel, for the currently-selected word or kanji, lets you:
 - **Mark mastery** — New / Learning / Known. This dims or brightens the
@@ -171,17 +178,19 @@ of sync.
 - The graph/expansion logic is framework- and dataset-agnostic
   (`src/graph/buildGraph.js`): given a word, look up its kanji; given a
   kanji, look up every word containing it — each function takes the
-  dataset as a parameter rather than importing one, so it doesn't care
-  whether the data came from Supabase or the bundled local dataset. A
-  word's kanji "components" aren't stored anywhere — they're computed on
-  the fly from the word's own text (`src/graph/kanji.js`), which is also
-  what makes an arbitrary, not-in-the-dictionary root word work: there's
-  nothing to look up to find its kanji, just the text itself.
-- `src/data/useWordData.js` fetches from Supabase when configured, falling
-  back to the bundled local dataset (`public/data/{kanji,words}.json`)
-  otherwise or on failure, and to `src/data/japaneseData.js` (a tiny ~32
-  kanji / ~38 word fixture) as a last-resort emergency fallback if even
-  that fetch somehow fails.
+  dataset as a parameter rather than importing one. A word's kanji
+  "components" aren't stored anywhere — they're computed on the fly from
+  the word's own text (`src/graph/kanji.js`), which is also what makes an
+  arbitrary, not-in-the-dictionary root word work: there's nothing to look
+  up to find its kanji, just the text itself.
+- `src/data/useWordData.js` always loads the dictionary from the bundled,
+  gzip-compressed static dataset (`public/data/{kanji,words}.gzjson` —
+  see `data/offline-dataset/README.md`) via a Web Worker
+  (`src/data/datasetWorker.js`) that fetches, decompresses, and indexes it
+  off the main thread, falling back to `src/data/japaneseData.js` (a tiny
+  ~32 kanji / ~38 word fixture) only if that somehow fails. It's
+  deliberately never read from Supabase, even when Supabase is
+  configured — see that README for why.
 - `src/progress/useProgress.js` (mastery) and `src/progress/useSavedWords.js`
   (Anki export queue) both branch on auth state; mastery has a
   `localStorage`-backed guest mode, the saved-words queue is

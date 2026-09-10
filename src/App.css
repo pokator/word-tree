@@ -1292,6 +1292,27 @@
   opacity: 0.55;
 }
 
+/* Color-codes the same link by whether the word uses this kanji's on'yomi
+   or kun'yomi instead -- opt-in via Filters -> "Color by Reading" (see
+   WordTreeGraph's colorByReading prop), replacing the position colors
+   above on screen rather than stacking with them. Same quiet-hint weight
+   as position -- this is an additional lens on the graph, not a louder one. */
+.graph-link--reading-onyomi {
+  stroke: var(--reading-onyomi);
+  stroke-width: 1.75px;
+  opacity: 0.55;
+}
+.graph-link--reading-kunyomi {
+  stroke: var(--reading-kunyomi);
+  stroke-width: 1.75px;
+  opacity: 0.55;
+}
+.graph-link--reading-unknown {
+  stroke: var(--reading-unknown);
+  stroke-width: 1.75px;
+  opacity: 0.55;
+}
+
 .graph-zoom-controls {
   position: absolute;
   right: 16px;
@@ -1414,20 +1435,24 @@
   }
 }
 
-/* :first-of-type, not :first-child -- an unexpanded node renders a <title>
-   tooltip before its fill circle (see WordTreeGraph), which would make the
-   fill circle the second CHILD but is still the first CIRCLE either way. */
-.graph-node.is-selected circle:first-of-type {
+/* Selection is a dedicated outer ring (see WordTreeGraph's
+   graph-node__select-ring), not a stroke on the fill circle itself -- that
+   circle's own stroke is the difficulty ring below, and the two used to
+   fight over the same channel (selecting a node hid its JLPT color). Sits
+   outside the "click for more" expand ring too, so an unexpanded selected
+   node shows both without either covering the other. */
+.graph-node__select-ring {
   stroke: var(--accent);
-  stroke-width: 3px;
+  stroke-width: 2.5px;
 }
 
 /* Difficulty ring, opt-in via Filters -> "color by difficulty" (see
    WordTreeGraph's colorByDifficulty prop and --node-jlpt-stroke, set inline
-   per node from graph/theme.js's jlpt colors). Excluded while selected so
-   it never competes with the accent selection stroke above -- the ring
-   reappears the moment the node is deselected, no extra state needed. */
-.graph-node--difficulty:not(.is-selected) circle:first-of-type {
+   per node from graph/theme.js's jlpt colors). :first-of-type, not
+   :first-child -- an unexpanded node renders a <title> tooltip before its
+   fill circle (see WordTreeGraph), which would make the fill circle the
+   second CHILD but is still the first CIRCLE either way. */
+.graph-node--difficulty circle:first-of-type {
   stroke: var(--node-jlpt-stroke);
   stroke-width: 3px;
 }
@@ -2190,6 +2215,15 @@ button.legend__row.is-inactive:hover {
 }
 .legend__swatch--pos-end {
   background: var(--pos-end);
+}
+.legend__swatch--reading-onyomi {
+  background: var(--reading-onyomi);
+}
+.legend__swatch--reading-kunyomi {
+  background: var(--reading-kunyomi);
+}
+.legend__swatch--reading-unknown {
+  background: var(--reading-unknown);
 }
 
 @media (max-width: 900px) {

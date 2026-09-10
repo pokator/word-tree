@@ -34,6 +34,7 @@ const MAX_WORDS_KEY = "word-tree:max-words-per-branch";
 const MASTERY_FILTER_KEY = "word-tree:mastery-filter";
 const JLPT_FILTER_KEY = "word-tree:jlpt-filter";
 const COLOR_BY_DIFFICULTY_KEY = "word-tree:color-by-difficulty";
+const COLOR_BY_READING_KEY = "word-tree:color-by-reading";
 const MAX_WORDS_OPTIONS = [5, 8, 12, 20, 40, Infinity];
 const DEFAULT_MASTERY_FILTER = { new: true, learning: true, known: true };
 const DEFAULT_JLPT_FILTER = { n5: true, n4: true, n3: true, n2: true, n1: true, unrated: true };
@@ -77,6 +78,14 @@ function loadColorByDifficulty() {
   }
 }
 
+function loadColorByReading() {
+  try {
+    return localStorage.getItem(COLOR_BY_READING_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
 function jlptBucketToLevel(bucket) {
   if (!bucket || bucket === "unrated") return null;
   const n = Number(bucket.slice(1));
@@ -93,6 +102,7 @@ export default function App() {
   const [masteryFilter, setMasteryFilter] = useState(loadMasteryFilter);
   const [jlptFilter, setJlptFilter] = useState(loadJlptFilter);
   const [colorByDifficulty, setColorByDifficulty] = useState(loadColorByDifficulty);
+  const [colorByReading, setColorByReading] = useState(loadColorByReading);
   const [focusGroupId, setFocusGroupId] = useState(null);
   const [isFiltersPanelOpen, setIsFiltersPanelOpen] = useState(false);
   const [reviewSession, setReviewSession] = useState(null); // { title, words } | null
@@ -257,6 +267,18 @@ export default function App() {
       const next = !prev;
       try {
         localStorage.setItem(COLOR_BY_DIFFICULTY_KEY, String(next));
+      } catch {
+        // localStorage unavailable -- setting just won't persist this session
+      }
+      return next;
+    });
+  }, []);
+
+  const handleToggleColorByReading = useCallback(() => {
+    setColorByReading((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(COLOR_BY_READING_KEY, String(next));
       } catch {
         // localStorage unavailable -- setting just won't persist this session
       }
@@ -493,6 +515,8 @@ export default function App() {
               onToggleJlpt={handleToggleJlptFilter}
               colorByDifficulty={colorByDifficulty}
               onToggleColorByDifficulty={handleToggleColorByDifficulty}
+              colorByReading={colorByReading}
+              onToggleColorByReading={handleToggleColorByReading}
               groups={groupsApi.groups}
               focusGroupId={focusGroupId}
               onSetFocusGroup={setFocusGroupId}

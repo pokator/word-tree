@@ -30,6 +30,13 @@ const JLPT_LEGEND = [
 const DEFAULT_TYPE_LEGEND = { word: true, kanji: true };
 const DEFAULT_JLPT_LEGEND = { n5: true, n4: true, n3: true, n2: true, n1: true, unrated: true };
 const DEFAULT_POSITION_LEGEND = { start: true, middle: true, end: true };
+const DEFAULT_READING_LEGEND = { onyomi: true, kunyomi: true, unknown: true };
+
+const READING_LEGEND = [
+  { value: "onyomi", label: "On’yomi" },
+  { value: "kunyomi", label: "Kun’yomi" },
+  { value: "unknown", label: "Unclear" },
+];
 
 function toggled(prev, key) {
   return { ...prev, [key]: !prev[key] };
@@ -48,6 +55,25 @@ function wordPositionCategories(graph, word) {
     if (t !== word.id) continue;
     const sourceNode = graph.nodes.get(s);
     if (sourceNode?.type === "kanji") categories.add(kanjiPositionCategory(word.word, sourceNode.char));
+  }
+  return categories;
+}
+
+// Same idea as wordPositionCategories, for on'yomi/kun'yomi instead of
+// start/middle/end -- a word mixing an on'yomi kanji with a kun'yomi one
+// (a genuine category, 湯桶/重箱-yomi) ends up with both in its set, so it
+// only dims once NEITHER of its roles is still active. Reading type is
+// precomputed per word node (see buildGraph.js/graph/readingType.js) since
+// it needs every component kanji's reading data at once, not just the one
+// a given link points at.
+function wordReadingCategories(graph, word) {
+  const categories = new Set();
+  for (const l of graph.links) {
+    const s = typeof l.source === "object" ? l.source.id : l.source;
+    const t = typeof l.target === "object" ? l.target.id : l.target;
+    if (t !== word.id) continue;
+    const sourceNode = graph.nodes.get(s);
+    if (sourceNode?.type === "kanji") categories.add(word.kanjiReadingTypes?.[sourceNode.char] ?? "unknown");
   }
   return categories;
 }
@@ -98,6 +124,8 @@ export default function GraphPanel({
   hintedIds,
   colorByDifficulty,
   onToggleColorByDifficulty,
+  colorByReading,
+  onToggleColorByReading,
 }) {
   // Legend rows double as highlight toggles: clicking one dims every node
   // it covers, independent of (and layered on top of) the Filters-driven
@@ -111,12 +139,19 @@ export default function GraphPanel({
   const [typeLegend, setTypeLegend] = useState(DEFAULT_TYPE_LEGEND);
   const [jlptLegend, setJlptLegend] = useState(DEFAULT_JLPT_LEGEND);
   const [positionLegend, setPositionLegend] = useState(DEFAULT_POSITION_LEGEND);
+  const [readingLegend, setReadingLegend] = useState(DEFAULT_READING_LEGEND);
 
   const toggleType = useCallback((key) => setTypeLegend((prev) => toggled(prev, key)), []);
   const toggleJlpt = useCallback((key) => setJlptLegend((prev) => toggled(prev, key)), []);
   const togglePosition = useCallback((key) => setPositionLegend((prev) => toggled(prev, key)), []);
+  const toggleReading = useCallback((key) => setReadingLegend((prev) => toggled(prev, key)), []);
 
-  const showPositionLegend = hasPositionGroups(graph);
+  // Position and reading-type color the same link the same way (see
+  // WordTreeGraph) -- only one is ever on screen at once, so only one
+  // legend (and its dim-filtering) is shown at a time, gated by the same
+  // Filters -> "Color by Reading" toggle that switches the link coloring.
+  const showReadingLegend = colorByReading && hasPositionGroups(graph);
+  const showPositionLegend = !colorByReading && hasPositionGroups(graph);
 
   const legendDimmed = useCallback(
     (node) => {
@@ -126,9 +161,22 @@ export default function GraphPanel({
         const categories = wordPositionCategories(graph, node);
         if (categories.size > 0 && ![...categories].some((c) => positionLegend[c])) return true;
       }
+      if (showReadingLegend && node.type === "word" && graph) {
+        const categories = wordReadingCategories(graph, node);
+        if (categories.size > 0 && ![...categories].some((c) => readingLegend[c])) return true;
+      }
       return false;
     },
-    [typeLegend, jlptLegend, positionLegend, colorByDifficulty, showPositionLegend, graph]
+    [
+      typeLegend,
+      jlptLegend,
+      positionLegend,
+      readingLegend,
+      colorByDifficulty,
+      showPositionLegend,
+      showReadingLegend,
+      graph,
+    ]
   );
 
   const combinedIsDimmed = useCallback((node) => isDimmed(node) || legendDimmed(node), [isDimmed, legendDimmed]);
@@ -159,6 +207,8 @@ export default function GraphPanel({
                 onSetMaxWords={onSetMaxWords}
                 colorByDifficulty={colorByDifficulty}
                 onToggleColorByDifficulty={onToggleColorByDifficulty}
+                colorByReading={colorByReading}
+                onToggleColorByReading={onToggleColorByReading}
                 onClose={onCloseFiltersPanel}
               />
             )}
@@ -182,6 +232,7 @@ export default function GraphPanel({
             theme={theme}
             hintedIds={hintedIds}
             colorByDifficulty={colorByDifficulty}
+            colorByReading={colorByReading}
           />
         ) : (
           <div className="graph-container graph-container--loading">
@@ -245,6 +296,23 @@ export default function GraphPanel({
                 >
                   <span className="legend__swatch legend__swatch--line legend__swatch--pos-end" /> End
                 </button>
+              </div>
+            )}
+            {showReadingLegend && (
+              <div className="graph-legend__group">
+                <span className="legend__group-label">Reading</span>
+                {READING_LEGEND.map(({ value, label }) => (
+                  <button
+                    type="button"
+                    key={value}
+                    className={`legend__row${readingLegend[value] ? "" : " is-inactive"}`}
+                    onClick={() => toggleReading(value)}
+                    aria-pressed={readingLegend[value]}
+                    title="Whether the word uses this kanji's on'yomi or kun'yomi"
+                  >
+                    <span className={`legend__swatch legend__swatch--line legend__swatch--reading-${value}`} /> {label}
+                  </button>
+                ))}
               </div>
             )}
             {colorByDifficulty && (
