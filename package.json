@@ -8,7 +8,8 @@
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "generate:seed": "node scripts/generate-seed-sql.mjs"
+    "generate:seed": "node scripts/generate-seed-sql.mjs",
+    "generate:offline-gz": "node scripts/compress-offline-dataset.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.115.0",

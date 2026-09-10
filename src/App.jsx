@@ -9,9 +9,7 @@ import SavedWordsPanel from "./components/SavedWordsPanel";
 import GroupsPanel from "./components/GroupsPanel";
 import ReviewMode from "./components/ReviewMode";
 import { useWordData } from "./data/useWordData";
-import { useQuickEntry } from "./data/useQuickEntry";
 import { useRecentRoots } from "./data/useRecentRoots";
-import { isSupabaseConfigured } from "./lib/supabaseClient";
 import { useAuth } from "./auth/useAuth";
 import { useProgress } from "./progress/useProgress";
 import { useSavedWords } from "./progress/useSavedWords";
@@ -133,32 +131,17 @@ export default function App() {
     setGraph(createInitialGraph(dataset, rootWord, { isJlptAllowed }));
   }
 
-  // While the full dataset is still loading (the slow path: Supabase's
-  // ~230-request paginated fetch, see useWordData.js), a single fast query
-  // for just the current root word lets the Dictionary panel show a real
-  // definition well before the Explore graph is able to render at all --
-  // decoupling the two instead of making the definition wait on the graph.
-  const quick = useQuickEntry(dataset.loading ? rootWord : null);
-  const quickGraph = useMemo(() => {
-    if (!isSupabaseConfigured || graph || quick.loading) return null;
-    const miniDataset = { WORDS_BY_TEXT: quick.entry ? { [rootWord]: quick.entry } : {}, KANJI: quick.kanjiByChar };
-    return createInitialGraph(miniDataset, rootWord);
-  }, [graph, quick, rootWord]);
-
-  const selectedNode = graph?.nodes.get(selectedId) ?? quickGraph?.nodes.get(selectedId) ?? null;
-  const isQuickLoading = !graph && isSupabaseConfigured && dataset.loading && quick.loading;
+  const selectedNode = graph?.nodes.get(selectedId) ?? null;
 
   // The word's own component kanji, shown beside its definitions (see
-  // DictionaryPanel) -- read from the quick lookup's tiny kanji set while
-  // the full dataset is still loading, same source the entry itself came
-  // from, so the two are never out of sync with each other.
+  // DictionaryPanel). Only reachable once the graph exists, which is only
+  // once the dataset has loaded, so dataset.KANJI is always populated here.
   const componentKanji = useMemo(() => {
     if (!selectedNode || selectedNode.type !== "word") return [];
-    const kanjiSource = graph ? dataset.KANJI : quick.kanjiByChar;
     return extractKanjiComponents(selectedNode.word)
-      .map((char) => kanjiSource[char])
+      .map((char) => dataset.KANJI[char])
       .filter(Boolean);
-  }, [selectedNode, graph, dataset, quick]);
+  }, [selectedNode, dataset]);
 
   // The top 5 most common words sharing this kanji, shown beside its
   // on'yomi/kun'yomi (see DictionaryPanel) -- same "Kanji" column idea as
@@ -487,7 +470,7 @@ export default function App() {
           left={
             <DictionaryPanel
               node={selectedNode}
-              loading={isQuickLoading}
+              loading={dataset.loading}
               status={selectedNode && getStatus(selectedNode.type, selectedItemId)}
               onSetStatus={handleSetStatus}
               canSave={Boolean(user)}
@@ -522,7 +505,6 @@ export default function App() {
               stats={stats}
               datasetSource={dataset.source}
               datasetLoading={dataset.loading}
-              datasetProgress={dataset.progress}
               isFiltersPanelOpen={isFiltersPanelOpen}
               onToggleFiltersPanel={() => setIsFiltersPanelOpen((v) => !v)}
               onCloseFiltersPanel={() => setIsFiltersPanelOpen(false)}

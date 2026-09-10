@@ -178,17 +178,19 @@ of sync.
 - The graph/expansion logic is framework- and dataset-agnostic
   (`src/graph/buildGraph.js`): given a word, look up its kanji; given a
   kanji, look up every word containing it — each function takes the
-  dataset as a parameter rather than importing one, so it doesn't care
-  whether the data came from Supabase or the bundled local dataset. A
-  word's kanji "components" aren't stored anywhere — they're computed on
-  the fly from the word's own text (`src/graph/kanji.js`), which is also
-  what makes an arbitrary, not-in-the-dictionary root word work: there's
-  nothing to look up to find its kanji, just the text itself.
-- `src/data/useWordData.js` fetches from Supabase when configured, falling
-  back to the bundled local dataset (`public/data/{kanji,words}.json`)
-  otherwise or on failure, and to `src/data/japaneseData.js` (a tiny ~32
-  kanji / ~38 word fixture) as a last-resort emergency fallback if even
-  that fetch somehow fails.
+  dataset as a parameter rather than importing one. A word's kanji
+  "components" aren't stored anywhere — they're computed on the fly from
+  the word's own text (`src/graph/kanji.js`), which is also what makes an
+  arbitrary, not-in-the-dictionary root word work: there's nothing to look
+  up to find its kanji, just the text itself.
+- `src/data/useWordData.js` always loads the dictionary from the bundled,
+  gzip-compressed static dataset (`public/data/{kanji,words}.gzjson` —
+  see `data/offline-dataset/README.md`) via a Web Worker
+  (`src/data/datasetWorker.js`) that fetches, decompresses, and indexes it
+  off the main thread, falling back to `src/data/japaneseData.js` (a tiny
+  ~32 kanji / ~38 word fixture) only if that somehow fails. It's
+  deliberately never read from Supabase, even when Supabase is
+  configured — see that README for why.
 - `src/progress/useProgress.js` (mastery) and `src/progress/useSavedWords.js`
   (Anki export queue) both branch on auth state; mastery has a
   `localStorage`-backed guest mode, the saved-words queue is
@@ -200,10 +202,12 @@ of sync.
 
 ## The dataset (and its limits)
 
-`public/data/words.json` (~228.3k entries — essentially the complete
+`data/offline-dataset/words.json` (~228.3k entries — essentially the complete
 [JMdict](https://www.edrdg.org/wiki/index.php/JMdict-EDICT_Dictionary_Project),
-every entry with at least one English gloss) and `public/data/kanji.json`
-(~13.1k entries) are the bundled offline dataset, paired with a
+every entry with at least one English gloss) and
+`data/offline-dataset/kanji.json` (~13.1k entries) are the bundled offline
+dataset's source (shipped compressed as `public/data/*.json.gz` — see
+`data/offline-dataset/README.md`), paired with a
 [KANJIDIC2](https://www.edrdg.org/wiki/index.php/KANJIDIC_Project)-derived
 kanji reference (meanings, on'yomi/kun'yomi, JLPT level). Every valid kanji
 spelling of a word is its own searchable headword sharing that word's
