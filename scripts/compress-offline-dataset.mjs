@@ -1,4 +1,4 @@
-// Regenerates public/data/{words,kanji}.json.gz from the canonical source in
+// Regenerates public/data/{words,kanji}.gzjson from the canonical source in
 // data/offline-dataset/ (see data/offline-dataset/README.md for provenance).
 // The source files live outside public/ so Vite doesn't copy their raw,
 // uncompressed bytes into every build's static output -- only the much

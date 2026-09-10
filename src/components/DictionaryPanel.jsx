@@ -286,8 +286,8 @@ export default function DictionaryPanel({
     if (loading) {
       return (
         <div className="dictionary-panel dictionary-panel--empty">
-          <p className="dictionary-panel__empty-title">Loading definition&hellip;</p>
-          <p className="dictionary-panel__empty-hint">The full explorable graph will follow shortly.</p>
+          <p className="dictionary-panel__empty-title">Loading dictionary&hellip;</p>
+          <p className="dictionary-panel__empty-hint">The word graph will be ready in a moment.</p>
         </div>
       );
     }

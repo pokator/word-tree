@@ -1,10 +1,13 @@
 # Offline dataset source
 
-`words.json` and `kanji.json` are the canonical source for the offline/local
-dataset the app falls back to when Supabase isn't configured (or its fetch
-fails) — see `src/data/useWordData.js`. They're also the source
-`scripts/generate-seed-sql.mjs` uses to generate `supabase/seed.sql` — so the
-offline and Supabase-backed experiences share the exact same data.
+`words.json` and `kanji.json` are the canonical source for the dictionary the
+app loads at startup — see `src/data/useWordData.js`. They're also the source
+`scripts/generate-seed-sql.mjs` uses to generate `supabase/seed.sql`, which
+keeps the `words`/`kanji` tables available for one-off server-side queries;
+the app itself never reads the bulk dictionary from Supabase (PostgREST's
+1000-row response cap turned a 228k-row table into ~230 paginated requests
+and ~15 seconds before anything could render). Supabase still backs auth,
+saved words, mastery progress, and groups.
 
 These files live here (outside `public/`) rather than in
 `public/data/` because Vite copies everything under `public/` verbatim into
@@ -12,9 +15,10 @@ every build's static output. At ~51MB uncompressed, shipping them raw meant
 every single deployment re-stored a ~52MB blob, which is what blew through
 Vercel's Deployment Storage quota. What actually ships is a gzip-compressed
 copy: run `npm run generate:offline-gz` after editing either file to
-regenerate `public/data/{words,kanji}.json.gz` (committed, ~8.5MB combined
-instead of ~52MB); `src/data/useWordData.js` fetches those and decompresses
-them client-side via `DecompressionStream`.
+regenerate `public/data/{words,kanji}.gzjson` (committed, ~8.5MB combined
+instead of ~52MB). `src/data/datasetWorker.js` fetches those, decompresses
+them via `DecompressionStream` and builds the lookup indexes, all off the
+main thread.
 
 ## Provenance
 

@@ -52,22 +52,13 @@ function wordPositionCategories(graph, word) {
   return categories;
 }
 
-function LoadingIndicator({ progress }) {
-  const pct =
-    progress && progress.total ? Math.min(100, Math.round((progress.loaded / progress.total) * 100)) : null;
+function LoadingIndicator() {
   return (
     <div className="loading-indicator">
       <div className="loading-indicator__bar">
-        <div
-          className={`loading-indicator__fill${pct === null ? " loading-indicator__fill--indeterminate" : ""}`}
-          style={pct !== null ? { width: `${pct}%` } : undefined}
-        />
+        <div className="loading-indicator__fill loading-indicator__fill--indeterminate" />
       </div>
-      <p className="loading-indicator__label">
-        {pct !== null
-          ? `Loading dictionary… ${progress.loaded.toLocaleString()} / ${progress.total.toLocaleString()} words`
-          : "Loading word data…"}
-      </p>
+      <p className="loading-indicator__label">Loading word data…</p>
     </div>
   );
 }
@@ -91,7 +82,6 @@ export default function GraphPanel({
   stats,
   datasetSource,
   datasetLoading,
-  datasetProgress,
   isFiltersPanelOpen,
   onToggleFiltersPanel,
   onCloseFiltersPanel,
@@ -195,7 +185,7 @@ export default function GraphPanel({
           />
         ) : (
           <div className="graph-container graph-container--loading">
-            <LoadingIndicator progress={datasetProgress} />
+            <LoadingIndicator />
           </div>
         )}
 
@@ -280,7 +270,6 @@ export default function GraphPanel({
       <div className="graph-panel__footer">
         <p className="graph-panel__stats">
           {stats.words} words &middot; {stats.kanji} kanji shown
-          {datasetSource === "local" && !datasetLoading ? " · local dataset" : ""}
           {datasetSource === "tiny-fallback" && !datasetLoading ? " · offline demo data" : ""}
         </p>
       </div>
