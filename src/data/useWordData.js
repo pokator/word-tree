@@ -5,11 +5,18 @@ import { KANJI as TINY_KANJI, WORDS as TINY_WORDS } from "./japaneseData";
 import { readDatasetCache, writeDatasetCache } from "./wordDataCache";
 
 // Bundled JMdict-derived dataset (~228k words) + a trimmed KANJIDIC2
-// reference (~13k kanji) -- see public/data/README.md for provenance. This
-// is what makes "explore any word, not just the ~38-word demo fixture"
-// work offline, with no account/backend required.
-const LOCAL_KANJI_URL = `${import.meta.env.BASE_URL}data/kanji.json`;
-const LOCAL_WORDS_URL = `${import.meta.env.BASE_URL}data/words.json`;
+// reference (~13k kanji) -- see data/offline-dataset/README.md for
+// provenance. This is what makes "explore any word, not just the ~38-word
+// demo fixture" work offline, with no account/backend required. Shipped
+// gzip-compressed (~8.5MB vs. ~52MB raw) since Vite copies public/ verbatim
+// into every build's output, and every deployment re-storing an uncompressed
+// copy is what exhausted Vercel's Deployment Storage quota.
+// ".gzjson", not ".gz": a plain ".gz" extension gets auto-decompressed in
+// flight by some static hosts (Content-Encoding: gzip), which would make
+// `fetch()` hand us already-decompressed bytes and break the explicit
+// DecompressionStream below. See scripts/compress-offline-dataset.mjs.
+const LOCAL_KANJI_URL = `${import.meta.env.BASE_URL}data/kanji.gzjson`;
+const LOCAL_WORDS_URL = `${import.meta.env.BASE_URL}data/words.gzjson`;
 
 function tinyFallbackDataset() {
   const { WORDS_BY_TEXT, WORDS_CONTAINING_KANJI } = buildIndexes(TINY_WORDS);
@@ -23,10 +30,11 @@ function tinyFallbackDataset() {
   };
 }
 
-async function fetchJson(url, signal) {
+async function fetchGzippedJson(url, signal) {
   const res = await fetch(url, { signal });
   if (!res.ok) throw new Error(`Failed to fetch ${url}: ${res.status}`);
-  return res.json();
+  const decompressed = res.body.pipeThrough(new DecompressionStream("gzip"));
+  return new Response(decompressed).json();
 }
 
 async function getRowCount(table, signal) {
@@ -95,7 +103,10 @@ async function fetchAllRows(table, orderColumn, count, signal, onProgress) {
 }
 
 async function loadLocalDataset(signal) {
-  const [KANJI, WORDS] = await Promise.all([fetchJson(LOCAL_KANJI_URL, signal), fetchJson(LOCAL_WORDS_URL, signal)]);
+  const [KANJI, WORDS] = await Promise.all([
+    fetchGzippedJson(LOCAL_KANJI_URL, signal),
+    fetchGzippedJson(LOCAL_WORDS_URL, signal),
+  ]);
   const { WORDS_BY_TEXT, WORDS_CONTAINING_KANJI } = buildIndexes(WORDS);
   return { KANJI, WORDS, WORDS_BY_TEXT, WORDS_CONTAINING_KANJI, source: "local", loading: false };
 }

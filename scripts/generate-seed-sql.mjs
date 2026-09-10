@@ -1,7 +1,8 @@
-// Generates supabase/seed.sql from the bundled local dataset
-// (public/data/{kanji,words}.json -- see public/data/README.md for
-// provenance), so the Supabase seed data can never drift from (or be
-// mistyped versus) what the app already ships offline. Run with:
+// Generates supabase/seed.sql from the canonical local dataset
+// (data/offline-dataset/{kanji,words}.json -- see
+// data/offline-dataset/README.md for provenance), so the Supabase seed data
+// can never drift from (or be mistyped versus) what the app ships offline.
+// Run with:
 //   node scripts/generate-seed-sql.mjs
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -9,8 +10,8 @@ import path from "node:path";
 import { extractKanjiComponents } from "../src/graph/kanji.js";
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
-const KANJI = JSON.parse(readFileSync(path.join(ROOT, "public/data/kanji.json"), "utf8"));
-const WORDS = JSON.parse(readFileSync(path.join(ROOT, "public/data/words.json"), "utf8"));
+const KANJI = JSON.parse(readFileSync(path.join(ROOT, "data/offline-dataset/kanji.json"), "utf8"));
+const WORDS = JSON.parse(readFileSync(path.join(ROOT, "data/offline-dataset/words.json"), "utf8"));
 
 const CHUNK_SIZE = 500;
 

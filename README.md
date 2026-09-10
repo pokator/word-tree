@@ -193,10 +193,12 @@ of sync.
 
 ## The dataset (and its limits)
 
-`public/data/words.json` (~228.3k entries — essentially the complete
+`data/offline-dataset/words.json` (~228.3k entries — essentially the complete
 [JMdict](https://www.edrdg.org/wiki/index.php/JMdict-EDICT_Dictionary_Project),
-every entry with at least one English gloss) and `public/data/kanji.json`
-(~13.1k entries) are the bundled offline dataset, paired with a
+every entry with at least one English gloss) and
+`data/offline-dataset/kanji.json` (~13.1k entries) are the bundled offline
+dataset's source (shipped compressed as `public/data/*.json.gz` — see
+`data/offline-dataset/README.md`), paired with a
 [KANJIDIC2](https://www.edrdg.org/wiki/index.php/KANJIDIC_Project)-derived
 kanji reference (meanings, on'yomi/kun'yomi, JLPT level). Every valid kanji
 spelling of a word is its own searchable headword sharing that word's
