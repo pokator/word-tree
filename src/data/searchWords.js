@@ -33,30 +33,42 @@ function romajiKanaForms(query) {
   return { hiragana, katakana };
 }
 
+// Romaji-converted reading matches rank below a literal meaning match
+// (rather than interleaved with the literal-reading tiers above), because
+// an all-ASCII query is often just English, not romaji: JMdict glosses
+// nearly every verb as "to <verb>", so a query like "to" or "no" converts
+// to real (if short and coincidental) kana -- と, の -- that shows up
+// inside all kinds of unrelated readings. Ranking meaning matches first
+// means a genuine English search still surfaces the words it's actually
+// about, while a genuine romaji search (longer, with no English-meaning
+// collision to compete against) still finds its target -- see
+// searchWords.test.js's "to"/"no" cases.
 function matchScore(word, q, qLower, romajiKana) {
   if (word.word === q) return 0;
   if (word.word.startsWith(q)) return 1;
-  if (
-    word.reading.startsWith(qLower) ||
-    (romajiKana && (word.reading.startsWith(romajiKana.hiragana) || word.reading.startsWith(romajiKana.katakana)))
-  ) {
-    return 2;
-  }
+  if (word.reading.startsWith(qLower)) return 2;
   if (word.word.includes(q)) return 3;
+  if (word.reading.includes(qLower)) return 4;
+  if (word.meaning.toLowerCase().includes(qLower)) return 5;
   if (
-    word.reading.includes(qLower) ||
-    (romajiKana && (word.reading.includes(romajiKana.hiragana) || word.reading.includes(romajiKana.katakana)))
+    romajiKana &&
+    (word.reading.startsWith(romajiKana.hiragana) || word.reading.startsWith(romajiKana.katakana))
   ) {
-    return 4;
+    return 6;
   }
-  return 5; // meaning-only match
+  if (romajiKana && (word.reading.includes(romajiKana.hiragana) || word.reading.includes(romajiKana.katakana))) {
+    return 7;
+  }
+  return 8; // unreachable given the filter below, but keeps sort() total
 }
 
 /**
  * Returns the best `maxResults` matches for `query` against `words`, most
- * relevant first (exact word match, then word-prefix, then reading-prefix
- * -- including romaji-converted forms -- then substring matches, then
- * meaning-only matches, each tier broken by `rank`, lower = more common).
+ * relevant first: exact word match, word-prefix, literal reading-prefix,
+ * word-substring, literal reading-substring, meaning match, then finally
+ * romaji-converted reading matches (prefix before substring) -- see
+ * matchScore for why romaji ranks last. Each tier broken by `rank`, lower
+ * = more common.
  */
 export function searchWords(words, query, { maxResults = DEFAULT_MAX_RESULTS } = {}) {
   const q = query.trim();

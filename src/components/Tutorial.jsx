@@ -107,12 +107,16 @@ function tooltipPosition(rect, placement, tooltipHeight) {
  * reskinning a library would cost more than writing this, and the
  * graph-node steps need continuous re-measurement no off-the-shelf tour
  * library provides out of the box anyway (see useTrackedRect).
+ *
+ * aria-modal="true" below is backed by a real modal boundary, not just an
+ * assertion: App.jsx marks the header and main content `inert` while this
+ * is mounted, so the rest of the app is unfocusable and hidden from
+ * assistive tech, not merely visually dimmed and click-blocked.
  */
 export default function Tutorial({ onClose }) {
   const [stepIndex, setStepIndex] = useState(0);
   const [tooltipHeight, setTooltipHeight] = useState(160);
   const dialogRef = useRef(null);
-  const tooltipRef = useRef(null);
   const previousFocusRef = useRef(null);
 
   const step = STEPS[stepIndex];
@@ -133,24 +137,34 @@ export default function Tutorial({ onClose }) {
   }, [stepIndex]);
 
   useEffect(() => {
-    if (tooltipRef.current) setTooltipHeight(tooltipRef.current.offsetHeight);
+    if (dialogRef.current) setTooltipHeight(dialogRef.current.offsetHeight);
   }, [step]);
 
-  const close = useCallback(() => onClose(), [onClose]);
   const goNext = useCallback(() => {
-    if (isLast) close();
+    if (isLast) onClose();
     else setStepIndex((i) => i + 1);
-  }, [isLast, close]);
+  }, [isLast, onClose]);
   const goBack = useCallback(() => setStepIndex((i) => Math.max(0, i - 1)), []);
 
-  const handleKeyDown = useCallback(
-    (e) => {
+  // Attached to `document`, not the overlay's own onKeyDown -- the overlay
+  // is a full-viewport, background-less click-catcher (it has to be, to
+  // block interaction with the app underneath during the tour), so a
+  // single click on the dim area moves focus to <body> and a JSX-level
+  // handler on the card/overlay would simply stop receiving key events at
+  // that point, permanently deafening Escape. No Enter handling here on
+  // purpose: a focused button already activates on Enter natively, and a
+  // parent-level keydown handler calling preventDefault() would suppress
+  // that native activation before it fires, which is exactly what made
+  // Enter silently hijack Back/Skip into "advance" instead of their own
+  // action.
+  useEffect(() => {
+    function handleKeyDown(e) {
       if (e.key === "Escape") {
         e.preventDefault();
-        close();
+        onClose();
         return;
       }
-      if (e.key === "ArrowRight" || e.key === "Enter") {
+      if (e.key === "ArrowRight") {
         e.preventDefault();
         goNext();
         return;
@@ -161,11 +175,18 @@ export default function Tutorial({ onClose }) {
         return;
       }
       if (e.key === "Tab") {
-        const focusables = dialogRef.current?.querySelectorAll("button");
-        if (!focusables?.length) return;
+        const dialog = dialogRef.current;
+        const focusables = dialog?.querySelectorAll("button");
+        if (!dialog || !focusables?.length) return;
         const first = focusables[0];
         const last = focusables[focusables.length - 1];
-        if (e.shiftKey && document.activeElement === first) {
+        // Focus already escaped the dialog (e.g. a click on the dim
+        // backdrop moved it to <body>) -- pull it back in rather than
+        // letting Tab continue wandering the app underneath.
+        if (!dialog.contains(document.activeElement)) {
+          e.preventDefault();
+          (e.shiftKey ? last : first).focus();
+        } else if (e.shiftKey && document.activeElement === first) {
           e.preventDefault();
           last.focus();
         } else if (!e.shiftKey && document.activeElement === last) {
@@ -173,14 +194,15 @@ export default function Tutorial({ onClose }) {
           first.focus();
         }
       }
-    },
-    [close, goNext, goBack]
-  );
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [onClose, goNext, goBack]);
 
   const { top, left } = tooltipPosition(rect, step.placement, tooltipHeight);
 
   return (
-    <div className="tutorial-overlay" onKeyDown={handleKeyDown}>
+    <div className="tutorial-overlay">
       {rect && (
         <div
           className="tutorial-spotlight"
@@ -193,10 +215,7 @@ export default function Tutorial({ onClose }) {
         />
       )}
       <div
-        ref={(el) => {
-          dialogRef.current = el;
-          tooltipRef.current = el;
-        }}
+        ref={dialogRef}
         className="tutorial-card"
         role="dialog"
         aria-modal="true"
@@ -205,17 +224,23 @@ export default function Tutorial({ onClose }) {
         tabIndex={-1}
         style={{ top, left, width: TOOLTIP_WIDTH }}
       >
-        <div className="tutorial-card__step" aria-live="polite">
-          {stepIndex + 1} of {STEPS.length}
+        {/* One live region around the step count AND the content that
+            changes with it -- an aria-live scoped to just the counter
+            announced "2 of 6" on every step and nothing about what the
+            step actually says. */}
+        <div aria-live="polite">
+          <div className="tutorial-card__step">
+            {stepIndex + 1} of {STEPS.length}
+          </div>
+          <h3 id="tutorial-title" className="tutorial-card__title">
+            {step.title}
+          </h3>
+          <p id="tutorial-body" className="tutorial-card__body">
+            {step.body}
+          </p>
         </div>
-        <h3 id="tutorial-title" className="tutorial-card__title">
-          {step.title}
-        </h3>
-        <p id="tutorial-body" className="tutorial-card__body">
-          {step.body}
-        </p>
         <div className="tutorial-card__actions">
-          <button type="button" className="tutorial-card__skip" onClick={close}>
+          <button type="button" className="tutorial-card__skip" onClick={onClose}>
             {isLast ? "Close" : "Skip"}
           </button>
           <div className="tutorial-card__nav">

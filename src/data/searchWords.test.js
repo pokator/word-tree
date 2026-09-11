@@ -43,4 +43,21 @@ describe("searchWords", () => {
   it("returns nothing for an empty query", () => {
     expect(searchWords(WORDS, "   ")).toEqual([]);
   });
+
+  it("ranks a real English meaning match above a coincidental romaji-reading match", () => {
+    // "to" -> と, which happens to appear inside おとこ's reading -- but
+    // 飲む's meaning literally contains "to" ("to drink"), and that English
+    // match should win, not lose to the accidental kana substring.
+    const withCollision = [
+      ...WORDS,
+      { word: "男", reading: "おとこ", meaning: "man, male person", rank: 1 },
+      { word: "飲む", reading: "のむ", meaning: "to drink", rank: 1 },
+    ];
+    const results = searchWords(withCollision, "to");
+    const drinkIndex = results.findIndex((r) => r.word === "飲む");
+    const manIndex = results.findIndex((r) => r.word === "男");
+    expect(drinkIndex).toBeGreaterThanOrEqual(0);
+    expect(manIndex).toBeGreaterThanOrEqual(0);
+    expect(drinkIndex).toBeLessThan(manIndex);
+  });
 });

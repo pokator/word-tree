@@ -456,7 +456,7 @@ export default function App() {
 
   return (
     <div className="app">
-      <header className="app__header">
+      <header className="app__header" inert={tutorialOpen}>
         <div className="app__title">
           <h1>元 &mdash; Moto</h1>
         </div>
@@ -533,7 +533,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="app__main">
+      <main className="app__main" inert={tutorialOpen}>
         <SplitPane
           storageKey="main"
           defaultPct={40}

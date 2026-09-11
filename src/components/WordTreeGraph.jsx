@@ -291,13 +291,20 @@ export default function WordTreeGraph({
 
   const selectedNode = nodesById.get(selectedId);
   // Only meaningful when the selection is a word -- a selected kanji has no
-  // "component kanji" of its own to fan a path out to. Recomputed on
-  // selection change, not on every simulation tick, since it only depends
-  // on which word is selected and the palette, not node positions.
-  const kanjiPathColors =
-    colorByKanjiPath && selectedNode?.type === "word"
-      ? kanjiPathColorMap(selectedNode.word, colors.kanjiPath)
-      : EMPTY_MAP;
+  // "component kanji" of its own to fan a path out to. useMemo here is load
+  // -bearing, not just tidiness: this component re-renders on every
+  // simulation tick, and reconciliation mutates existing node objects in
+  // place (see useForceSimulation) rather than replacing them, so
+  // `selectedNode`'s reference is stable across ticks unless the selection
+  // itself changes -- without the memo, a fresh Map would be allocated
+  // every tick regardless.
+  const kanjiPathColors = useMemo(
+    () =>
+      colorByKanjiPath && selectedNode?.type === "word"
+        ? kanjiPathColorMap(selectedNode.word, colors.kanjiPath)
+        : EMPTY_MAP,
+    [colorByKanjiPath, selectedNode, colors]
+  );
 
   return (
     <div ref={containerRef} className="graph-container">

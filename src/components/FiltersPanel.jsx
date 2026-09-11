@@ -107,15 +107,22 @@ export default function FiltersPanel({
       </div>
 
       <div className="filters-panel__section">
-        <span className="filters-panel__label">Link coloring</span>
-        <div className="filters-panel__chips">
+        <span id="link-coloring-label" className="filters-panel__label">
+          Link coloring
+        </span>
+        {/* Off/Position/Reading are mutually exclusive -- role="radio", not
+            aria-pressed on plain buttons, so assistive tech reports that
+            picking one clears the others instead of three independent
+            toggles. */}
+        <div className="filters-panel__chips" role="radiogroup" aria-labelledby="link-coloring-label">
           {LINK_COLOR_OPTIONS.map(({ value, label }) => (
             <button
               key={value}
               type="button"
+              role="radio"
               className={`filters-panel__chip${linkColorMode === value ? " is-active" : ""}`}
               onClick={() => onSetLinkColorMode(value)}
-              aria-pressed={linkColorMode === value}
+              aria-checked={linkColorMode === value}
             >
               {label}
             </button>
