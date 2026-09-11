@@ -320,6 +320,17 @@ export default function WordTreeGraph({
         </button>
       </div>
       <svg ref={svgRef} width={size.width} height={size.height}>
+        <defs>
+          {/* Selection glow -- stopColor reads var(--accent) via inline
+              style (SVG presentation attributes can't take CSS custom
+              properties directly, but the `style` prop can), so it
+              re-resolves to whichever theme's accent is active with no JS
+              involved, the same as every other themed color in this app. */}
+          <radialGradient id="select-glow">
+            <stop offset="0%" style={{ stopColor: "var(--accent)", stopOpacity: 0.45 }} />
+            <stop offset="100%" style={{ stopColor: "var(--accent)", stopOpacity: 0 }} />
+          </radialGradient>
+        </defs>
         <g ref={gRef}>
           <g className="links">
             {graph.links.map((l) => {
@@ -417,8 +428,23 @@ export default function WordTreeGraph({
                 >
                   <g className="graph-node__pop">
                     {!node.expanded && <title>Double-click to reveal more</title>}
+                    {/* Selection is a soft radial glow behind the node
+                        rather than an outline ring -- drawn first so
+                        everything else (fill, rings, label) paints over
+                        it. pointer-events: none keeps its much larger,
+                        mostly-transparent circle from enlarging the node's
+                        actual click target. */}
+                    {selected && (
+                      <circle
+                        r={displayR + 26}
+                        className="graph-node__select-glow"
+                        fill="url(#select-glow)"
+                        pointerEvents="none"
+                      />
+                    )}
                     <circle
                       r={displayR}
+                      className="graph-node__fill"
                       fill={nodeFill(node, { root: node.isRoot, colors })}
                       vectorEffect="non-scaling-stroke"
                     />
@@ -426,21 +452,6 @@ export default function WordTreeGraph({
                       <circle
                         r={displayR + 5}
                         className="graph-node__expand-ring"
-                        fill="none"
-                        vectorEffect="non-scaling-stroke"
-                      />
-                    )}
-                    {/* Selection state is its own outer ring rather than a
-                        stroke on the fill circle itself -- that circle's
-                        stroke is already spoken for by the difficulty/
-                        kanji-path ring (see graph-node--ring above), and
-                        having selection borrow the same channel used to
-                        hide it the moment a node was clicked, the one time
-                        you'd most want to check a node's difficulty. */}
-                    {selected && (
-                      <circle
-                        r={displayR + 9}
-                        className="graph-node__select-ring"
                         fill="none"
                         vectorEffect="non-scaling-stroke"
                       />

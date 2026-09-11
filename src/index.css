@@ -22,8 +22,9 @@
      original warm taupe (the "ink stroke" component), word gets a cool
      slate blue (the "compound" it builds into). Same hue pairing in both
      themes, only lightness shifts -- see the dark block below. Selection
-     state (see .graph-node.is-selected) is what earns a node the accent
-     color on top of either. */
+     state doesn't change a node's own fill -- see WordTreeGraph's
+     graph-node__select-glow, a soft accent-colored radial glow drawn
+     behind the node instead. */
   --node-root: var(--accent);
   --node-kanji: #8a8371;
   --node-word: #56697c;
