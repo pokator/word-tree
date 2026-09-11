@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { kanjiPathColorMap } from "./kanjiPathColors";
+import { kanjiPathColorMap, charOffsetX } from "./kanjiPathColors";
 
 const PALETTE = ["blue", "gold", "violet", "green"];
 
@@ -33,5 +33,24 @@ describe("kanjiPathColorMap", () => {
   it("returns an empty map for a word with no kanji, or no palette", () => {
     expect(kanjiPathColorMap("ひらがな", PALETTE).size).toBe(0);
     expect(kanjiPathColorMap("日本語", []).size).toBe(0);
+  });
+});
+
+describe("charOffsetX", () => {
+  it("centers a single character at 0", () => {
+    expect(charOffsetX(0, 1, 15)).toBe(0);
+  });
+
+  it("spaces an odd count symmetrically around 0", () => {
+    expect(charOffsetX(0, 3, 10)).toBe(-10);
+    expect(charOffsetX(1, 3, 10)).toBe(0);
+    expect(charOffsetX(2, 3, 10)).toBe(10);
+  });
+
+  it("spaces an even count symmetrically around 0 with no character exactly at 0", () => {
+    expect(charOffsetX(0, 4, 10)).toBe(-15);
+    expect(charOffsetX(1, 4, 10)).toBe(-5);
+    expect(charOffsetX(2, 4, 10)).toBe(5);
+    expect(charOffsetX(3, 4, 10)).toBe(15);
   });
 });

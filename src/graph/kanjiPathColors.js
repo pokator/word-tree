@@ -15,3 +15,18 @@ export function kanjiPathColorMap(word, kanjiPath) {
   });
   return map;
 }
+
+/**
+ * Local x-offset for character index `i` of `charCount` total, spacing
+ * them evenly around 0 at `glyphWidth` apart -- used to lay out both a
+ * word label's per-character tspans and the kanji-path identity marks
+ * above them (see WordTreeGraph's showKanjiMarks) from the exact same
+ * model, rather than trying to measure real rendered glyph positions.
+ * Safe specifically for Japanese text: kanji/hiragana/katakana all render
+ * "full-width" (one roughly-square em box each) per the East Asian Width
+ * convention, unlike Latin text, so equal-width spacing is a reasonable
+ * approximation here rather than a general text-layout hack.
+ */
+export function charOffsetX(i, charCount, glyphWidth) {
+  return (i - (charCount - 1) / 2) * glyphWidth;
+}

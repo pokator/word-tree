@@ -6,7 +6,7 @@ import { nodeRadius, nodeFill, nodeOpacity, nodeDetailText, nodeDifficultyColor 
 import { readNodeColors } from "../graph/theme";
 import { kanjiPositionCategory } from "../graph/positionCategory";
 import { linkDistanceKey } from "../graph/linkDistanceKey";
-import { kanjiPathColorMap } from "../graph/kanjiPathColors";
+import { kanjiPathColorMap, charOffsetX } from "../graph/kanjiPathColors";
 
 const DRAG_CLICK_THRESHOLD_PX = 5;
 const DOUBLE_CLICK_MS = 350;
@@ -44,6 +44,16 @@ const DETAIL_LABEL_Y = -9;
 const DETAIL_READING_Y = 6;
 const DETAIL_GLOSS_Y = 17;
 const DETAIL_GLOSS_Y_NO_READING = 7;
+// Assumed per-character advance width for the selected word's label when
+// laying out kanji-path identity marks (see KANJI_MARK below) -- Japanese
+// text (kanji, hiragana, katakana alike) renders at a consistent
+// "full-width" box per the East Asian Width convention, unlike Latin
+// text, so treating every character as equal-width is a safe
+// simplification here specifically, not a general text-layout hack. Sized
+// a little past the label's own 13px font-size for natural tracking.
+const KANJI_MARK_GLYPH_W = 15;
+const KANJI_MARK_RADIUS = 2.75;
+const KANJI_MARK_OFFSET_Y = -10;
 
 function truncate(str, max) {
   return str.length > max ? `${str.slice(0, max - 1).trimEnd()}…` : str;
@@ -376,6 +386,8 @@ export default function WordTreeGraph({
               const r = nodeRadius(node);
               const selected = node.id === selectedId;
               const label = node.type === "kanji" ? node.char : node.word;
+              const showKanjiMarks = selected && node.type === "word" && kanjiPathColors.size > 0;
+              const labelChars = showKanjiMarks ? Array.from(label) : null;
               const itemId = node.type === "kanji" ? node.char : node.word;
               const baseOpacity = nodeOpacity(getStatus(node.type, itemId));
               const dimmed = !node.isRoot && isDimmed(node);
@@ -430,12 +442,7 @@ export default function WordTreeGraph({
                         circle from enlarging the node's actual click
                         target. */}
                     {selected && (
-                      <circle
-                        r={displayR * 1.35}
-                        className="graph-node__select-glow"
-                        fill="var(--accent)"
-                        pointerEvents="none"
-                      />
+                      <circle r={displayR * 1.35} className="graph-node__select-glow" pointerEvents="none" />
                     )}
                     <circle
                       r={displayR}
@@ -451,16 +458,26 @@ export default function WordTreeGraph({
                         vectorEffect="non-scaling-stroke"
                       />
                     )}
-                    {/* Deliberately always plain white text, even for a
-                        kanji-path-highlighted selection -- an earlier
-                        version recolored each kanji glyph to match its
-                        link/ring color, but that put the color directly on
-                        top of the node's own fill (--accent or
-                        --node-word), and measured contrast there was
-                        ~1-2:1 for every kanji-path hue against either --
-                        effectively unreadable. The link + ring carry the
-                        color-pairing signal instead; see
-                        graph/theme.js/index.css's kanji-path tokens. */}
+                    {/* Deliberately always plain white glyph fill, even
+                        for a kanji-path-highlighted selection -- an
+                        earlier version recolored each kanji glyph itself,
+                        but that put the color directly on top of the
+                        node's own fill (--accent or --node-word), and
+                        measured contrast there was ~1-2:1 for every
+                        kanji-path hue against either -- effectively
+                        unreadable. Instead, when this word is selected and
+                        kanji-path highlighting is on, each kanji gets a
+                        small white-filled, color-ringed dot above it (see
+                        graph-node__kanji-mark below) -- white carries the
+                        same guaranteed-visible baseline as the label text
+                        itself, the colored ring carries the link/ring
+                        pairing as a lighter-weight accent rather than the
+                        text's own legibility. Laid out with explicit
+                        per-character x (KANJI_MARK_GLYPH_W) rather than
+                        letting the string flow normally, so each mark's
+                        position is computed from the exact same model as
+                        the characters it points at instead of trying to
+                        measure real rendered glyph positions. */}
                     <text
                       textAnchor="middle"
                       dominantBaseline="central"
@@ -468,8 +485,32 @@ export default function WordTreeGraph({
                       className="graph-node__label"
                       style={{ transform: "scale(var(--zoom-inv, 1))" }}
                     >
-                      {label}
+                      {showKanjiMarks
+                        ? labelChars.map((ch, i) => (
+                            <tspan key={i} x={charOffsetX(i, labelChars.length, KANJI_MARK_GLYPH_W)}>
+                              {ch}
+                            </tspan>
+                          ))
+                        : label}
                     </text>
+                    {showKanjiMarks && (
+                      <g style={{ transform: "scale(var(--zoom-inv, 1))" }}>
+                        {labelChars.map((ch, i) => {
+                          const markColor = kanjiPathColors.get(ch);
+                          if (!markColor) return null;
+                          return (
+                            <circle
+                              key={i}
+                              className="graph-node__kanji-mark"
+                              cx={charOffsetX(i, labelChars.length, KANJI_MARK_GLYPH_W)}
+                              cy={(hasDetail ? DETAIL_LABEL_Y : 0) + KANJI_MARK_OFFSET_Y}
+                              r={KANJI_MARK_RADIUS}
+                              style={{ stroke: markColor }}
+                            />
+                          );
+                        })}
+                      </g>
+                    )}
                     {hasDetail && (
                       <>
                         {reading && (
