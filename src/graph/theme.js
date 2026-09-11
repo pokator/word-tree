@@ -19,5 +19,14 @@ export function readNodeColors() {
       n1: read("--jlpt-n1", "#8659a6"),
       unrated: read("--jlpt-unrated", "#9a9482"),
     },
+    // Cycled by extractKanjiComponents' first-appearance order within the
+    // selected word -- see graph/kanjiPathColors.js -- not keyed by
+    // anything semantic like the JLPT ramp above.
+    kanjiPath: [
+      read("--kanji-path-1", "#3a7ca5"),
+      read("--kanji-path-2", "#c9863d"),
+      read("--kanji-path-3", "#7a5cc9"),
+      read("--kanji-path-4", "#3f9d6f"),
+    ],
   };
 }

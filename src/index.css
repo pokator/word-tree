@@ -36,11 +36,11 @@
   --pos-middle: #6a4c93;
   --pos-end: #1f7a8c;
 
-  /* On'yomi/kun'yomi link colors, opt-in via Filters -> "Color by Reading"
-     (see WordTreeGraph's colorByReading prop and graph/readingType.js) --
-     replaces the position colors above on screen rather than stacking with
-     them, so a fresh hue pair keeps the two systems from reading as the
-     same signal on recall even though they're never shown at once.
+  /* On'yomi/kun'yomi link colors, one mode of Filters -> "Link coloring"
+     (see WordTreeGraph's linkColorMode prop and graph/readingType.js) --
+     mutually exclusive with the position colors above, never both on
+     screen at once, so a fresh hue pair keeps the two systems from reading
+     as the same signal on recall even though they're never shown at once.
      "Unclear" reuses --jlpt-unrated's neutral rather than a third hue --
      both mean "no signal here," just for different data. */
   --reading-onyomi: #a13d78;
@@ -60,6 +60,22 @@
   --jlpt-n2: #c2703a;
   --jlpt-n1: #8659a6;
   --jlpt-unrated: #9a9482;
+
+  /* Kanji-path highlight, on by default (see WordTreeGraph's
+     colorByKanjiPath prop and graph/kanjiPathColors.js): when a word node
+     is selected, each of its component kanji gets one of these 4 colors
+     (cycling if a word has more than 4 unique kanji, which is rare) and
+     that same color paints the kanji's glyph inside the word's label, the
+     link to that kanji's node (if revealed), and a ring around the kanji
+     node itself -- three places, one color, so the mapping between "this
+     part of the word" and "this node in the graph" reads at a glance.
+     Distinct from the accent, JLPT ramp, and position/reading hues so it
+     never gets misread as one of those systems even if more than one
+     happens to be toggled on at once. */
+  --kanji-path-1: #3a7ca5;
+  --kanji-path-2: #c9863d;
+  --kanji-path-3: #7a5cc9;
+  --kanji-path-4: #3f9d6f;
 
   /* Semantic "known/good" status color for UI text (export tags, review
      tallies, mastery badges) -- kept separate from the node colors above.
@@ -122,6 +138,11 @@
     --jlpt-n1: #b389d9;
     --jlpt-unrated: #7a7f8c;
 
+    --kanji-path-1: #5fa3d1;
+    --kanji-path-2: #e0a563;
+    --kanji-path-3: #a68af0;
+    --kanji-path-4: #5fc08a;
+
     --success: #7fbf9a;
   }
 }
@@ -155,6 +176,11 @@
   --jlpt-n2: #e08f5c;
   --jlpt-n1: #b389d9;
   --jlpt-unrated: #7a7f8c;
+
+  --kanji-path-1: #5fa3d1;
+  --kanji-path-2: #e0a563;
+  --kanji-path-3: #a68af0;
+  --kanji-path-4: #5fc08a;
 
   --success: #7fbf9a;
 }

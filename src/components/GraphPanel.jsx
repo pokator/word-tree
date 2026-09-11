@@ -124,8 +124,10 @@ export default function GraphPanel({
   hintedIds,
   colorByDifficulty,
   onToggleColorByDifficulty,
-  colorByReading,
-  onToggleColorByReading,
+  linkColorMode,
+  onSetLinkColorMode,
+  colorByKanjiPath,
+  onToggleColorByKanjiPath,
 }) {
   // Legend rows double as highlight toggles: clicking one dims every node
   // it covers, independent of (and layered on top of) the Filters-driven
@@ -147,11 +149,12 @@ export default function GraphPanel({
   const toggleReading = useCallback((key) => setReadingLegend((prev) => toggled(prev, key)), []);
 
   // Position and reading-type color the same link the same way (see
-  // WordTreeGraph) -- only one is ever on screen at once, so only one
-  // legend (and its dim-filtering) is shown at a time, gated by the same
-  // Filters -> "Color by Reading" toggle that switches the link coloring.
-  const showReadingLegend = colorByReading && hasPositionGroups(graph);
-  const showPositionLegend = !colorByReading && hasPositionGroups(graph);
+  // WordTreeGraph) -- only one is ever on screen at once (or neither, once
+  // linkColorMode is "off"), so only one legend (and its dim-filtering) is
+  // shown at a time, gated by the same Filters -> "Link coloring" mode
+  // that switches the link coloring itself.
+  const showReadingLegend = linkColorMode === "reading" && hasPositionGroups(graph);
+  const showPositionLegend = linkColorMode === "position" && hasPositionGroups(graph);
 
   const legendDimmed = useCallback(
     (node) => {
@@ -207,8 +210,10 @@ export default function GraphPanel({
                 onSetMaxWords={onSetMaxWords}
                 colorByDifficulty={colorByDifficulty}
                 onToggleColorByDifficulty={onToggleColorByDifficulty}
-                colorByReading={colorByReading}
-                onToggleColorByReading={onToggleColorByReading}
+                linkColorMode={linkColorMode}
+                onSetLinkColorMode={onSetLinkColorMode}
+                colorByKanjiPath={colorByKanjiPath}
+                onToggleColorByKanjiPath={onToggleColorByKanjiPath}
                 onClose={onCloseFiltersPanel}
               />
             )}
@@ -232,7 +237,8 @@ export default function GraphPanel({
             theme={theme}
             hintedIds={hintedIds}
             colorByDifficulty={colorByDifficulty}
-            colorByReading={colorByReading}
+            linkColorMode={linkColorMode}
+            colorByKanjiPath={colorByKanjiPath}
           />
         ) : (
           <div className="graph-container graph-container--loading">

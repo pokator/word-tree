@@ -15,6 +15,12 @@ const JLPT_OPTIONS = [
 
 const MAX_WORDS_OPTIONS = [5, 8, 12, 20, 40, Infinity];
 
+const LINK_COLOR_OPTIONS = [
+  { value: "off", label: "Off" },
+  { value: "position", label: "Position" },
+  { value: "reading", label: "Reading" },
+];
+
 export default function FiltersPanel({
   masteryFilter,
   onToggleMastery,
@@ -27,8 +33,10 @@ export default function FiltersPanel({
   onSetMaxWords,
   colorByDifficulty,
   onToggleColorByDifficulty,
-  colorByReading,
-  onToggleColorByReading,
+  linkColorMode,
+  onSetLinkColorMode,
+  colorByKanjiPath,
+  onToggleColorByKanjiPath,
   onClose,
 }) {
   return (
@@ -81,20 +89,42 @@ export default function FiltersPanel({
             onClick={onToggleColorByDifficulty}
             aria-pressed={colorByDifficulty}
           >
-            Color by JLPT Level
+            Color by JLPT level
           </button>
           <button
             type="button"
-            className={`filters-panel__chip${colorByReading ? " is-active" : ""}`}
-            onClick={onToggleColorByReading}
-            aria-pressed={colorByReading}
+            className={`filters-panel__chip${colorByKanjiPath ? " is-active" : ""}`}
+            onClick={onToggleColorByKanjiPath}
+            aria-pressed={colorByKanjiPath}
           >
-            Color by Reading
+            Highlight selected word&rsquo;s kanji
           </button>
         </div>
         <p className="filters-panel__hint">
-          Color links by whether a word uses a kanji&rsquo;s on&rsquo;yomi or kun&rsquo;yomi (best-effort; irregular
-          readings show as unclear). Click a Reading row in the legend to focus just that type.
+          Highlight matches each kanji in the selected word&rsquo;s label to its own link and node color, with a
+          flowing animation on the line.
+        </p>
+      </div>
+
+      <div className="filters-panel__section">
+        <span className="filters-panel__label">Link coloring</span>
+        <div className="filters-panel__chips">
+          {LINK_COLOR_OPTIONS.map(({ value, label }) => (
+            <button
+              key={value}
+              type="button"
+              className={`filters-panel__chip${linkColorMode === value ? " is-active" : ""}`}
+              onClick={() => onSetLinkColorMode(value)}
+              aria-pressed={linkColorMode === value}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <p className="filters-panel__hint">
+          Color every kanji-to-word link by where the kanji sits in the word (Position) or whether the word uses
+          its on&rsquo;yomi or kun&rsquo;yomi (Reading, best-effort). Click a row in the legend to focus just that
+          type.
         </p>
       </div>
 

@@ -98,7 +98,7 @@ function wordNode(dataset, word, { isRoot = false, expanded = false } = {}) {
     // every component kanji's reading data at once to align against the
     // word's own reading), keyed by kanji char so a kanji->word link can
     // look up its own role without redoing the alignment -- see
-    // WordTreeGraph's colorByReading.
+    // WordTreeGraph's linkColorMode "reading".
     kanjiReadingTypes: kanjiReadingTypes(dataset, entry.word, entry.reading),
   };
 }

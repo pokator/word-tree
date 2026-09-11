@@ -34,7 +34,9 @@ const MAX_WORDS_KEY = "word-tree:max-words-per-branch";
 const MASTERY_FILTER_KEY = "word-tree:mastery-filter";
 const JLPT_FILTER_KEY = "word-tree:jlpt-filter";
 const COLOR_BY_DIFFICULTY_KEY = "word-tree:color-by-difficulty";
-const COLOR_BY_READING_KEY = "word-tree:color-by-reading";
+const LINK_COLOR_MODE_KEY = "word-tree:link-color-mode";
+const LEGACY_COLOR_BY_READING_KEY = "word-tree:color-by-reading";
+const COLOR_BY_KANJI_PATH_KEY = "word-tree:color-by-kanji-path";
 const MAX_WORDS_OPTIONS = [5, 8, 12, 20, 40, Infinity];
 const DEFAULT_MASTERY_FILTER = { new: true, learning: true, known: true };
 const DEFAULT_JLPT_FILTER = { n5: true, n4: true, n3: true, n2: true, n1: true, unrated: true };
@@ -78,11 +80,35 @@ function loadColorByDifficulty() {
   }
 }
 
-function loadColorByReading() {
+// Link coloring is a single mode (previously two independent controls:
+// position was always on with no way to turn it off, reading was a
+// separate opt-in toggle that replaced it on screen -- see DESIGN.md's
+// decisions log) so only one can ever be active, and it defaults to "off"
+// now that position is no longer forced on. Reads the old boolean key once
+// so anyone who'd already turned Reading coloring on keeps seeing it
+// rather than being silently switched back to a mode they didn't pick.
+function loadLinkColorMode() {
   try {
-    return localStorage.getItem(COLOR_BY_READING_KEY) === "true";
+    const raw = localStorage.getItem(LINK_COLOR_MODE_KEY);
+    if (raw === "off" || raw === "position" || raw === "reading") return raw;
+    return localStorage.getItem(LEGACY_COLOR_BY_READING_KEY) === "true" ? "reading" : "off";
   } catch {
-    return false;
+    return "off";
+  }
+}
+
+// Unlike the other graph-coloring toggles (which default off -- they're
+// supplementary lenses on the whole graph), this one defaults on: it only
+// ever lights up the 1-4 links/kanji belonging to whichever word is
+// already selected, the same "accent on the actively-explored path"
+// restraint the rest of the graph follows, so it reads as part of the
+// core selection interaction rather than an extra layer to opt into.
+function loadColorByKanjiPath() {
+  try {
+    const raw = localStorage.getItem(COLOR_BY_KANJI_PATH_KEY);
+    return raw === null ? true : raw === "true";
+  } catch {
+    return true;
   }
 }
 
@@ -102,7 +128,8 @@ export default function App() {
   const [masteryFilter, setMasteryFilter] = useState(loadMasteryFilter);
   const [jlptFilter, setJlptFilter] = useState(loadJlptFilter);
   const [colorByDifficulty, setColorByDifficulty] = useState(loadColorByDifficulty);
-  const [colorByReading, setColorByReading] = useState(loadColorByReading);
+  const [linkColorMode, setLinkColorMode] = useState(loadLinkColorMode);
+  const [colorByKanjiPath, setColorByKanjiPath] = useState(loadColorByKanjiPath);
   const [focusGroupId, setFocusGroupId] = useState(null);
   const [isFiltersPanelOpen, setIsFiltersPanelOpen] = useState(false);
   const [reviewSession, setReviewSession] = useState(null); // { title, words } | null
@@ -274,11 +301,20 @@ export default function App() {
     });
   }, []);
 
-  const handleToggleColorByReading = useCallback(() => {
-    setColorByReading((prev) => {
+  const handleSetLinkColorMode = useCallback((mode) => {
+    setLinkColorMode(mode);
+    try {
+      localStorage.setItem(LINK_COLOR_MODE_KEY, mode);
+    } catch {
+      // localStorage unavailable -- setting just won't persist this session
+    }
+  }, []);
+
+  const handleToggleColorByKanjiPath = useCallback(() => {
+    setColorByKanjiPath((prev) => {
       const next = !prev;
       try {
-        localStorage.setItem(COLOR_BY_READING_KEY, String(next));
+        localStorage.setItem(COLOR_BY_KANJI_PATH_KEY, String(next));
       } catch {
         // localStorage unavailable -- setting just won't persist this session
       }
@@ -515,8 +551,10 @@ export default function App() {
               onToggleJlpt={handleToggleJlptFilter}
               colorByDifficulty={colorByDifficulty}
               onToggleColorByDifficulty={handleToggleColorByDifficulty}
-              colorByReading={colorByReading}
-              onToggleColorByReading={handleToggleColorByReading}
+              linkColorMode={linkColorMode}
+              onSetLinkColorMode={handleSetLinkColorMode}
+              colorByKanjiPath={colorByKanjiPath}
+              onToggleColorByKanjiPath={handleToggleColorByKanjiPath}
               groups={groupsApi.groups}
               focusGroupId={focusGroupId}
               onSetFocusGroup={setFocusGroupId}

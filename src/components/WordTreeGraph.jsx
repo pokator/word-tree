@@ -6,6 +6,7 @@ import { nodeRadius, nodeFill, nodeOpacity, nodeDetailText, nodeDifficultyColor 
 import { readNodeColors } from "../graph/theme";
 import { kanjiPositionCategory } from "../graph/positionCategory";
 import { linkDistanceKey } from "../graph/linkDistanceKey";
+import { kanjiPathColorMap } from "../graph/kanjiPathColors";
 
 const DRAG_CLICK_THRESHOLD_PX = 5;
 const DOUBLE_CLICK_MS = 350;
@@ -13,6 +14,7 @@ const noStatus = () => undefined;
 const noGroup = () => false;
 const noDim = () => false;
 const EMPTY_SET = new Set();
+const EMPTY_MAP = new Map();
 const DIMMED_OPACITY = 0.12;
 const ZOOM_STEP = 1.3;
 // How much of the dragged node's motion its direct neighbors inherit while
@@ -58,7 +60,8 @@ export default function WordTreeGraph({
   theme,
   hintedIds = EMPTY_SET,
   colorByDifficulty = false,
-  colorByReading = false,
+  linkColorMode = "off",
+  colorByKanjiPath = false,
 }) {
   const containerRef = useRef(null);
   const svgRef = useRef(null);
@@ -286,6 +289,16 @@ export default function WordTreeGraph({
   // oxlint-disable-next-line react-hooks/exhaustive-deps
   const colors = useMemo(() => readNodeColors(), [theme]);
 
+  const selectedNode = nodesById.get(selectedId);
+  // Only meaningful when the selection is a word -- a selected kanji has no
+  // "component kanji" of its own to fan a path out to. Recomputed on
+  // selection change, not on every simulation tick, since it only depends
+  // on which word is selected and the palette, not node positions.
+  const kanjiPathColors =
+    colorByKanjiPath && selectedNode?.type === "word"
+      ? kanjiPathColorMap(selectedNode.word, colors.kanjiPath)
+      : EMPTY_MAP;
+
   return (
     <div ref={containerRef} className="graph-container">
       <div className="graph-zoom-controls">
@@ -309,19 +322,34 @@ export default function WordTreeGraph({
               // Only a kanji revealing its sibling words (not the reverse --
               // a word revealing its own component kanji) has a meaningful
               // "position" or "reading" role -- see positionCategory.js,
-              // readingType.js and useForceSimulation. The two color a link
-              // the same way (mutually exclusive, not stacked) -- reading
-              // takes over from position while its Filters toggle is on,
-              // see GraphPanel's showReadingLegend/showPositionLegend.
+              // readingType.js and useForceSimulation. The two are mutually
+              // exclusive modes of the same Filters -> "Link coloring"
+              // control (see GraphPanel's showReadingLegend/
+              // showPositionLegend), never stacked.
               const isKanjiToWord = s.type === "kanji" && t.type === "word";
               const readingCategory =
-                colorByReading && isKanjiToWord ? (t.kanjiReadingTypes?.[s.char] ?? "unknown") : null;
-              const posCategory = !readingCategory && isKanjiToWord ? kanjiPositionCategory(t.word, s.char) : null;
+                linkColorMode === "reading" && isKanjiToWord ? (t.kanjiReadingTypes?.[s.char] ?? "unknown") : null;
+              const posCategory =
+                linkColorMode === "position" && isKanjiToWord ? kanjiPositionCategory(t.word, s.char) : null;
               const linkClass = readingCategory
                 ? ` graph-link--reading-${readingCategory}`
                 : posCategory
                   ? ` graph-link--pos-${posCategory}`
                   : "";
+              // A word<->kanji link can point either way depending on which
+              // side was expanded first (expandWord: word->kanji;
+              // expandKanji: kanji->word -- see graph/buildGraph.js), so
+              // this checks both directions rather than assuming
+              // isKanjiToWord's kanji-reveals-word orientation. Wins over
+              // linkClass above via inline style (set below), not by
+              // fighting it for a class name.
+              const pathChar =
+                colorByKanjiPath && s.id === selectedId && t.type === "kanji" && kanjiPathColors.has(t.char)
+                  ? t.char
+                  : colorByKanjiPath && t.id === selectedId && s.type === "kanji" && kanjiPathColors.has(s.char)
+                    ? s.char
+                    : null;
+              const pathColor = pathChar ? kanjiPathColors.get(pathChar) : null;
               return (
                 <line
                   key={`${s.id}->${t.id}`}
@@ -330,7 +358,8 @@ export default function WordTreeGraph({
                   x2={t.x}
                   y2={t.y}
                   vectorEffect="non-scaling-stroke"
-                  className={`graph-link${linkClass}`}
+                  className={`graph-link${linkClass}${pathColor ? " graph-link--kanji-path" : ""}`}
+                  style={pathColor ? { stroke: pathColor } : undefined}
                 />
               );
             })}
@@ -345,11 +374,17 @@ export default function WordTreeGraph({
               const dimmed = !node.isRoot && isDimmed(node);
               const opacity = dimmed ? Math.min(baseOpacity, DIMMED_OPACITY) : baseOpacity;
               // The root already carries --accent as its whole identity --
-              // a difficulty ring on top of that would compete with, not
-              // add to, its one job of reading as "the mark." Everything
-              // else gets one if it has a bucket to show (see
-              // buildGraph.js's jlptBucket) and the Filters toggle is on.
+              // a ring on top of that would compete with, not add to, its
+              // one job of reading as "the mark." Everything else gets one
+              // if it has a bucket to show (see buildGraph.js's
+              // jlptBucket) and the Filters toggle is on.
               const showDifficulty = colorByDifficulty && !node.isRoot && Boolean(node.jlptBucket);
+              // Kanji-path highlight wins the same ring channel when both
+              // are active on the same node -- it's the actively-selected
+              // path, so it should read as "more current" than a static
+              // difficulty indicator, not stack a second ring alongside it.
+              const pathRingColor = node.type === "kanji" ? kanjiPathColors.get(node.char) : null;
+              const ringColor = pathRingColor ?? (showDifficulty ? nodeDifficultyColor(node, colors) : null);
               // Only computed when detailTier is on -- this render runs on
               // every simulation tick, so doing this unconditionally would
               // mean parsing reading/gloss for every node on every frame
@@ -368,10 +403,10 @@ export default function WordTreeGraph({
                   onPointerDown={(e) => handleNodePointerDown(e, node)}
                   className={`graph-node graph-node--${node.type}${selected ? " is-selected" : ""}${
                     node.isRoot ? " is-root" : ""
-                  }${hintedIds.has(node.id) ? " graph-node--hint" : ""}${
-                    showDifficulty ? " graph-node--difficulty" : ""
+                  }${hintedIds.has(node.id) ? " graph-node--hint" : ""}${ringColor ? " graph-node--ring" : ""}${
+                    pathRingColor ? " graph-node--kanji-path-target" : ""
                   }`}
-                  style={showDifficulty ? { opacity, "--node-jlpt-stroke": nodeDifficultyColor(node, colors) } : { opacity }}
+                  style={ringColor ? { opacity, "--node-ring-stroke": ringColor } : { opacity }}
                 >
                   <g className="graph-node__pop">
                     {!node.expanded && <title>Double-click to reveal more</title>}
@@ -390,11 +425,11 @@ export default function WordTreeGraph({
                     )}
                     {/* Selection state is its own outer ring rather than a
                         stroke on the fill circle itself -- that circle's
-                        stroke is already spoken for by the difficulty ring
-                        (see graph-node--difficulty below), and having
-                        selection borrow the same channel used to hide it
-                        the moment a node was clicked, the one time you'd
-                        most want to check a node's difficulty. */}
+                        stroke is already spoken for by the difficulty/
+                        kanji-path ring (see graph-node--ring above), and
+                        having selection borrow the same channel used to
+                        hide it the moment a node was clicked, the one time
+                        you'd most want to check a node's difficulty. */}
                     {selected && (
                       <circle
                         r={displayR + 9}
@@ -410,7 +445,13 @@ export default function WordTreeGraph({
                       className="graph-node__label"
                       style={{ transform: "scale(var(--zoom-inv, 1))" }}
                     >
-                      {label}
+                      {selected && node.type === "word" && kanjiPathColors.size > 0
+                        ? Array.from(label).map((ch, i) => (
+                            <tspan key={i} fill={kanjiPathColors.get(ch)}>
+                              {ch}
+                            </tspan>
+                          ))
+                        : label}
                     </text>
                     {hasDetail && (
                       <>

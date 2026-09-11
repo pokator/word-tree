@@ -21,6 +21,7 @@ const REQUIRED_TOKEN_GROUPS = {
   jlpt: ["--jlpt-n5", "--jlpt-n4", "--jlpt-n3", "--jlpt-n2", "--jlpt-n1", "--jlpt-unrated"],
   position: ["--pos-start", "--pos-middle", "--pos-end"],
   reading: ["--reading-onyomi", "--reading-kunyomi", "--reading-unknown"],
+  kanjiPath: ["--kanji-path-1", "--kanji-path-2", "--kanji-path-3", "--kanji-path-4"],
 };
 
 describe("design tokens (index.css)", () => {

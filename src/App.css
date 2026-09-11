@@ -1309,9 +1309,9 @@
 }
 
 /* Color-codes the same link by whether the word uses this kanji's on'yomi
-   or kun'yomi instead -- opt-in via Filters -> "Color by Reading" (see
-   WordTreeGraph's colorByReading prop), replacing the position colors
-   above on screen rather than stacking with them. Same quiet-hint weight
+   or kun'yomi instead -- the other mode of Filters -> "Link coloring" (see
+   WordTreeGraph's linkColorMode prop), mutually exclusive with the
+   position colors above, never both on screen at once. Same quiet-hint weight
    as position -- this is an additional lens on the graph, not a louder one. */
 .graph-link--reading-onyomi {
   stroke: var(--reading-onyomi);
@@ -1327,6 +1327,31 @@
   stroke: var(--reading-unknown);
   stroke-width: 1.75px;
   opacity: 0.55;
+}
+
+/* Kanji-path highlight (Filters -> "Highlight selected word's kanji", on
+   by default) -- stroke color is set inline per link (see WordTreeGraph's
+   pathColor), so this only carries the shared weight/motion. A dash
+   pattern animated along the line reads as "flow" toward the kanji it
+   points at, reinforcing the word-label-glyph -> link -> node color match
+   rather than just a static highlight. */
+.graph-link--kanji-path {
+  stroke-width: 2.25px;
+  opacity: 0.95;
+  stroke-dasharray: 5 4;
+  animation: kanji-path-flow 900ms linear infinite;
+}
+
+@keyframes kanji-path-flow {
+  to {
+    stroke-dashoffset: -18;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .graph-link--kanji-path {
+    animation: none;
+  }
 }
 
 .graph-zoom-controls {
@@ -1462,15 +1487,26 @@
   stroke-width: 2.5px;
 }
 
-/* Difficulty ring, opt-in via Filters -> "color by difficulty" (see
-   WordTreeGraph's colorByDifficulty prop and --node-jlpt-stroke, set inline
-   per node from graph/theme.js's jlpt colors). :first-of-type, not
+/* One shared ring channel for two different opt-in signals that never both
+   need to show at once on the same node -- JLPT difficulty (Filters ->
+   "color by difficulty") and the kanji-path highlight (Filters ->
+   "Highlight selected word's kanji"), see WordTreeGraph's ringColor, which
+   picks kanji-path over difficulty when a node happens to qualify for
+   both. --node-ring-stroke is set inline per node. :first-of-type, not
    :first-child -- an unexpanded node renders a <title> tooltip before its
    fill circle (see WordTreeGraph), which would make the fill circle the
    second CHILD but is still the first CIRCLE either way. */
-.graph-node--difficulty circle:first-of-type {
-  stroke: var(--node-jlpt-stroke);
+.graph-node--ring circle:first-of-type {
+  stroke: var(--node-ring-stroke);
   stroke-width: 3px;
+}
+
+/* The kanji-path ring specifically draws a touch heavier than a plain
+   difficulty ring -- it's pointing at exactly 1-4 nodes tied to the
+   current selection, not a standing property of every node with a JLPT
+   tag, so it earns a bit more visual weight. */
+.graph-node--kanji-path-target circle:first-of-type {
+  stroke-width: 3.5px;
 }
 
 /* Hovering a "Kanji"/"Related words" card in the dictionary panel points
@@ -2198,7 +2234,7 @@ button.legend__row.is-inactive:hover {
 }
 
 /* Difficulty rows mirror the actual on-graph marker -- a ring, not a fill
-   (see .graph-node--difficulty in the styles above) -- so the legend swatch
+   (see .graph-node--ring in the styles above) -- so the legend swatch
    is a hollow circle with a colored border rather than a solid dot. */
 .legend__swatch--ring {
   box-sizing: border-box;
