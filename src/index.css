@@ -65,18 +65,26 @@
   /* Kanji-path highlight, on by default (see WordTreeGraph's
      colorByKanjiPath prop and graph/kanjiPathColors.js): when a word node
      is selected, each of its component kanji gets one of these 4 colors
-     (cycling if a word has more than 4 unique kanji, which is rare) and
-     that same color paints the kanji's glyph inside the word's label, the
-     link to that kanji's node (if revealed), and a ring around the kanji
-     node itself -- three places, one color, so the mapping between "this
-     part of the word" and "this node in the graph" reads at a glance.
-     Distinct from the accent, JLPT ramp, and position/reading hues so it
-     never gets misread as one of those systems even if more than one
-     happens to be toggled on at once. */
+     (cycling if a word has more than 4 unique kanji, which is rare), and
+     that same color paints the link to that kanji's node (if revealed)
+     and a ring around the kanji node itself. Deliberately NOT painted onto
+     the word's own label glyphs -- earlier versions did, but a word's
+     label sits on the node's own fill (--accent or --node-word, both
+     medium-saturation, medium-lightness colors), and measured WCAG
+     contrast for any of these four against either was ~1-2:1 (vs. ~5:1
+     for the plain white label text they'd have replaced) -- essentially
+     unreadable, not just suboptimal. The ring/link both sit against the
+     open canvas instead, where contrast is >=3:1 in light mode and >=7:1
+     in dark (checked against every hue here). Values tuned so each stays
+     >=3:1 against --bg specifically in light mode, matching the same
+     floor the position/reading hues below happen to clear. Distinct from
+     the accent, JLPT ramp, and position/reading hues so it never gets
+     misread as one of those systems even if more than one happens to be
+     toggled on at once. */
   --kanji-path-1: #3a7ca5;
-  --kanji-path-2: #c9863d;
+  --kanji-path-2: #a8681f;
   --kanji-path-3: #7a5cc9;
-  --kanji-path-4: #3f9d6f;
+  --kanji-path-4: #2b7a52;
 
   /* Semantic "known/good" status color for UI text (export tags, review
      tallies, mastery badges) -- kept separate from the node colors above.

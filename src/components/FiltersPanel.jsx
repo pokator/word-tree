@@ -101,8 +101,8 @@ export default function FiltersPanel({
           </button>
         </div>
         <p className="filters-panel__hint">
-          Highlight matches each kanji in the selected word&rsquo;s label to its own link and node color, with a
-          flowing animation on the line.
+          Color the link and node ring for each of the selected word&rsquo;s kanji, with a flowing animation on the
+          line.
         </p>
       </div>
 

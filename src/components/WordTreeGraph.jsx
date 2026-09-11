@@ -320,17 +320,6 @@ export default function WordTreeGraph({
         </button>
       </div>
       <svg ref={svgRef} width={size.width} height={size.height}>
-        <defs>
-          {/* Selection glow -- stopColor reads var(--accent) via inline
-              style (SVG presentation attributes can't take CSS custom
-              properties directly, but the `style` prop can), so it
-              re-resolves to whichever theme's accent is active with no JS
-              involved, the same as every other themed color in this app. */}
-          <radialGradient id="select-glow">
-            <stop offset="0%" style={{ stopColor: "var(--accent)", stopOpacity: 0.45 }} />
-            <stop offset="100%" style={{ stopColor: "var(--accent)", stopOpacity: 0 }} />
-          </radialGradient>
-        </defs>
         <g ref={gRef}>
           <g className="links">
             {graph.links.map((l) => {
@@ -428,17 +417,23 @@ export default function WordTreeGraph({
                 >
                   <g className="graph-node__pop">
                     {!node.expanded && <title>Double-click to reveal more</title>}
-                    {/* Selection is a soft radial glow behind the node
-                        rather than an outline ring -- drawn first so
+                    {/* Selection is a soft blurred glow behind the node
+                        rather than an outline ring -- a real Gaussian blur
+                        (CSS filter, not a radial-gradient falloff), so it
+                        reads as a soft bloom instead of a flat tinted
+                        disc. Sized close to the node (not a large fixed
+                        pad) so it stays a "backlit" glow around THIS node
+                        rather than ballooning out far enough to visibly
+                        tint a neighboring link line. Drawn first so
                         everything else (fill, rings, label) paints over
-                        it. pointer-events: none keeps its much larger,
-                        mostly-transparent circle from enlarging the node's
-                        actual click target. */}
+                        it; pointer-events: none keeps its larger, blurred
+                        circle from enlarging the node's actual click
+                        target. */}
                     {selected && (
                       <circle
-                        r={displayR + 26}
+                        r={displayR * 1.35}
                         className="graph-node__select-glow"
-                        fill="url(#select-glow)"
+                        fill="var(--accent)"
                         pointerEvents="none"
                       />
                     )}
@@ -456,6 +451,16 @@ export default function WordTreeGraph({
                         vectorEffect="non-scaling-stroke"
                       />
                     )}
+                    {/* Deliberately always plain white text, even for a
+                        kanji-path-highlighted selection -- an earlier
+                        version recolored each kanji glyph to match its
+                        link/ring color, but that put the color directly on
+                        top of the node's own fill (--accent or
+                        --node-word), and measured contrast there was
+                        ~1-2:1 for every kanji-path hue against either --
+                        effectively unreadable. The link + ring carry the
+                        color-pairing signal instead; see
+                        graph/theme.js/index.css's kanji-path tokens. */}
                     <text
                       textAnchor="middle"
                       dominantBaseline="central"
@@ -463,13 +468,7 @@ export default function WordTreeGraph({
                       className="graph-node__label"
                       style={{ transform: "scale(var(--zoom-inv, 1))" }}
                     >
-                      {selected && node.type === "word" && kanjiPathColors.size > 0
-                        ? Array.from(label).map((ch, i) => (
-                            <tspan key={i} fill={kanjiPathColors.get(ch)}>
-                              {ch}
-                            </tspan>
-                          ))
-                        : label}
+                      {label}
                     </text>
                     {hasDetail && (
                       <>

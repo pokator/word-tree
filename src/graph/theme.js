@@ -24,9 +24,9 @@ export function readNodeColors() {
     // anything semantic like the JLPT ramp above.
     kanjiPath: [
       read("--kanji-path-1", "#3a7ca5"),
-      read("--kanji-path-2", "#c9863d"),
+      read("--kanji-path-2", "#a8681f"),
       read("--kanji-path-3", "#7a5cc9"),
-      read("--kanji-path-4", "#3f9d6f"),
+      read("--kanji-path-4", "#2b7a52"),
     ],
   };
 }

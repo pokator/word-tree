@@ -1611,15 +1611,23 @@
   }
 }
 
-/* Selection is a soft radial glow behind the node (see WordTreeGraph's
-   graph-node__select-glow, filled from the theme-aware #select-glow
-   gradient defined in the SVG) rather than an outline ring -- a ring read
-   as a hard, slightly clinical "selected" badge; a glow reads more like
-   the node itself is quietly lit from within, closer to the "ink at
-   night"/"hanko-seal" mark language the rest of the accent usage follows.
-   Pops in with the same node-pop timing as a freshly-revealed node, so
-   selecting doesn't feel like a different, sharper motion language. */
+/* Selection is a soft blurred glow behind the node (see WordTreeGraph's
+   graph-node__select-glow, fill: var(--accent) so it re-themes for light/
+   dark with no JS) rather than an outline ring -- a ring read as a hard,
+   slightly clinical "selected" badge; a glow reads more like the node
+   itself is quietly lit from within, closer to the "ink at night"/
+   "hanko-seal" mark language the rest of the accent usage follows. A real
+   Gaussian blur (CSS filter), not a radial-gradient falloff circle -- the
+   gradient version read as a flat tinted disc rather than a soft bloom,
+   and its 0%-to-100%-opacity falloff made it barely perceptible against
+   the paper/near-black canvas everywhere except where it happened to
+   overlap a link line, which looked like a stray colored smudge rather
+   than a deliberate glow. Pops in with the same node-pop timing as a
+   freshly-revealed node, so selecting doesn't feel like a different,
+   sharper motion language. */
 .graph-node__select-glow {
+  filter: blur(7px);
+  opacity: 0.6;
   transform-box: fill-box;
   transform-origin: center;
   animation: node-pop 260ms cubic-bezier(0.2, 0.8, 0.3, 1.1);
