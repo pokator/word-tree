@@ -1581,17 +1581,17 @@
   pointer-events: none;
 }
 
-/* One per kanji, shown above the selected word's label when the Filters ->
+/* One per kanji, shown below the selected word's label when the Filters ->
    "Highlight selected word's kanji" toggle is on -- see WordTreeGraph's
-   showKanjiMarks. White fill carries the same guaranteed-visible baseline
-   as the label text next to it (both sit on the same node-fill
-   background); the colored stroke (set inline per mark, from the same
-   --kanji-path-* palette as its link/ring) is the best-effort color-
-   pairing accent riding on top of that guaranteed-visible shape, rather
-   than needing to independently clear a contrast bar on its own. */
+   showKanjiMarks. Same idea as graph-node__group-dot just above: a solid
+   color (set inline per mark, from the same --kanji-path-* palette as its
+   link/ring) with a --bg-colored stroke cutting a crisp edge around it,
+   so the dot itself reads as a distinct shape regardless of what node
+   fill it happens to sit on, without needing its own fill color to clear
+   a contrast bar the way text would. */
 .graph-node__kanji-mark {
-  fill: #fff;
-  stroke-width: 1.75px;
+  stroke: var(--bg);
+  stroke-width: 1.5px;
   pointer-events: none;
 }
 
@@ -1647,7 +1647,7 @@
    sharper motion language. */
 .graph-node__select-glow {
   fill: var(--text-h);
-  filter: blur(8px);
+  filter: blur(var(--select-glow-blur));
   opacity: var(--select-glow-opacity);
   transform-box: fill-box;
   transform-origin: center;

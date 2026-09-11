@@ -13,16 +13,20 @@
   --shadow:
     rgba(28, 26, 20, 0.12) 0 10px 15px -3px, rgba(28, 26, 20, 0.06) 0 4px 6px -2px;
 
-  /* Selected-node glow opacity (see App.css's graph-node__select-glow,
-     colored with --text-h) -- NOT the same value in both themes. A dark
-     glow on light paper needs real weight to read as a glow at all next
-     to the accent node's own already-dark fill; the equivalent light glow
-     on the dark canvas is far more perceptually salient at the same
-     opacity (light-on-near-black reads as much stronger than dark-on-
-     light-paper, human contrast perception is not symmetric), so it needs
-     noticeably less to avoid overpowering the node it's supposed to be
-     quietly framing. */
-  --select-glow-opacity: 0.45;
+  /* Selected-node glow (see App.css's graph-node__select-glow, colored
+     with --text-h) -- opacity AND blur, not just opacity, differ between
+     themes. A dark glow on light paper needs real weight to read as a
+     glow at all next to the accent node's own already-dark fill, but a
+     tight blur at that weight let the dark blur visibly mix with the
+     node's saturated red edge into a muddy ring rather than a soft halo
+     -- a much wider blur spreads the same total "ink" over a bigger area
+     instead, keeping the effect soft rather than a hard smudged edge.
+     Dark mode's light-on-near-black glow already reads cleanly at a
+     tight blur and lower opacity (light-on-near-black is far more
+     perceptually salient than dark-on-light-paper at the same numeric
+     opacity), so it's untouched. */
+  --select-glow-opacity: 0.3;
+  --select-glow-blur: 15px;
 
   /* Node/edge semantic colors. The root node always carries --accent (it's
      the one thing on screen that should always read as "the mark"). Kanji
@@ -139,6 +143,7 @@
     --accent-border: rgba(255, 106, 77, 0.5);
     --shadow: rgba(0, 0, 0, 0.5) 0 10px 15px -3px, rgba(0, 0, 0, 0.3) 0 4px 6px -2px;
     --select-glow-opacity: 0.22;
+    --select-glow-blur: 8px;
 
     --node-root: var(--accent);
     --node-kanji: #a89a7e;
@@ -179,6 +184,7 @@
   --accent-border: rgba(255, 106, 77, 0.5);
   --shadow: rgba(0, 0, 0, 0.5) 0 10px 15px -3px, rgba(0, 0, 0, 0.3) 0 4px 6px -2px;
   --select-glow-opacity: 0.22;
+  --select-glow-blur: 8px;
 
   --node-root: var(--accent);
   --node-kanji: #a89a7e;

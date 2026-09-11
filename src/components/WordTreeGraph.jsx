@@ -52,8 +52,11 @@ const DETAIL_GLOSS_Y_NO_READING = 7;
 // simplification here specifically, not a general text-layout hack. Sized
 // a little past the label's own 13px font-size for natural tracking.
 const KANJI_MARK_GLYPH_W = 15;
-const KANJI_MARK_RADIUS = 2.75;
-const KANJI_MARK_OFFSET_Y = -10;
+const KANJI_MARK_RADIUS = 3;
+// Below the label (positive y), not above it -- a small gap past the
+// glyph's own bottom edge (~6.5px half-height at the label's 13px font
+// size) rather than touching it.
+const KANJI_MARK_OFFSET_Y = 10;
 
 function truncate(str, max) {
   return str.length > max ? `${str.slice(0, max - 1).trimEnd()}…` : str;
@@ -386,8 +389,6 @@ export default function WordTreeGraph({
               const r = nodeRadius(node);
               const selected = node.id === selectedId;
               const label = node.type === "kanji" ? node.char : node.word;
-              const showKanjiMarks = selected && node.type === "word" && kanjiPathColors.size > 0;
-              const labelChars = showKanjiMarks ? Array.from(label) : null;
               const itemId = node.type === "kanji" ? node.char : node.word;
               const baseOpacity = nodeOpacity(getStatus(node.type, itemId));
               const dimmed = !node.isRoot && isDimmed(node);
@@ -410,6 +411,13 @@ export default function WordTreeGraph({
               // even when nothing is ever going to show it.
               const { reading, gloss } = detailTier ? nodeDetailText(node) : { reading: "", gloss: "" };
               const hasDetail = detailTier && (reading || gloss);
+              // Marks sit below the label, and hasDetail already stacks a
+              // reading + gloss line down there -- rather than push marks
+              // even further down (extending past the bubble's own
+              // detail-tier padding), they just don't show once there's
+              // more detail on screen than the label alone.
+              const showKanjiMarks = selected && node.type === "word" && !hasDetail && kanjiPathColors.size > 0;
+              const labelChars = showKanjiMarks ? Array.from(label) : null;
               // The bubble itself grows to hold the extra two lines rather
               // than spilling them outside its edge -- displayR (not r)
               // drives everything drawn against this node from here down.
@@ -467,17 +475,19 @@ export default function WordTreeGraph({
                         kanji-path hue against either -- effectively
                         unreadable. Instead, when this word is selected and
                         kanji-path highlighting is on, each kanji gets a
-                        small white-filled, color-ringed dot above it (see
-                        graph-node__kanji-mark below) -- white carries the
-                        same guaranteed-visible baseline as the label text
-                        itself, the colored ring carries the link/ring
-                        pairing as a lighter-weight accent rather than the
-                        text's own legibility. Laid out with explicit
-                        per-character x (KANJI_MARK_GLYPH_W) rather than
-                        letting the string flow normally, so each mark's
-                        position is computed from the exact same model as
-                        the characters it points at instead of trying to
-                        measure real rendered glyph positions. */}
+                        small solid-colored dot below it (see
+                        graph-node__kanji-mark below), same idea as the
+                        existing group-membership dot: a background-
+                        colored ring cuts a crisp edge around the fill
+                        regardless of what it's sitting on, so the dot
+                        doesn't need to independently clear a contrast bar
+                        against the node's own fill the way text would.
+                        Laid out with explicit per-character x
+                        (KANJI_MARK_GLYPH_W) rather than letting the string
+                        flow normally, so each mark's position is computed
+                        from the exact same model as the characters it
+                        points at instead of trying to measure real
+                        rendered glyph positions. */}
                     <text
                       textAnchor="middle"
                       dominantBaseline="central"
@@ -503,9 +513,9 @@ export default function WordTreeGraph({
                               key={i}
                               className="graph-node__kanji-mark"
                               cx={charOffsetX(i, labelChars.length, KANJI_MARK_GLYPH_W)}
-                              cy={(hasDetail ? DETAIL_LABEL_Y : 0) + KANJI_MARK_OFFSET_Y}
+                              cy={KANJI_MARK_OFFSET_Y}
                               r={KANJI_MARK_RADIUS}
-                              style={{ stroke: markColor }}
+                              style={{ fill: markColor }}
                             />
                           );
                         })}
