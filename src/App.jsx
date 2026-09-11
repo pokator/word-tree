@@ -8,6 +8,7 @@ import AuthPanel from "./components/AuthPanel";
 import SavedWordsPanel from "./components/SavedWordsPanel";
 import GroupsPanel from "./components/GroupsPanel";
 import ReviewMode from "./components/ReviewMode";
+import Tutorial from "./components/Tutorial";
 import { useWordData } from "./data/useWordData";
 import { useRecentRoots } from "./data/useRecentRoots";
 import { useAuth } from "./auth/useAuth";
@@ -133,6 +134,7 @@ export default function App() {
   const [focusGroupId, setFocusGroupId] = useState(null);
   const [isFiltersPanelOpen, setIsFiltersPanelOpen] = useState(false);
   const [reviewSession, setReviewSession] = useState(null); // { title, words } | null
+  const [tutorialOpen, setTutorialOpen] = useState(false);
 
   const { recents, addRecent } = useRecentRoots();
   const streak = useStreak();
@@ -254,6 +256,19 @@ export default function App() {
     setGraph(createInitialGraph(dataset, rootWord, { isJlptAllowed }));
     setSelectedId(wordNodeId(rootWord));
   }, [dataset, rootWord, isJlptAllowed]);
+
+  // Always forces the graph back to DEFAULT_ROOT (rather than reusing
+  // whatever's currently showing) so the tour's steps -- one of which
+  // points at "a kanji node", another at the Reset button -- can rely on a
+  // known, freshly-collapsed demo state. Doesn't go through
+  // handleSelectWord/addRecent -- launching the tour isn't the user
+  // searching for 日本語, so it shouldn't pollute their recent-searches list.
+  const handleStartTutorial = useCallback(() => {
+    setRootWord(DEFAULT_ROOT);
+    setSelectedId(wordNodeId(DEFAULT_ROOT));
+    setGraph(createInitialGraph(dataset, DEFAULT_ROOT, { isJlptAllowed }));
+    setTutorialOpen(true);
+  }, [dataset, isJlptAllowed]);
 
   const handleMaxWordsChange = useCallback((rawValue) => {
     const next = rawValue === "all" ? Infinity : Number(rawValue);
@@ -454,6 +469,27 @@ export default function App() {
           >
             Review ({wordStats.new + wordStats.learning})
           </button>
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={handleStartTutorial}
+            disabled={dataset.loading}
+            aria-label="Tutorial"
+            title={dataset.loading ? "Loading dictionary…" : "Take a tour of the app"}
+          >
+            <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
+              <circle cx="12" cy="12" r="9.25" fill="none" stroke="currentColor" strokeWidth="1.7" />
+              <path
+                d="M9.4 9.6a2.6 2.6 0 0 1 5.05.87c0 1.73-2.6 2.6-2.6 2.6"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <circle cx="11.87" cy="16.85" r="1.05" fill="currentColor" stroke="none" />
+            </svg>
+          </button>
           <ThemeToggle theme={theme} onToggle={toggleTheme} />
           <button
             type="button"
@@ -590,6 +626,8 @@ export default function App() {
           onExit={() => setReviewSession(null)}
         />
       )}
+
+      {tutorialOpen && <Tutorial onClose={() => setTutorialOpen(false)} />}
 
       <a
         className="app__credit"

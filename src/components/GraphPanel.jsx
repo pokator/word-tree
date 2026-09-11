@@ -218,7 +218,12 @@ export default function GraphPanel({
               />
             )}
           </div>
-          <button className="reset-btn" onClick={onReset} title="Collapse back to just the root word">
+          <button
+            className="reset-btn"
+            onClick={onReset}
+            title="Collapse back to just the root word"
+            data-tutorial="graph-reset-btn"
+          >
             Reset
           </button>
         </div>

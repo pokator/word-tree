@@ -245,6 +245,13 @@
   background: var(--accent-bg);
   color: var(--accent);
 }
+.icon-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.icon-btn:disabled:hover {
+  border-color: var(--border);
+}
 
 .icon-btn__badge {
   position: absolute;
@@ -937,6 +944,134 @@
 .app__credit:focus-visible {
   opacity: 0.85;
   text-decoration: underline;
+}
+
+/* In-app tutorial: a live spotlight over the running UI, not a separate
+   slideshow -- see components/Tutorial.jsx. The overlay itself is a
+   transparent, full-viewport click-catcher (so the underlying app can't be
+   interacted with mid-tour); .tutorial-spotlight is a pointer-events:none
+   sibling that draws the dimmed backdrop with a cutout around the current
+   step's target via a box-shadow spread, rather than an SVG mask. */
+.tutorial-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+}
+
+.tutorial-spotlight {
+  position: fixed;
+  border-radius: 12px;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+  transition:
+    top 160ms ease,
+    left 160ms ease,
+    width 160ms ease,
+    height 160ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tutorial-spotlight {
+    transition: none;
+  }
+}
+
+.tutorial-card {
+  position: fixed;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition:
+    top 160ms ease,
+    left 160ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tutorial-card {
+    transition: none;
+  }
+}
+
+.tutorial-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.tutorial-card__step {
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--text);
+  opacity: 0.6;
+}
+
+.tutorial-card__title {
+  font-family: var(--heading);
+  font-weight: var(--heading-weight);
+  font-size: 19px;
+  color: var(--text-h);
+  margin: 0;
+}
+
+.tutorial-card__body {
+  font-size: 14px;
+  line-height: 145%;
+  color: var(--text);
+  margin: 0;
+}
+
+.tutorial-card__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
+}
+
+.tutorial-card__nav {
+  display: flex;
+  gap: 8px;
+}
+
+.tutorial-card__skip {
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  opacity: 0.65;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px 4px;
+}
+.tutorial-card__skip:hover {
+  opacity: 1;
+}
+
+.tutorial-card__back,
+.tutorial-card__next {
+  font: inherit;
+  font-size: 13px;
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--code-bg);
+  color: var(--text-h);
+  cursor: pointer;
+}
+.tutorial-card__back:hover,
+.tutorial-card__next:hover {
+  border-color: var(--accent-border);
+}
+
+.tutorial-card__next {
+  border-color: var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--text-h);
+  font-weight: 600;
 }
 
 .review-overlay {

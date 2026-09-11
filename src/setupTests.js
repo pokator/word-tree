@@ -1,4 +1,13 @@
+import { cleanup } from "@testing-library/react";
+import { afterEach } from "vitest";
 import "@testing-library/jest-dom/vitest";
+
+// @testing-library/react's own auto-cleanup only self-registers against a
+// GLOBAL afterEach (Jest-style); this project doesn't enable vitest's
+// `test.globals`, so without this it silently never ran -- every test
+// that calls render() left its DOM mounted for the next test in the same
+// file to collide with (e.g. two "Next" buttons matching one query).
+afterEach(cleanup);
 
 // jsdom implements neither -- both are exercised by real app code
 // (useTheme.js, data/useWordData.js) on mount, so every test that renders
