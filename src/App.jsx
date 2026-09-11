@@ -552,6 +552,15 @@ export default function App() {
           onExit={() => setReviewSession(null)}
         />
       )}
+
+      <a
+        className="app__credit"
+        href="https://souravbanerjee.com"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        by Sourav Banerjee
+      </a>
     </div>
   );
 }
