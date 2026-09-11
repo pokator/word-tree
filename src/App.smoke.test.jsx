@@ -16,7 +16,7 @@ describe("App", () => {
     );
 
     expect(screen.getByRole("heading", { name: /元/ })).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("Search")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Search (romaji OK)")).toBeInTheDocument();
     expect(await screen.findByText(/Explore/)).toBeInTheDocument();
   });
 });

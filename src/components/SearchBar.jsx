@@ -1,36 +1,13 @@
 import { useMemo, useState } from "react";
 import { containsJapanese } from "../graph/kanji";
-
-const MAX_RESULTS = 8;
-const DEFAULT_RANK = 999;
-
-function matchScore(word, q, qLower) {
-  if (word.word === q) return 0;
-  if (word.word.startsWith(q)) return 1;
-  if (word.reading.startsWith(qLower)) return 2;
-  if (word.word.includes(q)) return 3;
-  if (word.reading.includes(qLower)) return 4;
-  return 5; // meaning-only match
-}
+import { searchWords } from "../data/searchWords";
 
 export default function SearchBar({ words, onSelectWord, recents = [], wordsByText = {} }) {
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [error, setError] = useState(null);
 
-  const matches = useMemo(() => {
-    const q = query.trim();
-    if (!q) return [];
-    const qLower = q.toLowerCase();
-    return words
-      .filter((w) => w.word.includes(q) || w.reading.includes(qLower) || w.meaning.toLowerCase().includes(qLower))
-      .sort((a, b) => {
-        const scoreDiff = matchScore(a, q, qLower) - matchScore(b, q, qLower);
-        if (scoreDiff !== 0) return scoreDiff;
-        return (a.rank ?? DEFAULT_RANK) - (b.rank ?? DEFAULT_RANK);
-      })
-      .slice(0, MAX_RESULTS);
-  }, [query, words]);
+  const matches = useMemo(() => searchWords(words, query), [query, words]);
 
   function choose(word) {
     onSelectWord(word);
@@ -60,7 +37,7 @@ export default function SearchBar({ words, onSelectWord, recents = [], wordsByTe
     <div className="search-bar">
       <input
         type="text"
-        placeholder="Search"
+        placeholder="Search (romaji OK)"
         value={query}
         onChange={(e) => {
           setQuery(e.target.value);

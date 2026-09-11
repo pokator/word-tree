@@ -18,7 +18,8 @@
     "d3-selection": "^3.0.0",
     "d3-zoom": "^3.0.0",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "wanakana": "^5.3.1"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^7.0.1",
