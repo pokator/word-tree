@@ -1644,30 +1644,46 @@
 /* Selection is a soft blurred glow behind the node (see WordTreeGraph's
    graph-node__select-glow) rather than an outline ring -- a ring read as
    a hard, slightly clinical "selected" badge; a glow reads more like the
-   node itself is quietly lit from within. Colored with --text-h (the
-   heading-ink color), not --accent: --accent is already the root node's
-   entire identity, so tinting every selection accent-red diluted that and
-   read as too strong/loud regardless of opacity. --text-h inverts
-   correctly with zero extra work -- near-black ink in light mode (so
-   selection reads as a soft shadow the node casts into the paper), near-
-   white in dark mode (so it reads as a soft light haze, "ink at night"
-   under a lamp) -- same idea as the accent hue-swap, just reusing a token
-   whose whole job is already "the strongest ink mark, per theme." A real
-   Gaussian blur (CSS filter), not a radial-gradient falloff circle -- the
-   gradient version read as a flat tinted disc rather than a soft bloom,
-   and its 0%-to-100%-opacity falloff made it barely perceptible against
-   the paper/near-black canvas everywhere except where it happened to
-   overlap a link line, which looked like a stray colored smudge rather
-   than a deliberate glow. Pops in with the same node-pop timing as a
-   freshly-revealed node, so selecting doesn't feel like a different,
-   sharper motion language. */
+   node itself is quietly lit from within. A real Gaussian blur (CSS
+   filter), not a radial-gradient falloff circle -- the gradient version
+   read as a flat tinted disc rather than a soft bloom.
+   As of 2026-09-12 (see Decisions Log) the glow's color is no longer one
+   fixed token -- it's set inline per node (--select-glow-color, from the
+   exact same `resolvedFill` value the node's own circle uses, so a
+   selected root glows accent, a selected word glows its type/difficulty
+   color, etc.) rather than a single universal hue, which is what let it
+   stop competing with the root's own accent identity. It's also sized
+   closer to the node than before (1.15x, was 1.35x) and breathes gently
+   once settled -- a slow opacity/scale pulse -- rather than staying
+   perfectly static, so a selection reads as quietly "alive" without being
+   distracting (kept well within a subtle range, and off entirely under
+   prefers-reduced-motion). The one-shot node-pop entrance and the
+   looping breathe are two separate animations, not one -- node-pop's
+   normal (non-forwards) fill-mode means it stops influencing the element
+   the instant it ends, and the breathe animation's matching 260ms delay
+   picks up cleanly from exactly the state node-pop left behind, so the
+   glow doesn't visibly jump between "entering" and "breathing." */
 .graph-node__select-glow {
-  fill: var(--text-h);
+  fill: var(--select-glow-color, var(--text-h));
   filter: blur(var(--select-glow-blur));
   opacity: var(--select-glow-opacity);
   transform-box: fill-box;
   transform-origin: center;
-  animation: node-pop 260ms cubic-bezier(0.2, 0.8, 0.3, 1.1);
+  animation:
+    node-pop 260ms cubic-bezier(0.2, 0.8, 0.3, 1.1),
+    select-glow-breathe 2400ms ease-in-out 260ms infinite;
+}
+
+@keyframes select-glow-breathe {
+  0%,
+  100% {
+    opacity: var(--select-glow-opacity);
+    transform: scale(1);
+  }
+  50% {
+    opacity: calc(var(--select-glow-opacity) * 1.4);
+    transform: scale(1.12);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1676,24 +1692,15 @@
   }
 }
 
-/* One shared ring channel for two different opt-in signals that never both
-   need to show at once on the same node -- JLPT difficulty (Filters ->
-   "color by difficulty") and the kanji-path highlight (Filters ->
-   "Highlight selected word's kanji"), see WordTreeGraph's ringColor, which
-   picks kanji-path over difficulty when a node happens to qualify for
-   both. --node-ring-stroke is set inline per node. Targets the fill
-   circle by its own class (.graph-node__fill), not :first-of-type --
-   the selection glow, when present, is now the first <circle> sibling. */
-.graph-node--ring .graph-node__fill {
-  stroke: var(--node-ring-stroke);
-  stroke-width: 3px;
-}
-
-/* The kanji-path ring specifically draws a touch heavier than a plain
-   difficulty ring -- it's pointing at exactly 1-4 nodes tied to the
-   current selection, not a standing property of every node with a JLPT
-   tag, so it earns a bit more visual weight. */
+/* The ring channel is now exclusively the kanji-path highlight (Filters ->
+   "Highlight selected word's kanji") -- JLPT difficulty moved to a full
+   node fill instead (see Color section / Decisions Log, 2026-09-12), so
+   there's no second signal left to arbitrate against here. --node-ring
+   -stroke is set inline per node. Targets the fill circle by its own class
+   (.graph-node__fill), not :first-of-type -- the selection glow, when
+   present, is the first <circle> sibling. */
 .graph-node--kanji-path-target .graph-node__fill {
+  stroke: var(--node-ring-stroke);
   stroke-width: 3.5px;
 }
 
@@ -2457,31 +2464,27 @@ button.legend__row.is-inactive:hover {
   border-top-style: dotted;
 }
 
-/* Difficulty rows mirror the actual on-graph marker -- a ring, not a fill
-   (see .graph-node--ring in the styles above) -- so the legend swatch
-   is a hollow circle with a colored border rather than a solid dot. */
-.legend__swatch--ring {
-  box-sizing: border-box;
-  background: transparent;
-  border: 2px solid transparent;
-}
+/* Difficulty rows mirror the actual on-graph marker -- a full solid fill,
+   not a ring (see Color section / Decisions Log, 2026-09-12) -- so the
+   legend swatch is a plain filled dot, same as the Type row above it, just
+   keyed to --jlpt-nN instead of --node-*. */
 .legend__swatch--jlpt-n5 {
-  border-color: var(--jlpt-n5);
+  background: var(--jlpt-n5);
 }
 .legend__swatch--jlpt-n4 {
-  border-color: var(--jlpt-n4);
+  background: var(--jlpt-n4);
 }
 .legend__swatch--jlpt-n3 {
-  border-color: var(--jlpt-n3);
+  background: var(--jlpt-n3);
 }
 .legend__swatch--jlpt-n2 {
-  border-color: var(--jlpt-n2);
+  background: var(--jlpt-n2);
 }
 .legend__swatch--jlpt-n1 {
-  border-color: var(--jlpt-n1);
+  background: var(--jlpt-n1);
 }
 .legend__swatch--jlpt-unrated {
-  border-color: var(--jlpt-unrated);
+  background: var(--jlpt-unrated);
 }
 
 @media (max-width: 900px) {

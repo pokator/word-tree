@@ -349,7 +349,7 @@ export default function GraphPanel({
                     aria-pressed={jlptLegend[value]}
                     key={value}
                   >
-                    <span className={`legend__swatch legend__swatch--ring legend__swatch--jlpt-${value}`} /> {label}
+                    <span className={`legend__swatch legend__swatch--jlpt-${value}`} /> {label}
                   </button>
                 ))}
               </div>

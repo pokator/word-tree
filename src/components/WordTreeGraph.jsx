@@ -393,18 +393,22 @@ export default function WordTreeGraph({
               const baseOpacity = nodeOpacity(getStatus(node.type, itemId));
               const dimmed = !node.isRoot && isDimmed(node);
               const opacity = dimmed ? Math.min(baseOpacity, DIMMED_OPACITY) : baseOpacity;
-              // The root already carries --accent as its whole identity --
-              // a ring on top of that would compete with, not add to, its
-              // one job of reading as "the mark." Everything else gets one
-              // if it has a bucket to show (see buildGraph.js's
-              // jlptBucket) and the Filters toggle is on.
-              const showDifficulty = colorByDifficulty && !node.isRoot && Boolean(node.jlptBucket);
-              // Kanji-path highlight wins the same ring channel when both
-              // are active on the same node -- it's the actively-selected
-              // path, so it should read as "more current" than a static
-              // difficulty indicator, not stack a second ring alongside it.
+              // JLPT difficulty now fills the WHOLE node rather than just a
+              // ring around it -- see DESIGN.md's Color section/Decisions
+              // Log, 2026-09-12. Node size already distinguishes kanji from
+              // word regardless of fill color (see layout.js's nodeRadius),
+              // so the fill channel is free to carry difficulty instead of
+              // type once a user asks for it. The root already carries
+              // --accent as its whole identity, so it's excluded the same
+              // as before.
+              const difficultyColor =
+                colorByDifficulty && !node.isRoot && node.jlptBucket ? nodeDifficultyColor(node, colors) : null;
+              const resolvedFill = difficultyColor ?? nodeFill(node, { root: node.isRoot, colors });
+              // The ring channel is now exclusively the kanji-path highlight
+              // -- difficulty no longer contends for it (it has its own
+              // full-fill channel above), so there's nothing left to
+              // arbitrate between here.
               const pathRingColor = node.type === "kanji" ? kanjiPathColors.get(node.char) : null;
-              const ringColor = pathRingColor ?? (showDifficulty ? nodeDifficultyColor(node, colors) : null);
               // Only computed when detailTier is on -- this render runs on
               // every simulation tick, so doing this unconditionally would
               // mean parsing reading/gloss for every node on every frame
@@ -430,10 +434,10 @@ export default function WordTreeGraph({
                   onPointerDown={(e) => handleNodePointerDown(e, node)}
                   className={`graph-node graph-node--${node.type}${selected ? " is-selected" : ""}${
                     node.isRoot ? " is-root" : ""
-                  }${hintedIds.has(node.id) ? " graph-node--hint" : ""}${ringColor ? " graph-node--ring" : ""}${
+                  }${hintedIds.has(node.id) ? " graph-node--hint" : ""}${
                     pathRingColor ? " graph-node--kanji-path-target" : ""
                   }`}
-                  style={ringColor ? { opacity, "--node-ring-stroke": ringColor } : { opacity }}
+                  style={pathRingColor ? { opacity, "--node-ring-stroke": pathRingColor } : { opacity }}
                 >
                   <g className="graph-node__pop">
                     {!node.expanded && <title>Double-click to reveal more</title>}
@@ -450,12 +454,17 @@ export default function WordTreeGraph({
                         circle from enlarging the node's actual click
                         target. */}
                     {selected && (
-                      <circle r={displayR * 1.35} className="graph-node__select-glow" pointerEvents="none" />
+                      <circle
+                        r={displayR * 1.15}
+                        className="graph-node__select-glow"
+                        style={{ "--select-glow-color": resolvedFill }}
+                        pointerEvents="none"
+                      />
                     )}
                     <circle
                       r={displayR}
                       className="graph-node__fill"
-                      fill={nodeFill(node, { root: node.isRoot, colors })}
+                      fill={resolvedFill}
                       vectorEffect="non-scaling-stroke"
                     />
                     {!node.expanded && (
