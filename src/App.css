@@ -1435,47 +1435,49 @@
   stroke-width: 1.5px;
 }
 
-/* Color-codes a word's link back to the kanji that revealed it, by where
-   that kanji sits in the word (start/middle/end) -- see
-   graph/positionCategory.js. Kept as a quiet hint rather than a competing
-   saturated signal -- with the accent now reserved solely for the selected
-   node, these should read as "a hint of grouping" at a glance, not fight
-   for attention as the graph grows dense. */
-.graph-link--pos-start {
-  stroke: var(--pos-start);
-  stroke-width: 1.75px;
-  opacity: 0.55;
-}
-.graph-link--pos-middle {
-  stroke: var(--pos-middle);
-  stroke-width: 1.75px;
-  opacity: 0.55;
-}
-.graph-link--pos-end {
-  stroke: var(--pos-end);
-  stroke-width: 1.75px;
-  opacity: 0.55;
+/* Position (start/middle/end -- graph/positionCategory.js) and reading-type
+   (on'yomi/kun'yomi/unclear -- graph/readingType.js) are the two mutually-
+   exclusive modes of Filters -> "Link pattern" (WordTreeGraph's
+   linkColorMode), never both on screen at once. Neither carries a hue of
+   its own -- see the 2026-09-12 research-informed audit in DESIGN.md's
+   Decisions Log: with JLPT's ring ramp and the kanji-path selection
+   highlight already the app's two hue-bearing channels, a third and fourth
+   hue set (one per mode) was the specific thing making combined filters
+   read as a rainbow. Both instead draw in one shared neutral tone and
+   differ only by dash pattern -- solid / long-dash / dotted, the same
+   3-pattern vocabulary for both modes since a viewer only ever sees one of
+   them at a time. stroke-linecap: round is required for the dotted variant
+   to read as dots rather than degenerate 1px dashes. Slightly heavier than
+   the old 1.75px hue version (2px) and a touch more opaque (0.6 vs 0.55) --
+   a pattern needs more stroke weight than a color would to stay legible at
+   a glance, per Ledermann's dashed-line-legibility guidance. */
+.graph-link--pos-start,
+.graph-link--pos-middle,
+.graph-link--pos-end,
+.graph-link--reading-onyomi,
+.graph-link--reading-kunyomi,
+.graph-link--reading-unknown {
+  stroke: var(--text);
+  stroke-width: 2px;
+  stroke-linecap: round;
+  opacity: 0.6;
 }
 
-/* Color-codes the same link by whether the word uses this kanji's on'yomi
-   or kun'yomi instead -- the other mode of Filters -> "Link coloring" (see
-   WordTreeGraph's linkColorMode prop), mutually exclusive with the
-   position colors above, never both on screen at once. Same quiet-hint weight
-   as position -- this is an additional lens on the graph, not a louder one. */
-.graph-link--reading-onyomi {
-  stroke: var(--reading-onyomi);
-  stroke-width: 1.75px;
-  opacity: 0.55;
-}
-.graph-link--reading-kunyomi {
-  stroke: var(--reading-kunyomi);
-  stroke-width: 1.75px;
-  opacity: 0.55;
-}
+/* Solid -- the "baseline" case in both modes (leading kanji; reading
+   unclear/unresolved). */
+.graph-link--pos-start,
 .graph-link--reading-unknown {
-  stroke: var(--reading-unknown);
-  stroke-width: 1.75px;
-  opacity: 0.55;
+  stroke-dasharray: none;
+}
+
+.graph-link--pos-middle,
+.graph-link--reading-onyomi {
+  stroke-dasharray: 7 5;
+}
+
+.graph-link--pos-end,
+.graph-link--reading-kunyomi {
+  stroke-dasharray: 0.5 5;
 }
 
 /* Kanji-path highlight (Filters -> "Highlight selected word's kanji", on
@@ -2439,10 +2441,20 @@ button.legend__row.is-inactive:hover {
   background: var(--node-kanji);
 }
 
+/* Mirrors the graph's own dash vocabulary (see the position/reading link
+   rules above) instead of a color per row -- a border-top rather than a filled
+   bar so border-style: dashed/dotted can actually render the pattern. */
 .legend__swatch--line {
   width: 16px;
-  height: 3px;
-  border-radius: 2px;
+  height: 0;
+  border-top: 2px solid var(--text);
+  border-radius: 0;
+}
+.legend__swatch--line--dashed {
+  border-top-style: dashed;
+}
+.legend__swatch--line--dotted {
+  border-top-style: dotted;
 }
 
 /* Difficulty rows mirror the actual on-graph marker -- a ring, not a fill
@@ -2470,24 +2482,6 @@ button.legend__row.is-inactive:hover {
 }
 .legend__swatch--jlpt-unrated {
   border-color: var(--jlpt-unrated);
-}
-.legend__swatch--pos-start {
-  background: var(--pos-start);
-}
-.legend__swatch--pos-middle {
-  background: var(--pos-middle);
-}
-.legend__swatch--pos-end {
-  background: var(--pos-end);
-}
-.legend__swatch--reading-onyomi {
-  background: var(--reading-onyomi);
-}
-.legend__swatch--reading-kunyomi {
-  background: var(--reading-kunyomi);
-}
-.legend__swatch--reading-unknown {
-  background: var(--reading-unknown);
 }
 
 @media (max-width: 900px) {

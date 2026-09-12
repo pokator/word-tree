@@ -107,14 +107,14 @@ export default function FiltersPanel({
       </div>
 
       <div className="filters-panel__section">
-        <span id="link-coloring-label" className="filters-panel__label">
-          Link coloring
+        <span id="link-pattern-label" className="filters-panel__label">
+          Link pattern
         </span>
         {/* Off/Position/Reading are mutually exclusive -- role="radio", not
             aria-pressed on plain buttons, so assistive tech reports that
             picking one clears the others instead of three independent
             toggles. */}
-        <div className="filters-panel__chips" role="radiogroup" aria-labelledby="link-coloring-label">
+        <div className="filters-panel__chips" role="radiogroup" aria-labelledby="link-pattern-label">
           {LINK_COLOR_OPTIONS.map(({ value, label }) => (
             <button
               key={value}
@@ -129,9 +129,9 @@ export default function FiltersPanel({
           ))}
         </div>
         <p className="filters-panel__hint">
-          Color every kanji-to-word link by where the kanji sits in the word (Position) or whether the word uses
-          its on&rsquo;yomi or kun&rsquo;yomi (Reading, best-effort). Click a row in the legend to focus just that
-          type.
+          Mark every kanji-to-word link with a dash pattern (solid/dashed/dotted) based on where the kanji sits in
+          the word (Position) or whether the word uses its on&rsquo;yomi or kun&rsquo;yomi (Reading, best-effort).
+          Click a row in the legend to focus just that type.
         </p>
       </div>
 

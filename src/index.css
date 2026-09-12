@@ -44,24 +44,21 @@
   --node-kanji: #8a8371;
   --node-word: #56697c;
 
-  /* Kanji-position colors -- which arc of a kanji's revealed words a given
-     word belongs to (start/middle/end of the word, see graph/positionCategory.js).
-     Deliberately distinct from the node/accent hues above so the two color
-     systems never read as the same signal. */
-  --pos-start: #b5651d;
-  --pos-middle: #6a4c93;
-  --pos-end: #1f7a8c;
-
-  /* On'yomi/kun'yomi link colors, one mode of Filters -> "Link coloring"
-     (see WordTreeGraph's linkColorMode prop and graph/readingType.js) --
-     mutually exclusive with the position colors above, never both on
-     screen at once, so a fresh hue pair keeps the two systems from reading
-     as the same signal on recall even though they're never shown at once.
-     "Unclear" reuses --jlpt-unrated's neutral rather than a third hue --
-     both mean "no signal here," just for different data. */
-  --reading-onyomi: #a13d78;
-  --reading-kunyomi: #2f6f9e;
-  --reading-unknown: var(--jlpt-unrated);
+  /* Kanji-position AND on'yomi/kun'yomi link "coloring" (Filters -> "Link
+     pattern", see WordTreeGraph's linkColorMode prop, graph/positionCategory.js
+     and graph/readingType.js) intentionally carry NO hue of their own --
+     see the 2026-09-12 research-informed audit in the Decisions Log. With
+     the JLPT ramp and the kanji-path selection highlight already spending
+     the app's hue budget, a third and fourth hue set was what actually
+     made simultaneous filters read as a "rainbow." Both modes instead draw
+     with this one shared neutral tone and differ only by CSS dash pattern
+     (solid/long-dash/dotted, see App.css's link-pattern rules)
+     -- reusing --text rather than inventing a dedicated token, since its
+     job here is identical to its job everywhere else: quiet foreground ink,
+     not a category identity.
+     Position and reading are mutually exclusive (one Filters mode at a
+     time), so they share one dash vocabulary rather than each needing a
+     memorized 3-pattern set of their own. */
 
   /* JLPT difficulty ring, opt-in via Filters -> "color by difficulty" (see
      WordTreeGraph's colorByDifficulty prop) -- also the always-visible JLPT
@@ -159,14 +156,6 @@
     --node-kanji: #a89a7e;
     --node-word: #6b7182;
 
-    --pos-start: #ff9f43;
-    --pos-middle: #c77dff;
-    --pos-end: #34d399;
-
-    --reading-onyomi: #e389c2;
-    --reading-kunyomi: #6fb3e0;
-    --reading-unknown: var(--jlpt-unrated);
-
     --jlpt-n5: #6fbf7f;
     --jlpt-n4: #d9b84a;
     --jlpt-n3: #e08f5c;
@@ -199,14 +188,6 @@
   --node-root: var(--accent);
   --node-kanji: #a89a7e;
   --node-word: #6b7182;
-
-  --pos-start: #ff9f43;
-  --pos-middle: #c77dff;
-  --pos-end: #34d399;
-
-  --reading-onyomi: #e389c2;
-  --reading-kunyomi: #6fb3e0;
-  --reading-unknown: var(--jlpt-unrated);
 
   --jlpt-n5: #6fbf7f;
   --jlpt-n4: #d9b84a;

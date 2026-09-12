@@ -38,6 +38,18 @@ const READING_LEGEND = [
   { value: "unknown", label: "Unclear" },
 ];
 
+// Position and Reading are mutually exclusive Filters modes that share one
+// dash-pattern vocabulary rather than each having their own hue set (see
+// App.css's .graph-link--pos-*/--reading-* and the 2026-09-12 Decisions Log
+// entry) -- "" renders as the plain solid swatch, otherwise this names the
+// legend__swatch--line--<pattern> modifier class.
+const LINK_PATTERN = { start: "", middle: "dashed", end: "dotted", unknown: "", onyomi: "dashed", kunyomi: "dotted" };
+
+function lineSwatchClass(value) {
+  const pattern = LINK_PATTERN[value];
+  return `legend__swatch legend__swatch--line${pattern ? ` legend__swatch--line--${pattern}` : ""}`;
+}
+
 function toggled(prev, key) {
   return { ...prev, [key]: !prev[key] };
 }
@@ -285,27 +297,27 @@ export default function GraphPanel({
                   className={`legend__row${positionLegend.start ? "" : " is-inactive"}`}
                   onClick={() => togglePosition("start")}
                   aria-pressed={positionLegend.start}
-                  title="Where the kanji sits in the word"
+                  title="Where the kanji sits in the word (solid line)"
                 >
-                  <span className="legend__swatch legend__swatch--line legend__swatch--pos-start" /> Start
+                  <span className={lineSwatchClass("start")} /> Start
                 </button>
                 <button
                   type="button"
                   className={`legend__row${positionLegend.middle ? "" : " is-inactive"}`}
                   onClick={() => togglePosition("middle")}
                   aria-pressed={positionLegend.middle}
-                  title="Where the kanji sits in the word"
+                  title="Where the kanji sits in the word (dashed line)"
                 >
-                  <span className="legend__swatch legend__swatch--line legend__swatch--pos-middle" /> Middle
+                  <span className={lineSwatchClass("middle")} /> Middle
                 </button>
                 <button
                   type="button"
                   className={`legend__row${positionLegend.end ? "" : " is-inactive"}`}
                   onClick={() => togglePosition("end")}
                   aria-pressed={positionLegend.end}
-                  title="Where the kanji sits in the word"
+                  title="Where the kanji sits in the word (dotted line)"
                 >
-                  <span className="legend__swatch legend__swatch--line legend__swatch--pos-end" /> End
+                  <span className={lineSwatchClass("end")} /> End
                 </button>
               </div>
             )}
@@ -321,7 +333,7 @@ export default function GraphPanel({
                     aria-pressed={readingLegend[value]}
                     title="Whether the word uses this kanji's on'yomi or kun'yomi"
                   >
-                    <span className={`legend__swatch legend__swatch--line legend__swatch--reading-${value}`} /> {label}
+                    <span className={lineSwatchClass(value)} /> {label}
                   </button>
                 ))}
               </div>

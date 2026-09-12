@@ -16,11 +16,14 @@ function occurrences(varName) {
   return css.split(`${varName}:`).length - 1;
 }
 
+// Position and reading-type link "coloring" deliberately carry no hue/token
+// of their own as of the 2026-09-12 audit -- they're drawn with the plain
+// --text neutral and differ only by CSS dash pattern (see App.css's
+// .graph-link--pos-*/--reading-*), so there's no --pos-*/--reading-* token
+// group to check here anymore.
 const REQUIRED_TOKEN_GROUPS = {
   node: ["--node-root", "--node-kanji", "--node-word"],
   jlpt: ["--jlpt-n5", "--jlpt-n4", "--jlpt-n3", "--jlpt-n2", "--jlpt-n1", "--jlpt-unrated"],
-  position: ["--pos-start", "--pos-middle", "--pos-end"],
-  reading: ["--reading-onyomi", "--reading-kunyomi", "--reading-unknown"],
   kanjiPath: ["--kanji-path-1", "--kanji-path-2", "--kanji-path-3", "--kanji-path-4"],
 };
 
