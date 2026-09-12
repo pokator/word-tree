@@ -1297,10 +1297,24 @@
   min-width: 0;
 }
 
+/* min-width, not min-width: 0 -- the inline width:pct% is a share of
+   .split-pane's own box, which shrinks whenever a sibling (the Saved/
+   Groups .side-panel) opens next to it inside .app__main. Without a
+   floor, that recalculated percentage could push the dictionary panel
+   narrower than its own content can wrap sanely -- the 52px headword
+   wrapping one kanji per line, badge text clipping. 380px is enough for
+   a several-character headword plus its badges on one line; the graph
+   pane (flex: 1 on .split-pane__right) absorbs the shrink instead. */
 .split-pane__left {
   flex: 0 0 auto;
-  min-width: 0;
+  min-width: 380px;
   overflow-y: auto;
+  /* Lets .dictionary-panel__entry (below) respond to THIS pane's actual
+     width via @container, not just the viewport's -- the viewport can
+     stay well above the 900px mobile breakpoint while this pane itself
+     gets squeezed narrow (opening the Saved/Groups .side-panel shrinks
+     it without touching the viewport at all). */
+  container-type: inline-size;
 }
 
 .split-pane__right {
@@ -1855,6 +1869,32 @@
 }
 
 @media (max-width: 900px) {
+  .dictionary-panel__entry {
+    flex-direction: column;
+  }
+  .dictionary-panel__entry-kanji,
+  .dictionary-panel__entry-words {
+    flex: 0 0 auto;
+  }
+  .dictionary-panel__kanji-list,
+  .dictionary-panel__word-list {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .dictionary-panel__kanji-card,
+  .dictionary-panel__word-card {
+    flex: 1 1 120px;
+  }
+}
+
+/* Same stack-instead-of-side-by-side rules as the mobile media query above,
+   triggered by the dictionary pane's own width instead of the viewport's
+   (see .split-pane__left's container-type) -- the fixed-width kanji/related
+   -words column (168px/200px) otherwise left almost nothing for the
+   headword column once the Saved/Groups side panel shrinks this pane on an
+   otherwise-wide desktop viewport, wrapping a multi-kanji headword one
+   character per line. */
+@container (max-width: 440px) {
   .dictionary-panel__entry {
     flex-direction: column;
   }
@@ -2457,6 +2497,7 @@ button.legend__row.is-inactive:hover {
   }
   .split-pane__left {
     width: 100% !important;
+    min-width: 0;
     flex: 0 0 auto;
     overflow-y: visible;
   }
