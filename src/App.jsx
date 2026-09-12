@@ -472,66 +472,68 @@ export default function App() {
           >
             Review ({wordStats.new + wordStats.learning})
           </button>
-          <button
-            type="button"
-            className="icon-btn"
-            onClick={handleStartTutorial}
-            disabled={dataset.loading}
-            aria-label="Tutorial"
-            title={dataset.loading ? "Loading dictionary…" : "Take a tour of the app"}
-          >
-            <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
-              <circle cx="12" cy="12" r="9.25" fill="none" stroke="currentColor" strokeWidth="1.7" />
-              <path
-                d="M9.4 9.6a2.6 2.6 0 0 1 5.05.87c0 1.73-2.6 2.6-2.6 2.6"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.7"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <circle cx="11.87" cy="16.85" r="1.05" fill="currentColor" stroke="none" />
-            </svg>
-          </button>
-          <ThemeToggle theme={theme} onToggle={toggleTheme} />
-          <button
-            type="button"
-            className={`icon-btn${activeSidebar === "saved" ? " is-active" : ""}`}
-            onClick={() => toggleSidebar("saved")}
-            aria-pressed={activeSidebar === "saved"}
-            aria-label={`Saved words (${saved.words.length})`}
-            title="Saved words"
-          >
-            <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
-              <path
-                d="M6.5 3.75h11a.75.75 0 0 1 .75.75v16l-6.25-3.6-6.25 3.6v-16a.75.75 0 0 1 .75-.75Z"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.7"
-                strokeLinejoin="round"
-              />
-            </svg>
-            {saved.words.length > 0 && <span className="icon-btn__badge">{saved.words.length}</span>}
-          </button>
-          <button
-            type="button"
-            className={`icon-btn${activeSidebar === "groups" ? " is-active" : ""}`}
-            onClick={() => toggleSidebar("groups")}
-            aria-pressed={activeSidebar === "groups"}
-            aria-label={`Groups (${groupsApi.groups.length})`}
-            title="Groups"
-          >
-            <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
-              <path
-                d="M4 6.75A1.25 1.25 0 0 1 5.25 5.5h4.19a1.25 1.25 0 0 1 .93.42l1.4 1.58h7.02a1.25 1.25 0 0 1 1.25 1.25v9A1.25 1.25 0 0 1 18.75 19H5.25A1.25 1.25 0 0 1 4 17.75Z"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.7"
-                strokeLinejoin="round"
-              />
-            </svg>
-            {groupsApi.groups.length > 0 && <span className="icon-btn__badge">{groupsApi.groups.length}</span>}
-          </button>
+          <div className="icon-toolbar">
+            <button
+              type="button"
+              className="icon-toolbar__btn"
+              onClick={handleStartTutorial}
+              disabled={dataset.loading}
+              aria-label="Tutorial"
+              title={dataset.loading ? "Loading dictionary…" : "Take a tour of the app"}
+            >
+              <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
+                <circle cx="12" cy="12" r="9.25" fill="none" stroke="currentColor" strokeWidth="1.7" />
+                <path
+                  d="M9.4 9.6a2.6 2.6 0 0 1 5.05.87c0 1.73-2.6 2.6-2.6 2.6"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <circle cx="11.87" cy="16.85" r="1.05" fill="currentColor" stroke="none" />
+              </svg>
+            </button>
+            <ThemeToggle theme={theme} onToggle={toggleTheme} />
+            <button
+              type="button"
+              className={`icon-toolbar__btn${activeSidebar === "saved" ? " is-active" : ""}`}
+              onClick={() => toggleSidebar("saved")}
+              aria-pressed={activeSidebar === "saved"}
+              aria-label={`Saved words (${saved.words.length})`}
+              title="Saved words"
+            >
+              <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
+                <path
+                  d="M6.5 3.75h11a.75.75 0 0 1 .75.75v16l-6.25-3.6-6.25 3.6v-16a.75.75 0 0 1 .75-.75Z"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              {saved.words.length > 0 && <span className="icon-toolbar__badge">{saved.words.length}</span>}
+            </button>
+            <button
+              type="button"
+              className={`icon-toolbar__btn${activeSidebar === "groups" ? " is-active" : ""}`}
+              onClick={() => toggleSidebar("groups")}
+              aria-pressed={activeSidebar === "groups"}
+              aria-label={`Groups (${groupsApi.groups.length})`}
+              title="Groups"
+            >
+              <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
+                <path
+                  d="M4 6.75A1.25 1.25 0 0 1 5.25 5.5h4.19a1.25 1.25 0 0 1 .93.42l1.4 1.58h7.02a1.25 1.25 0 0 1 1.25 1.25v9A1.25 1.25 0 0 1 18.75 19H5.25A1.25 1.25 0 0 1 4 17.75Z"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              {groupsApi.groups.length > 0 && <span className="icon-toolbar__badge">{groupsApi.groups.length}</span>}
+            </button>
+          </div>
           <AuthPanel />
         </div>
       </header>

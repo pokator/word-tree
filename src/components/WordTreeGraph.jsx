@@ -321,15 +321,48 @@ export default function WordTreeGraph({
 
   return (
     <div ref={containerRef} className="graph-container">
-      <div className="graph-zoom-controls">
-        <button type="button" onClick={() => stepZoom(ZOOM_STEP)} title="Zoom in" aria-label="Zoom in">
-          +
+      <div className="graph-zoom-controls icon-toolbar icon-toolbar--vertical">
+        <button
+          type="button"
+          className="icon-toolbar__btn"
+          onClick={() => stepZoom(ZOOM_STEP)}
+          title="Zoom in"
+          aria-label="Zoom in"
+        >
+          <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
+            <line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+            <line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+          </svg>
         </button>
-        <button type="button" onClick={() => stepZoom(1 / ZOOM_STEP)} title="Zoom out" aria-label="Zoom out">
-          &minus;
+        <button
+          type="button"
+          className="icon-toolbar__btn"
+          onClick={() => stepZoom(1 / ZOOM_STEP)}
+          title="Zoom out"
+          aria-label="Zoom out"
+        >
+          <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
+            <line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+          </svg>
         </button>
-        <button type="button" onClick={resetZoom} title="Reset zoom" aria-label="Reset zoom">
-          &#8634;
+        <button type="button" className="icon-toolbar__btn" onClick={resetZoom} title="Reset zoom" aria-label="Reset zoom">
+          <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
+            <path
+              d="M18.5 8.5A7 7 0 1 0 19.4 14"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.7"
+              strokeLinecap="round"
+            />
+            <path
+              d="M19.5 4.5v4.5h-4.5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.7"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
         </button>
       </div>
       <svg ref={svgRef} width={size.width} height={size.height}>

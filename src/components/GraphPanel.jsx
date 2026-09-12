@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import WordTreeGraph from "./WordTreeGraph";
 import FiltersPanel from "./FiltersPanel";
 import { kanjiPositionCategory } from "../graph/positionCategory";
+import { useClickOutside } from "../lib/useClickOutside";
 
 // True once at least one kanji has been expanded (its links to sibling
 // words are the only ones color-coded by position -- see
@@ -196,48 +197,81 @@ export default function GraphPanel({
 
   const combinedIsDimmed = useCallback((node) => isDimmed(node) || legendDimmed(node), [isDimmed, legendDimmed]);
 
+  const filtersWrapRef = useClickOutside(isFiltersPanelOpen, onCloseFiltersPanel);
+
   return (
     <div className="graph-panel">
       <div className="graph-panel__toolbar">
         <span className="graph-panel__heading">Explore</span>
         <div className="graph-panel__toolbar-actions">
-          <div className="filters-panel-wrap">
+          <div className="icon-toolbar">
+            <div className="filters-panel-wrap" ref={filtersWrapRef}>
+              <button
+                type="button"
+                className={`icon-toolbar__btn filters-btn${filtersActive ? " is-active" : ""}`}
+                onClick={onToggleFiltersPanel}
+                aria-pressed={isFiltersPanelOpen}
+                aria-label="Filters"
+                title="Filters"
+              >
+                <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
+                  <line x1="4" y1="6.5" x2="20" y2="6.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+                  <circle cx="9" cy="6.5" r="2" fill="currentColor" stroke="none" />
+                  <line x1="4" y1="12" x2="20" y2="12" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+                  <circle cx="15" cy="12" r="2" fill="currentColor" stroke="none" />
+                  <line x1="4" y1="17.5" x2="20" y2="17.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+                  <circle cx="11" cy="17.5" r="2" fill="currentColor" stroke="none" />
+                </svg>
+                {filtersActive && <span className="icon-toolbar__dot" />}
+              </button>
+              {isFiltersPanelOpen && (
+                <FiltersPanel
+                  masteryFilter={masteryFilter}
+                  onToggleMastery={onToggleMastery}
+                  jlptFilter={jlptFilter}
+                  onToggleJlpt={onToggleJlpt}
+                  groups={groups}
+                  focusGroupId={focusGroupId}
+                  onSetFocusGroup={onSetFocusGroup}
+                  maxWords={maxWords}
+                  onSetMaxWords={onSetMaxWords}
+                  colorByDifficulty={colorByDifficulty}
+                  onToggleColorByDifficulty={onToggleColorByDifficulty}
+                  linkColorMode={linkColorMode}
+                  onSetLinkColorMode={onSetLinkColorMode}
+                  colorByKanjiPath={colorByKanjiPath}
+                  onToggleColorByKanjiPath={onToggleColorByKanjiPath}
+                  onClose={onCloseFiltersPanel}
+                />
+              )}
+            </div>
             <button
-              className={`reset-btn filters-btn${filtersActive ? " is-active" : ""}`}
-              onClick={onToggleFiltersPanel}
+              type="button"
+              className="icon-toolbar__btn"
+              onClick={onReset}
+              title="Collapse back to just the root word"
+              aria-label="Reset graph"
+              data-tutorial="graph-reset-btn"
             >
-              Filters
-              {filtersActive && <span className="filters-btn__badge" />}
+              <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
+                <path
+                  d="M18.5 8.5A7 7 0 1 0 19.4 14"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                  strokeLinecap="round"
+                />
+                <path
+                  d="M19.5 4.5v4.5h-4.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
             </button>
-            {isFiltersPanelOpen && (
-              <FiltersPanel
-                masteryFilter={masteryFilter}
-                onToggleMastery={onToggleMastery}
-                jlptFilter={jlptFilter}
-                onToggleJlpt={onToggleJlpt}
-                groups={groups}
-                focusGroupId={focusGroupId}
-                onSetFocusGroup={onSetFocusGroup}
-                maxWords={maxWords}
-                onSetMaxWords={onSetMaxWords}
-                colorByDifficulty={colorByDifficulty}
-                onToggleColorByDifficulty={onToggleColorByDifficulty}
-                linkColorMode={linkColorMode}
-                onSetLinkColorMode={onSetLinkColorMode}
-                colorByKanjiPath={colorByKanjiPath}
-                onToggleColorByKanjiPath={onToggleColorByKanjiPath}
-                onClose={onCloseFiltersPanel}
-              />
-            )}
           </div>
-          <button
-            className="reset-btn"
-            onClick={onReset}
-            title="Collapse back to just the root word"
-            data-tutorial="graph-reset-btn"
-          >
-            Reset
-          </button>
         </div>
       </div>
 

@@ -67,28 +67,98 @@
   background: var(--accent-bg);
 }
 
-.theme-toggle {
-  font-size: 16px;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  border: 1px solid var(--border);
-  background: var(--code-bg);
-  color: var(--text-h);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-}
-.theme-toggle:hover {
-  border-color: var(--accent-border);
-}
-.theme-toggle:focus-visible,
 .reset-btn:focus-visible,
 .search-bar input:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+/* Shared icon toolbar: a single bordered strip housing several icon
+   buttons (header actions, graph Filters/Reset, graph zoom), used instead
+   of each icon having its own separate bordered box. Buttons themselves
+   carry no border/background of their own -- only the strip does -- so
+   hover/active feedback is free to live entirely on the icon's `color`
+   (inherited by its SVG via currentColor) without touching the
+   surroundings, and a rapid transition on that one property is what reads
+   as "the icon lights up," not "the button changes shape." */
+.icon-toolbar {
+  display: flex;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--code-bg);
+}
+.icon-toolbar--vertical {
+  flex-direction: column;
+}
+.icon-toolbar > * + * {
+  border-left: 1px solid var(--border);
+}
+.icon-toolbar--vertical > * + * {
+  border-left: none;
+  border-top: 1px solid var(--border);
+}
+
+.icon-toolbar__btn {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  color: var(--text-h);
+  cursor: pointer;
+  transition: color 120ms ease;
+}
+.icon-toolbar__btn:hover,
+.icon-toolbar__btn:focus-visible {
+  color: var(--accent);
+}
+.icon-toolbar__btn.is-active {
+  color: var(--accent);
+}
+.icon-toolbar__btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.icon-toolbar__btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+.icon-toolbar__btn:disabled:hover {
+  color: var(--text-h);
+}
+
+.icon-toolbar__badge {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  border-radius: 999px;
+  border: 2px solid var(--code-bg);
+  background: var(--accent);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 12px;
+  text-align: center;
+}
+
+.icon-toolbar__dot {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 1.5px solid var(--code-bg);
 }
 
 .auth-chip {
@@ -227,61 +297,6 @@
   font-size: 12px;
   color: var(--text);
   opacity: 0.8;
-}
-
-/* Header icon buttons (Saved, Groups) -- a small badge at the bottom-right
-   corner shows the count instead of spelling it out in text, so the header
-   stays compact regardless of how large either number gets. */
-.icon-btn {
-  position: relative;
-  width: 44px;
-  height: 44px;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--code-bg);
-  color: var(--text-h);
-  cursor: pointer;
-}
-.icon-btn:hover {
-  border-color: var(--accent-border);
-}
-.icon-btn:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-.icon-btn.is-active {
-  border-color: var(--accent-border);
-  background: var(--accent-bg);
-  color: var(--accent);
-}
-.icon-btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-.icon-btn:disabled:hover {
-  border-color: var(--border);
-}
-
-.icon-btn__badge {
-  position: absolute;
-  bottom: -5px;
-  right: -5px;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 4px;
-  box-sizing: border-box;
-  border-radius: 999px;
-  border: 2px solid var(--bg);
-  background: var(--accent);
-  color: #fff;
-  font-size: 10px;
-  font-weight: 700;
-  line-height: 14px;
-  text-align: center;
 }
 
 /* Saved/Groups side panel -- docked beside the Explore graph as a sibling
@@ -834,23 +849,30 @@
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  width: 260px;
+  width: 280px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 14px;
+  gap: 10px;
+  padding: 12px;
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 8px;
   box-shadow: var(--shadow);
   z-index: 20;
   font-size: 13px;
+  /* Safety net, not the primary fix (that's the compact layout above) --
+     on a short viewport even this trimmed-down panel can run past the
+     bottom of the screen, which used to show up as a page-level vertical
+     scrollbar. Capping height and scrolling internally instead means the
+     page itself never grows a scrollbar because of this panel. */
+  max-height: calc(100vh - 160px);
+  overflow-y: auto;
 }
 
 .filters-panel__section {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
 }
 
 .filters-panel__label {
@@ -865,10 +887,6 @@
 .filters-panel__chips {
   display: flex;
   gap: 6px;
-}
-
-.filters-panel__chips--wrap {
-  flex-wrap: wrap;
 }
 
 .filters-panel__chip {
@@ -891,8 +909,16 @@
   font-weight: 600;
 }
 
+/* All 6 JLPT levels on one row instead of wrapping to two -- narrower
+   padding/font than a normal chip, and the gap between chips shrinks to
+   match, so the row doesn't force the panel taller than it needs to be. */
+.filters-panel__chips--jlpt {
+  gap: 4px;
+}
 .filters-panel__chip--jlpt {
-  flex: 0 1 calc(33.333% - 4px);
+  padding: 5px 2px;
+  font-size: 11px;
+  text-align: center;
 }
 
 .filters-panel select {
@@ -927,20 +953,6 @@
   cursor: pointer;
   text-decoration: underline;
   padding: 0;
-}
-
-.filters-btn {
-  position: relative;
-}
-.filters-btn__badge {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--accent);
-  border: 1.5px solid var(--bg);
 }
 
 .app__credit {
@@ -1523,27 +1535,6 @@
   right: 16px;
   bottom: 16px;
   z-index: 2;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.graph-zoom-controls button {
-  width: 44px;
-  height: 44px;
-  font: inherit;
-  font-size: 18px;
-  line-height: 1;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-  background: var(--code-bg);
-  color: var(--text);
-  cursor: pointer;
-}
-
-.graph-zoom-controls button:hover {
-  border-color: var(--accent-border);
-  color: var(--text-h);
 }
 
 .graph-node {
@@ -2416,9 +2407,8 @@
    font-size to whatever the ANCESTOR cascades (this button's actual parent,
    not the .legend__row rule above) -- at higher specificity than that rule
    (element+class beats class alone), silently overriding its 12px back to
-   something much larger. Re-declaring font-size after the shorthand, same
-   as .graph-zoom-controls button already does, is what actually keeps
-   every row -- span or button -- the same size. */
+   something much larger. Re-declaring font-size after the shorthand is
+   what actually keeps every row -- span or button -- the same size. */
 button.legend__row {
   background: none;
   border: none;

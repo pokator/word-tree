@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { useAuth } from "../auth/useAuth";
 import { supabase, isSupabaseConfigured } from "../lib/supabaseClient";
+import { useClickOutside } from "../lib/useClickOutside";
 
 export default function AuthPanel() {
   const { user, loading } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+  const wrapRef = useClickOutside(isOpen, () => setIsOpen(false));
 
   if (loading) return null; // avoid flashing "Sign in" before the session check resolves
 
@@ -20,9 +22,25 @@ export default function AuthPanel() {
   }
 
   return (
-    <div className="auth-panel-wrap">
-      <button className="reset-btn" onClick={() => setIsOpen((v) => !v)}>
-        Sign in
+    <div className="auth-panel-wrap icon-toolbar" ref={wrapRef}>
+      <button
+        type="button"
+        className="icon-toolbar__btn"
+        onClick={() => setIsOpen((v) => !v)}
+        aria-pressed={isOpen}
+        aria-label="Sign in"
+        title="Sign in"
+      >
+        <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
+          <circle cx="12" cy="8.3" r="3.3" fill="none" stroke="currentColor" strokeWidth="1.7" />
+          <path
+            d="M5.5 19c1.2-3.3 4-5 6.5-5s5.3 1.7 6.5 5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.7"
+            strokeLinecap="round"
+          />
+        </svg>
       </button>
       {isOpen && <SignInForm onSignedIn={() => setIsOpen(false)} />}
     </div>

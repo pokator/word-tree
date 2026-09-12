@@ -10,7 +10,7 @@ const JLPT_OPTIONS = [
   { value: "n3", label: "N3" },
   { value: "n2", label: "N2" },
   { value: "n1", label: "N1" },
-  { value: "unrated", label: "Other" },
+  { value: "unrated", label: "—", title: "Unrated" },
 ];
 
 const MAX_WORDS_OPTIONS = [5, 8, 12, 20, 40, Infinity];
@@ -42,7 +42,7 @@ export default function FiltersPanel({
   return (
     <div className="filters-panel">
       <div className="filters-panel__section">
-        <span className="filters-panel__label">Show mastery</span>
+        <span className="filters-panel__label">Mastery</span>
         <div className="filters-panel__chips">
           {MASTERY_OPTIONS.map(({ value, label }) => (
             <button
@@ -62,48 +62,45 @@ export default function FiltersPanel({
 
       <div className="filters-panel__section">
         <span className="filters-panel__label">JLPT level</span>
-        <div className="filters-panel__chips filters-panel__chips--wrap">
-          {JLPT_OPTIONS.map(({ value, label }) => (
+        <div className="filters-panel__chips filters-panel__chips--jlpt">
+          {JLPT_OPTIONS.map(({ value, label, title }) => (
             <button
               key={value}
               type="button"
               className={`filters-panel__chip filters-panel__chip--jlpt${jlptFilter[value] ? " is-active" : ""}`}
               onClick={() => onToggleJlpt(value)}
               aria-pressed={jlptFilter[value]}
+              title={title ? `${title} -- based on hardest kanji` : undefined}
             >
               {label}
             </button>
           ))}
         </div>
-        <p className="filters-panel__hint">
-          Based on a word&rsquo;s hardest kanji. Narrowing this limits new reveals. Click Reset to fully apply.
-        </p>
+        <p className="filters-panel__hint">Based on hardest kanji. Reset re-applies.</p>
       </div>
 
       <div className="filters-panel__section">
-        <span className="filters-panel__label">Graph coloring</span>
+        <span className="filters-panel__label">Coloring</span>
         <div className="filters-panel__chips">
           <button
             type="button"
             className={`filters-panel__chip${colorByDifficulty ? " is-active" : ""}`}
             onClick={onToggleColorByDifficulty}
             aria-pressed={colorByDifficulty}
+            title="Fill each node by its JLPT difficulty"
           >
-            Color by JLPT level
+            JLPT
           </button>
           <button
             type="button"
             className={`filters-panel__chip${colorByKanjiPath ? " is-active" : ""}`}
             onClick={onToggleColorByKanjiPath}
             aria-pressed={colorByKanjiPath}
+            title="Highlight the selected word's component kanji"
           >
-            Highlight selected word&rsquo;s kanji
+            Kanji path
           </button>
         </div>
-        <p className="filters-panel__hint">
-          Color the link and node ring for each of the selected word&rsquo;s kanji, with a flowing animation on the
-          line.
-        </p>
       </div>
 
       <div className="filters-panel__section">
@@ -128,15 +125,11 @@ export default function FiltersPanel({
             </button>
           ))}
         </div>
-        <p className="filters-panel__hint">
-          Mark every kanji-to-word link with a dash pattern (solid/dashed/dotted) based on where the kanji sits in
-          the word (Position) or whether the word uses its on&rsquo;yomi or kun&rsquo;yomi (Reading, best-effort).
-          Click a row in the legend to focus just that type.
-        </p>
+        <p className="filters-panel__hint">Dashes mark kanji position or reading type.</p>
       </div>
 
       <div className="filters-panel__section">
-        <span className="filters-panel__label">Focus on group</span>
+        <span className="filters-panel__label">Group focus</span>
         <select
           value={focusGroupId ?? ""}
           onChange={(e) => onSetFocusGroup(e.target.value || null)}
@@ -149,7 +142,7 @@ export default function FiltersPanel({
             </option>
           ))}
         </select>
-        {groups.length === 0 && <p className="filters-panel__hint">Create a group to focus on it here.</p>}
+        {groups.length === 0 && <p className="filters-panel__hint">Create a group first.</p>}
       </div>
 
       <div className="filters-panel__section">
@@ -161,7 +154,6 @@ export default function FiltersPanel({
             </option>
           ))}
         </select>
-        <p className="filters-panel__hint">How many words a kanji click reveals at once.</p>
       </div>
 
       <button type="button" className="filters-panel__close" onClick={onClose}>
