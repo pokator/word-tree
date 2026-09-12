@@ -458,7 +458,10 @@ export default function App() {
     <div className="app">
       <header className="app__header" inert={tutorialOpen}>
         <div className="app__title">
-          <h1>元 &mdash; Moto</h1>
+          <h1>
+            <img src={theme === "dark" ? "/moto_logo_dark.svg" : "/moto_logo_light.svg"} alt="" className="app__logo" />
+            Moto
+          </h1>
         </div>
         <SearchBar words={dataset.WORDS} onSelectWord={handleSelectWord} recents={recents} wordsByText={dataset.WORDS_BY_TEXT} />
         <div className="app__controls">

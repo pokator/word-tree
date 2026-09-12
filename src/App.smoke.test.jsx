@@ -15,7 +15,7 @@ describe("App", () => {
       </AuthProvider>
     );
 
-    expect(screen.getByRole("heading", { name: /元/ })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Moto" })).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Search...")).toBeInTheDocument();
     expect(await screen.findByText(/Explore/)).toBeInTheDocument();
   });

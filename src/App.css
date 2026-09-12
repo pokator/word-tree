@@ -20,10 +20,23 @@
 }
 
 .app__title h1 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-size: 21px;
   margin: 0;
   letter-spacing: -0.2px;
   white-space: nowrap;
+}
+
+/* Theme-swapped in App.jsx (moto_logo_light.svg/moto_logo_dark.svg) rather
+   than recolored via CSS -- both are full Inkscape exports with their own
+   baked-in stroke colors already matched to each theme's accent, not a
+   single-color mark `currentColor` could safely restyle. */
+.app__logo {
+  height: 28px;
+  width: 28px;
+  flex-shrink: 0;
 }
 
 .app__controls {
