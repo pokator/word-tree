@@ -37,7 +37,7 @@ export default function SearchBar({ words, onSelectWord, recents = [], wordsByTe
     <div className="search-bar">
       <input
         type="text"
-        placeholder="Search (romaji OK)"
+        placeholder="Search..."
         value={query}
         onChange={(e) => {
           setQuery(e.target.value);
