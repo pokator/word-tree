@@ -13,10 +13,10 @@ export function readNodeColors() {
     // "color by difficulty" toggle, see WordTreeGraph.
     jlpt: {
       n5: read("--jlpt-n5", "#4c8c5c"),
-      n4: read("--jlpt-n4", "#3f8f8a"),
-      n3: read("--jlpt-n3", "#c99a3d"),
-      n2: read("--jlpt-n2", "#c2703a"),
-      n1: read("--jlpt-n1", "#8659a6"),
+      n4: read("--jlpt-n4", "#8f7419"),
+      n3: read("--jlpt-n3", "#a85f2e"),
+      n2: read("--jlpt-n2", "#b23f2e"),
+      n1: read("--jlpt-n1", "#7a2020"),
       unrated: read("--jlpt-unrated", "#9a9482"),
     },
     // Cycled by extractKanjiComponents' first-appearance order within the

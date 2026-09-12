@@ -64,17 +64,27 @@
   --reading-unknown: var(--jlpt-unrated);
 
   /* JLPT difficulty ring, opt-in via Filters -> "color by difficulty" (see
-     WordTreeGraph's colorByDifficulty prop). An ordered easy-to-hard ramp,
-     not a category hue set like the position colors above -- green (N5) to
-     purple (N1), skipping red/orange-red entirely so the hardest level is
-     never confused with --accent on the root/selected node. Only drawn as a
-     ring around the existing kanji/word fill, so this never has to replace
-     that signal, only add to it. */
+     WordTreeGraph's colorByDifficulty prop) -- also the always-visible JLPT
+     badge in the dictionary panel (.jlpt-badge--nN reuses these same
+     tokens). A genuine intensity ramp, not a category hue set like the
+     position colors below: green -> gold -> orange -> red-orange -> dark
+     red, one continuous "easier to harder" rotation (the traffic-light/
+     heat-map convention) rather than 5 unrelated hues that only meant
+     "different category" -- ordinal data reads faster as a ramp than as a
+     palette you have to memorize. N1's dark, muted red is deliberately far
+     enough from --accent's bright vermillion in lightness/saturation (not
+     hue -- avoiding red entirely was the old rule) to still read as "the
+     mark" vs. "the hardest kanji" -- --accent owns clean, saturated red;
+     N1 stays a desaturated brick/maroon. Only drawn as a ring around the
+     existing kanji/word fill, so this never has to replace that signal,
+     only add to it. --jlpt-unrated is a separate neutral grey, deliberately
+     outside the ramp -- it means "we don't know," not "a 6th difficulty
+     level." */
   --jlpt-n5: #4c8c5c;
-  --jlpt-n4: #3f8f8a;
-  --jlpt-n3: #c99a3d;
-  --jlpt-n2: #c2703a;
-  --jlpt-n1: #8659a6;
+  --jlpt-n4: #8f7419;
+  --jlpt-n3: #a85f2e;
+  --jlpt-n2: #b23f2e;
+  --jlpt-n1: #7a2020;
   --jlpt-unrated: #9a9482;
 
   /* Kanji-path highlight, on by default (see WordTreeGraph's
@@ -158,10 +168,10 @@
     --reading-unknown: var(--jlpt-unrated);
 
     --jlpt-n5: #6fbf7f;
-    --jlpt-n4: #5cc2bd;
-    --jlpt-n3: #e0b85c;
-    --jlpt-n2: #e08f5c;
-    --jlpt-n1: #b389d9;
+    --jlpt-n4: #d9b84a;
+    --jlpt-n3: #e08f5c;
+    --jlpt-n2: #e87a6c;
+    --jlpt-n1: #d97267;
     --jlpt-unrated: #7a7f8c;
 
     --kanji-path-1: #5fa3d1;
@@ -199,10 +209,10 @@
   --reading-unknown: var(--jlpt-unrated);
 
   --jlpt-n5: #6fbf7f;
-  --jlpt-n4: #5cc2bd;
-  --jlpt-n3: #e0b85c;
-  --jlpt-n2: #e08f5c;
-  --jlpt-n1: #b389d9;
+  --jlpt-n4: #d9b84a;
+  --jlpt-n3: #e08f5c;
+  --jlpt-n2: #e87a6c;
+  --jlpt-n1: #d97267;
   --jlpt-unrated: #7a7f8c;
 
   --kanji-path-1: #5fa3d1;
