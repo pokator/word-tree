@@ -1362,6 +1362,11 @@
   min-width: 0;
   display: flex;
 }
+.split-pane__right-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+}
 
 .split-pane__handle {
   flex: 0 0 9px;

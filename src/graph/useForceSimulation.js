@@ -106,7 +106,7 @@ function computeSiblingAngles(siblingIds, parentData, graphNodes, { baseAngle = 
  * (keyed by id) so positions survive when the logical graph grows. Returns
  * a ref to that map; consumers re-render on every simulation tick.
  */
-export function useForceSimulation(graph, width, height) {
+export function useForceSimulation(graph, width, height, active = true) {
   const simNodesMapRef = useRef(new Map());
   const simulationRef = useRef(null);
   // parentId -> sibling count sharing that parent, recomputed whenever the
@@ -133,6 +133,16 @@ export function useForceSimulation(graph, width, height) {
   const originParentRef = useRef(new Map());
   const [, forceRerender] = useReducer((x) => x + 1, 0);
 
+  // While the graph is hidden (the phone layout's collapsed Explore pane),
+  // physics keeps running -- so positions are settled and correct the
+  // moment it's shown -- but the per-tick React re-render, the expensive
+  // part, is skipped. One catch-up render when it becomes visible again.
+  const activeRef = useRef(active);
+  useEffect(() => {
+    activeRef.current = active;
+    if (active) forceRerender();
+  }, [active]);
+
   // Create the simulation once.
   useEffect(() => {
     const idOf = (endpoint) => (typeof endpoint === "object" ? endpoint.id : endpoint);
@@ -157,7 +167,9 @@ export function useForceSimulation(graph, width, height) {
       )
       .force("x", forceX(width / 2).strength(0.03))
       .force("y", forceY(height * CENTER_Y_BIAS).strength(0.03))
-      .on("tick", forceRerender);
+      .on("tick", () => {
+        if (activeRef.current) forceRerender();
+      });
     simulationRef.current = sim;
     return () => sim.stop();
     // eslint-disable-next-line react-hooks/exhaustive-deps

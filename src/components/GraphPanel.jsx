@@ -141,6 +141,7 @@ export default function GraphPanel({
   onSetLinkColorMode,
   colorByKanjiPath,
   onToggleColorByKanjiPath,
+  active = true,
 }) {
   // Legend rows double as highlight toggles: clicking one dims every node
   // it covers, independent of (and layered on top of) the Filters-driven
@@ -290,6 +291,7 @@ export default function GraphPanel({
             colorByDifficulty={colorByDifficulty}
             linkColorMode={linkColorMode}
             colorByKanjiPath={colorByKanjiPath}
+            active={active}
           />
         ) : (
           <div className="graph-container graph-container--loading">

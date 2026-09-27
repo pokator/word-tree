@@ -2,14 +2,13 @@ import { useCallback, useMemo, useState } from "react";
 import SearchBar from "./components/SearchBar";
 import DictionaryPanel from "./components/DictionaryPanel";
 import GraphPanel from "./components/GraphPanel";
-import SplitPane from "./components/SplitPane";
+import PaneLayout from "./components/PaneLayout";
 import ThemeToggle from "./components/ThemeToggle";
 import BookmarksPanel from "./components/BookmarksPanel";
 import GroupsPanel from "./components/GroupsPanel";
 import ReviewMode from "./components/ReviewMode";
 import Tutorial from "./components/Tutorial";
 import MobileMenu from "./components/MobileMenu";
-import MobileLayout from "./components/MobileLayout";
 import { BookmarkIcon, GroupsIcon, TutorialIcon } from "./components/icons";
 import { useWordData } from "./data/useWordData";
 import { useRecentRoots } from "./data/useRecentRoots";
@@ -532,6 +531,7 @@ export default function App() {
       maxWords={maxWords}
       onSetMaxWords={handleMaxWordsChange}
       hintedIds={hintedIds}
+      active={!isMobile || mobileView === "explore"}
     />
   );
 
@@ -607,22 +607,18 @@ export default function App() {
       </header>
 
       <main className="app__main" inert={tutorialOpen}>
-        {/* Crossing the breakpoint swaps these two shells, which remounts
-            the graph (positions, zoom, dragged-apart links reset). Accepted:
-            it only happens on a window resize or a tablet rotating across
-            900px, and keeping one tree for both layouts would mean the
-            desktop SplitPane carrying phone-only structure. */}
-        {isMobile ? (
-          <MobileLayout
-            view={mobileView}
-            onChangeView={setMobileView}
-            node={selectedNode}
-            definitions={definitionsPanel}
-            explore={explorePanel}
-          />
-        ) : (
-          <SplitPane storageKey="main" defaultPct={40} min={26} max={62} left={definitionsPanel} right={explorePanel} />
-        )}
+        <PaneLayout
+          mobile={isMobile}
+          view={mobileView}
+          onChangeView={setMobileView}
+          node={selectedNode}
+          storageKey="main"
+          defaultPct={40}
+          min={26}
+          max={62}
+          left={definitionsPanel}
+          right={explorePanel}
+        />
         {activeSidebar && (
           <aside className="side-panel" aria-label={activeSidebar === "saved" ? "Bookmarks" : "Groups"}>
             {activeSidebar === "saved" && (

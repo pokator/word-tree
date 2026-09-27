@@ -83,6 +83,7 @@ export default function WordTreeGraph({
   colorByDifficulty = false,
   linkColorMode = "off",
   colorByKanjiPath = false,
+  active = true,
 }) {
   const containerRef = useRef(null);
   const svgRef = useRef(null);
@@ -104,7 +105,7 @@ export default function WordTreeGraph({
   const detailTierRef = useRef(false);
   const [detailTier, setDetailTier] = useState(false);
 
-  const { simNodesMapRef, simulationRef, linkDistanceRef } = useForceSimulation(graph, size.width, size.height);
+  const { simNodesMapRef, simulationRef, linkDistanceRef } = useForceSimulation(graph, size.width, size.height, active);
 
   // Track container size responsively.
   useEffect(() => {
