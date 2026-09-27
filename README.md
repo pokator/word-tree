@@ -4,9 +4,9 @@ An interactive, exploratory dictionary: start from **any** Japanese word,
 and expand outward through the components it's built from (in Japanese,
 kanji) to discover every other word in the dataset that shares a component
 with it. The point is to make the *relatedness* of vocabulary visible and
-explorable, and to turn that exploration into actual retention — mark what
-you know, organize words into your own study groups, save words of
-interest, and push them into Anki for spaced repetition.
+explorable, and to turn that exploration into actual retention — bookmark
+the words you want to learn, and Moto turns them into Anki cards, then
+shows on the graph what you've learned.
 
 This covers Japanese only. English (prefixes/suffixes/Latin & Greek roots)
 is a natural next step but intentionally out of scope for now — see "Not in
@@ -20,9 +20,8 @@ npm install
 
 The app runs perfectly well with **no further setup** — it loads a bundled
 ~228k-word/13k-kanji dataset (see "The dataset" below) and works fully as a
-guest (no accounts, no saved progress across devices). To get the full
-experience (accounts, mastery tracking and groups that survive a refresh,
-saved words), you need a Supabase project:
+guest (no account needed — bookmarks, tags, and status live in the browser).
+To sync them across devices with an account, you need a Supabase project:
 
 1. Create a free project at [supabase.com](https://supabase.com).
 2. Open its SQL editor and run `supabase/schema.sql`, then
@@ -39,6 +38,15 @@ saved words), you need a Supabase project:
    The anon key is safe here — it's constrained entirely by the Row Level
    Security policies in `supabase/schema.sql`, not a secret credential.
 4. `npm run dev`
+
+Sign-in is a 6-digit code emailed to the user and typed into the Bookmarks
+panel — no password, no link to click. The auth settings it relies on
+(Site URL, redirect allowlist, code length, and the email template that
+carries the code) live in `supabase/config.toml` and are applied with
+`npx supabase config push` (preview with `npx supabase config diff`).
+Supabase only accepts a custom email template once the project sends mail
+through a custom SMTP provider (Authentication → Emails → SMTP Settings) —
+its built-in sender also only delivers to the project's own team members.
 
 If Supabase isn't configured (or a fetch to it fails), the app silently
 falls back to the same bundled dataset, offline-style — you'll see "local
@@ -76,17 +84,25 @@ to (other words sharing a kanji, or a word's own kanji), double-click it,
 or use the "Show related words"/"Show kanji breakdown" button that
 appears in the dictionary panel for any selected, not-yet-expanded node.
 Nodes with a dashed ring haven't been (fully) expanded yet. Drag nodes to
-rearrange, scroll/pinch to zoom, drag the background to pan.
+rearrange, scroll/pinch to zoom, drag the background to pan. On a touch
+screen, tap to select, and double-tap or press-and-hold to expand.
+
+The layout adapts to the screen's shape, not just its width
+(`src/lib/useLayoutMode.js`): side by side on desktop; stacked with both
+halves visible on a portrait tablet; on a phone, one half at a time (tap the
+word strip for the full entry, tap Explore to go back); and on a phone
+turned sideways, a side rail for the word next to a full-height graph.
 
 **Filters** (graph panel toolbar) — three ways to control what the graph
 shows:
-- **Mastery** — hide/dim words by New / Learning / Known status.
+- **Status** — hide/dim words by Not studied / Learning / Known (as
+  reported by Anki, or marked "I already know this").
 - **JLPT level** — hide/dim by a word's hardest-tagged kanji (N5 easiest —
-  N1 hardest, plus "Other" for untagged). Unlike the mastery/group filters,
+  N1 hardest, plus "Other" for untagged). Unlike the status/tag filters,
   this one also limits what *future* kanji/word reveals show up, not just
   what's already on screen — hit Reset to fully apply it retroactively.
-- **Focus on group** — show only one of your groups, dimming everything
-  else.
+- **Tag focus** — show only words with one of your tags, dimming
+  everything else.
 - **Words per branch** (moved in here) caps how many words appear each
   time you click a kanji, ranked most-common-first. If more remain, the
   kanji stays in its "click for more" (dashed ring) state — click it again
@@ -100,46 +116,50 @@ shows:
   it's active; click a row in the graph's Reading legend to focus on just
   on'yomi, kun'yomi, or unclear words.
 
-The dictionary panel, for the currently-selected word or kanji, lets you:
-- **Mark mastery** — New / Learning / Known. This dims or brightens the
-  node on the graph (a quick visual read of what you've already got vs.
-  what's new) and persists it — to your account if signed in, to
-  `localStorage` as a guest. The sidebar's progress bar (known/learning/new
-  proportions) and daily visit streak track this over time.
-- **Add a word to a group** (word nodes only) — check any of your existing
-  groups, or type a new group name to create one. Groups are your own
-  collections (e.g. "JLPT N4 review", "kitchen vocab") independent of
-  mastery status; manage them from the "Groups" button in the header. A
-  small dot on a graph node marks it as belonging to at least one group.
-  Works for guests too (`localStorage`), just like mastery.
-- **Save a word for Anki** (word nodes only, requires sign-in) — adds it to
-  your export queue, shown under the "Saved" button in the header.
+The dictionary panel, for the currently-selected word, lets you:
+- **Bookmark it** — your study list. Works without an account (saved in
+  the browser); signing in syncs it, and anything bookmarked before
+  signing in is merged into the account. A small dot on a graph node marks
+  a bookmarked word, and Moto remembers which word you were exploring when
+  you bookmarked it.
+- **Tag it** (bookmarked words) — your own labels, e.g. "N4 exam".
+- **See its status** — Not studied / Learning / Known, read from Anki (see
+  below), or mark it "I already know this" for words you know but don't
+  need a card for.
 
-### Reviewing what you've marked
+### Studying with Anki
 
-"Review" (header) quizzes every word you've marked New or Learning: see
-the word, "Show answer" reveals its reading/meaning, then grade yourself
-"Still learning" or "Got it" — updates mastery status live, with a session
-summary at the end. Each group also has its own "Quiz" button (in the
-Groups panel) to review just that group's words regardless of status.
+Anki is Moto's review engine — Moto doesn't schedule reviews itself. Open
+Bookmarks and press **Connect to Anki** (Anki desktop must be running with
+the [AnkiConnect](https://foosoft.net/projects/anki-connect/) add-on). From
+then on, in that browser:
+- every bookmark becomes a card in Anki's `元` deck, using a dedicated
+  "Moto (元)" note type — the word on the front; reading, meaning, and its
+  kanji breakdown on the back — tagged with its collections
+  (`moto::kanji::日`, `moto::jlpt::n5`, `moto::from::日本語`,
+  `moto::tag::…`). Removing a bookmark never deletes its card;
+- each word's status comes back from its Anki card: Learning until Anki is
+  spacing it 21+ days apart, then Known — including words already in your
+  *other* decks (matched on each note type's first field), so what you
+  already know shows up on the graph without any setup. Statuses are saved
+  to your account, so phones (which can't reach Anki) see them too;
+- "Review in Anki (N due)" in the header opens Anki's reviewer on the deck.
 
-### Exporting to Anki
+Bookmarks also groups your words into **collections** automatically — by
+your tags, JLPT level, kanji shared by two or more words, and where you
+found them — and each one opens in Anki's browser by its tag.
 
-Open "Saved" in the header. If Anki desktop is running locally with the
-[AnkiConnect](https://foosoft.net/projects/anki-connect/) add-on installed
-and configured, "Send to Anki" pushes your saved words directly into a
-"Word Tree" deck. Otherwise it offers a `.tsv` file instead — importable via
-Anki's File → Import with zero setup.
-
-To enable live push:
+To set up AnkiConnect:
 1. In Anki desktop: Tools → Add-ons → Get Add-ons…, enter code
    `2055492159` (AnkiConnect), restart Anki.
 2. Tools → Add-ons → AnkiConnect → Config, add this app's origin (e.g.
    `http://localhost:5173` in dev) to `webCorsOriginList`, save, restart
    Anki.
-3. Keep Anki open when you export. If your browser still blocks the call
-   (some browsers treat an HTTPS page calling `http://127.0.0.1` as mixed
-   content), the `.tsv` download always works as a fallback.
+3. Chrome/Edge 142+ ask to let the site "access devices on your local
+   network" the first time it reaches Anki — allow it. (Moto never
+   contacts Anki until you press Connect, so nobody sees that prompt
+   unasked.) If it still can't connect, Bookmarks lists what to check, and
+   a `.tsv` export (Anki's File → Import) always works as a fallback.
 
 ## Theming
 
@@ -161,20 +181,22 @@ of sync.
 
 ## How it's built
 
-- **React + Vite** frontend; **Supabase** (Postgres + Auth) for accounts,
-  mastery persistence, and the saved-words/export queue — all optional, see
-  Setup above.
+- **React + Vite** frontend; **Supabase** (Postgres + Auth) for accounts
+  and syncing bookmarks, tags, and status — all optional, see Setup above.
 - **d3-force** drives the graph physics; positions are computed into plain
   objects and rendered as SVG by React (`src/graph/useForceSimulation.js`).
   **d3-zoom** handles pan/zoom; node dragging is hand-rolled with pointer
   events (`src/components/WordTreeGraph.jsx`) to cleanly distinguish
   "click to expand" from "drag to reposition".
-- The top-level layout is a resizable two-pane split
-  (`src/components/SplitPane.jsx`, also hand-rolled with pointer events,
-  same pattern as node dragging) between `DictionaryPanel.jsx` (the
-  primary dictionary entry view) and `GraphPanel.jsx` (the word-tree graph
-  plus its own toolbar — Filters, Reset — and legend/stats footer); below
-  ~900px they stack vertically instead and the drag handle hides.
+- The top-level layout (`src/components/PaneLayout.jsx`) pairs
+  `DictionaryPanel.jsx` (the primary dictionary entry view) with
+  `GraphPanel.jsx` (the word-tree graph plus its toolbar and legend) in one
+  of four shapes picked by `src/lib/useLayoutMode.js` — desktop and tablet
+  are resizable splits (hand-rolled with pointer events, same pattern as
+  node dragging), phone and landscape-rail toggle between the halves. The
+  graph sits at the same place in the element tree in every shape, so
+  rotating or resizing never resets it; `App.css` keys its per-layout rules
+  off `data-layout` on `.app`.
 - The graph/expansion logic is framework- and dataset-agnostic
   (`src/graph/buildGraph.js`): given a word, look up its kanji; given a
   kanji, look up every word containing it — each function takes the
@@ -191,14 +213,16 @@ of sync.
   ~32 kanji / ~38 word fixture) only if that somehow fails. It's
   deliberately never read from Supabase, even when Supabase is
   configured — see that README for why.
-- `src/progress/useProgress.js` (mastery) and `src/progress/useSavedWords.js`
-  (Anki export queue) both branch on auth state; mastery has a
-  `localStorage`-backed guest mode, the saved-words queue is
-  Supabase-only (its whole point is surviving until you open Anki).
-  `src/groups/useGroups.js` (word collections) follows the same
-  guest/`localStorage` + Supabase pattern as mastery.
+- `src/progress/useSavedWords.js` (bookmarks), `src/progress/useProgress.js`
+  (status), and `src/groups/useGroups.js` (tags) each branch on auth state:
+  `localStorage` for guests (all through `src/lib/guestStore.js`),
+  Supabase when signed in. `src/auth/mergeGuestData.js` folds the guest
+  data into the account on sign-in, before the account's data loads.
 - `src/anki/ankiConnect.js` talks to AnkiConnect's local HTTP API;
-  `src/anki/exportFile.js` is the `.tsv` fallback.
+  `src/anki/ankiSync.js` is the two-way bridge (cards out, status back),
+  driven by `src/anki/useAnkiSync.js`; `src/bookmarks/collections.js` builds
+  the automatic collections; `src/anki/exportFile.js` is the `.tsv`
+  fallback.
 
 ## The dataset (and its limits)
 
@@ -264,15 +288,12 @@ see "Assumptions" below.
   "same reading" edges yet.
 - **The graph only grows, never auto-prunes** within one exploration;
   "Reset" collapses back to the root, searching a new word starts fresh.
-- **No guest → account progress migration.** Signing in starts a fresh
-  (then Supabase-loaded) mastery/groups state rather than merging in
-  whatever was tracked as a guest. A deliberate scope cut, not an oversight.
-- **Desktop-first.** Below ~900px the dictionary/graph split stacks
-  vertically instead of side-by-side (see SplitPane above), but it's not
-  touch-tuned beyond that.
-- **A word can belong to any number of groups**, but a group can't contain
-  another group (no nesting) and a group has no notion of ordering beyond
-  insertion order.
+- **Anki sync needs Anki desktop.** AnkiConnect only runs on desktop
+  (iOS has no equivalent; the Android port lacks the card-statistics calls),
+  so phones show the status last synced from a desktop rather than syncing
+  themselves. Moto deliberately has no review scheduler of its own.
+- **Tags are flat.** A word can have any number of tags, but tags don't
+  nest and have no ordering beyond creation order.
 
 ## Not in scope (by design, for now)
 
