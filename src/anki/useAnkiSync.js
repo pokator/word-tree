@@ -80,6 +80,7 @@ export function useAnkiSync({ dataset, bookmarks, userTagsFor, graphWords, apply
     }
   }, []);
 
+  // The user-facing "check again": shows "checking" while it runs.
   const check = useCallback(async () => {
     setState("checking");
     const ok = await probeConnection();
@@ -104,11 +105,20 @@ export function useAnkiSync({ dataset, bookmarks, userTagsFor, graphWords, apply
   // may just have finished a review session in Anki.
   useEffect(() => {
     if (!enabled) return undefined;
-    check();
-    const onFocus = () => check();
-    window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
-  }, [enabled, check]);
+    let cancelled = false;
+    const run = () =>
+      probeConnection().then((ok) => {
+        if (cancelled) return;
+        setState(ok ? "connected" : "unreachable");
+        if (ok) sync();
+      });
+    run();
+    window.addEventListener("focus", run);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", run);
+    };
+  }, [enabled, sync]);
 
   // Re-sync (debounced) when bookmarks or the words on the graph change.
   const bookmarkKey = bookmarks.map((b) => b.item_id).join("|");
