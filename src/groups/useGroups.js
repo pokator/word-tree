@@ -17,7 +17,7 @@ function guestId() {
  * same pattern as progress/useProgress.js.
  */
 export function useGroups() {
-  const { user } = useAuth();
+  const { user, syncVersion } = useAuth();
   const [groups, setGroups] = useState(() => (user ? [] : loadGuestGroups()));
   const [syncedFor, setSyncedFor] = useState(user ? undefined : null);
 
@@ -61,7 +61,7 @@ export function useGroups() {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [user, syncVersion]);
 
   const groupsRef = useRef(groups);
   useEffect(() => {

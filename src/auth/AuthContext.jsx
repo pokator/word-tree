@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase, isSupabaseConfigured } from "../lib/supabaseClient";
 import { AuthContext } from "./context";
 import { mergeGuestData } from "./mergeGuestData";
@@ -68,5 +68,13 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
-  return <AuthContext.Provider value={state}>{children}</AuthContext.Provider>;
+  // Bumped by refresh() -- the account-backed data hooks (bookmarks,
+  // progress, tags) refetch whenever it changes, which is how the Bookmarks
+  // panel's account pod pulls in changes made on another device. Saving
+  // needs no equivalent: every change is written as it happens.
+  const [syncVersion, setSyncVersion] = useState(0);
+  const refresh = useCallback(() => setSyncVersion((v) => v + 1), []);
+  const value = useMemo(() => ({ ...state, syncVersion, refresh }), [state, syncVersion, refresh]);
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

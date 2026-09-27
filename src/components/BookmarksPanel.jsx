@@ -1,8 +1,11 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { buildAnkiTsv, downloadTextFile } from "../anki/exportFile";
 import { collectionQuery } from "../anki/ankiSync";
 import { buildCollections } from "../bookmarks/collections";
+import { useAuth } from "../auth/useAuth";
+import { isSupabaseConfigured } from "../lib/supabaseClient";
 import AccountSync from "./AccountSync";
+import AnkiSetupHelp from "./AnkiSetupHelp";
 
 const STATUS_LABELS = { new: "Not studied", learning: "Learning", known: "Known" };
 const KIND_LABELS = { tag: "Your tags", jlpt: "JLPT", kanji: "Shared kanji", from: "Found from" };
@@ -14,10 +17,51 @@ function timeAgo(date) {
   return m < 60 ? `${m} min ago` : `${Math.round(m / 60)} h ago`;
 }
 
+function SyncIcon({ spinning }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      width="15"
+      height="15"
+      aria-hidden="true"
+      className={`pod__sync-icon${spinning ? " is-spinning" : ""}`}
+    >
+      <path d="M15.5 7.5A6 6 0 0 0 4.6 6.2" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <path d="M4.5 12.5a6 6 0 0 0 10.9 1.3" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <path d="M15.8 3.8v3.9h-3.9" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M4.2 16.2v-3.9h3.9" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/** A finished connection, folded down to one line: a status dot, a label
+ * that expands the full card, a sync button, and any quick action (Anki's
+ * Review). */
+function Pod({ tone = "ok", label, expanded, onToggle, onSync, syncing, syncLabel, children }) {
+  return (
+    <div className={`pod pod--${tone}${expanded ? " is-expanded" : ""}`}>
+      <button type="button" className="pod__main" aria-expanded={expanded} onClick={onToggle}>
+        <span className="pod__dot" aria-hidden="true" />
+        <span className="pod__label">{label}</span>
+      </button>
+      {children}
+      <button type="button" className="pod__sync" onClick={onSync} disabled={syncing} aria-label={syncLabel} title={syncLabel}>
+        <SyncIcon spinning={syncing} />
+      </button>
+    </div>
+  );
+}
+
 /** Anki is Moto's study engine (see anki/useAnkiSync.js). This is where you
  * connect it, see that it's working, and -- because a failed connection
  * looks the same from the page whatever the cause -- what to check. */
-function AnkiSection({ anki, hasBookmarks, onExportTsv }) {
+function AnkiSection({ anki, hasBookmarks, onExportTsv, onHelp }) {
+  const helpLink = (
+    <button type="button" className="anki-card__link" onClick={onHelp}>
+      How to set up AnkiConnect
+    </button>
+  );
+
   if (anki.state === "off") {
     return (
       <section className="anki-card" aria-labelledby="anki-title">
@@ -25,23 +69,20 @@ function AnkiSection({ anki, hasBookmarks, onExportTsv }) {
           Study with Anki
         </h3>
         <p className="anki-card__text">
-          Moto adds your bookmarks to Anki as cards, and shows on the graph what you&rsquo;ve learned. Needs Anki
-          desktop with the AnkiConnect add-on.
+          Moto adds the words you bookmark to Anki as cards, and shows what you&rsquo;ve learned. Needs Anki desktop
+          with the AnkiConnect add-on.
         </p>
         <div className="anki-card__actions">
           <button type="button" className="anki-card__btn" onClick={anki.connect}>
             Connect to Anki
           </button>
-          {hasBookmarks && (
-            <button type="button" className="anki-card__link" onClick={onExportTsv}>
-              Or export a file instead
-            </button>
-          )}
+          {helpLink}
         </div>
-        <p className="anki-card__note">
-          Your browser may ask to let this site &ldquo;access devices on your local network&rdquo;. That&rsquo;s how it
-          reaches Anki on this computer. Allow it.
-        </p>
+        {hasBookmarks && (
+          <button type="button" className="anki-card__link anki-card__export" onClick={onExportTsv}>
+            Or export a file instead
+          </button>
+        )}
       </section>
     );
   }
@@ -62,23 +103,19 @@ function AnkiSection({ anki, hasBookmarks, onExportTsv }) {
         </h3>
         <ol className="anki-card__checklist">
           <li>Anki desktop is open on this computer.</li>
+          <li>AnkiConnect is installed (add-on code 2055492159).</li>
           <li>
-            AnkiConnect is installed: in Anki, Tools &rarr; Add-ons &rarr; Get Add-ons, code <code>2055492159</code>,
-            then restart Anki.
+            <code>{window.location.origin}</code> is in AnkiConnect&rsquo;s <code>webCorsOriginList</code>.
           </li>
-          <li>
-            This site is allowed: Tools &rarr; Add-ons &rarr; AnkiConnect &rarr; Config, add{" "}
-            <code>{window.location.origin}</code> to <code>webCorsOriginList</code>, then restart Anki.
-          </li>
-          <li>
-            Your browser allows local network access for this site (the icon left of the address bar &rarr; Site
-            settings).
-          </li>
+          <li>Your browser allows local network access for this site (site settings, left of the address bar).</li>
         </ol>
         <div className="anki-card__actions">
           <button type="button" className="anki-card__btn" onClick={anki.check}>
             Try again
           </button>
+          {helpLink}
+        </div>
+        <div className="anki-card__actions">
           <button type="button" className="anki-card__link" onClick={anki.disconnect}>
             Stop using Anki
           </button>
@@ -92,29 +129,27 @@ function AnkiSection({ anki, hasBookmarks, onExportTsv }) {
     );
   }
 
+  // Connected: this is the expanded view of the Anki pod.
   return (
     <section className="anki-card anki-card--connected" aria-labelledby="anki-title" aria-live="polite">
       <div className="anki-card__status">
-        <span className="anki-card__dot" aria-hidden="true" />
         <h3 className="anki-card__title" id="anki-title">
           Anki connected
         </h3>
         <span className="anki-card__meta">
-          {anki.syncing ? "Syncing…" : anki.lastSynced ? `Synced ${timeAgo(anki.lastSynced)}` : ""}
+          {anki.syncing ? "Syncing…" : anki.lastSynced ? `Synced ${timeAgo(anki.lastSynced)}` : "Up to date"}
         </span>
       </div>
+      <p className="anki-card__text">
+        New bookmarks are added to the <strong>元</strong> deck as you make them.
+      </p>
       {anki.error && (
         <p className="anki-card__error" role="alert">
           {anki.error}
         </p>
       )}
       <div className="anki-card__actions">
-        <button type="button" className="anki-card__btn" onClick={anki.review}>
-          Review{anki.due ? ` ${anki.due} due` : ""}
-        </button>
-        <button type="button" className="anki-card__link" onClick={anki.syncNow} disabled={anki.syncing}>
-          Sync now
-        </button>
+        {helpLink}
         <button type="button" className="anki-card__link" onClick={anki.disconnect}>
           Disconnect
         </button>
@@ -130,10 +165,29 @@ function AnkiSection({ anki, hasBookmarks, onExportTsv }) {
  * automatically by tag, JLPT level, shared kanji, and where you found them
  * -- see bookmarks/collections.js), and the list itself, each word with
  * the status Anki reports for it.
+ *
+ * Once signed in and connected, the account and Anki fold into small pods
+ * on one row at the top -- status at a glance, a sync button each, Review
+ * on Anki's -- and expand back into their full cards on tap. Anything not
+ * set up yet (or broken) stays a full card, since it needs attention.
  */
-export default function BookmarksPanel({ dataset, saved, anki, getStatus, userTagsFor, onSelectWord, onClose }) {
+export default function BookmarksPanel({
+  dataset,
+  saved,
+  anki,
+  getStatus,
+  userTagsFor,
+  onSelectWord,
+  onClose,
+}) {
+  const { user, refresh } = useAuth();
   const [activeKey, setActiveKey] = useState(null); // `${kind}:${key}` | null
   const [message, setMessage] = useState(null);
+  const [expanded, setExpanded] = useState(null); // null | "account" | "anki"
+  const [helpOpen, setHelpOpen] = useState(false);
+  // Stable, so the dialog's focus/Escape effect runs once per opening.
+  const closeHelp = useCallback(() => setHelpOpen(false), []);
+  const [refreshing, setRefreshing] = useState(false);
 
   const collections = useMemo(
     () => buildCollections(dataset, saved.words, userTagsFor),
@@ -152,7 +206,22 @@ export default function BookmarksPanel({ dataset, saved, anki, getStatus, userTa
     setMessage("Downloaded a .tsv file. Import it in Anki via File → Import.");
   }
 
+  // Changes save to the account as you make them; this pulls in anything
+  // saved from another device since this page loaded.
+  function refreshAccount() {
+    setRefreshing(true);
+    refresh();
+    setTimeout(() => setRefreshing(false), 700);
+  }
+
   const connected = anki.state === "connected";
+  const signedIn = isSupabaseConfigured && Boolean(user);
+  const toggle = (key) => setExpanded((prev) => (prev === key ? null : key));
+  const ankiLabel = anki.syncing
+    ? "Anki · syncing…"
+    : anki.error
+      ? "Anki · needs attention"
+      : `Anki${anki.due ? ` · ${anki.due} to review` : " · up to date"}`;
 
   return (
     <>
@@ -164,8 +233,45 @@ export default function BookmarksPanel({ dataset, saved, anki, getStatus, userTa
       </div>
 
       <div className="side-panel__body">
-        <AccountSync />
-        <AnkiSection anki={anki} hasBookmarks={saved.words.length > 0} onExportTsv={exportTsv} />
+        {(signedIn || connected) && (
+          <div className="pods" role="group" aria-label="Sync status">
+            {signedIn && (
+              <Pod
+                label={user.email}
+                expanded={expanded === "account"}
+                onToggle={() => toggle("account")}
+                onSync={refreshAccount}
+                syncing={refreshing}
+                syncLabel="Load changes from your other devices"
+              />
+            )}
+            {connected && (
+              <Pod
+                tone={anki.error ? "warn" : "ok"}
+                label={ankiLabel}
+                expanded={expanded === "anki"}
+                onToggle={() => toggle("anki")}
+                onSync={anki.syncNow}
+                syncing={anki.syncing}
+                syncLabel="Sync with Anki"
+              >
+                <button type="button" className="pod__action" onClick={anki.review}>
+                  Review
+                </button>
+              </Pod>
+            )}
+          </div>
+        )}
+
+        {(!signedIn || expanded === "account") && <AccountSync />}
+        {(!connected || expanded === "anki") && (
+          <AnkiSection
+            anki={anki}
+            hasBookmarks={saved.words.length > 0}
+            onExportTsv={exportTsv}
+            onHelp={() => setHelpOpen(true)}
+          />
+        )}
         {message && <p className="side-panel__message side-panel__message--info">{message}</p>}
 
         {collections.length > 0 && (
@@ -251,6 +357,7 @@ export default function BookmarksPanel({ dataset, saved, anki, getStatus, userTa
           </ul>
         )}
       </div>
+      {helpOpen && <AnkiSetupHelp onClose={closeHelp} />}
     </>
   );
 }

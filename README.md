@@ -141,7 +141,14 @@ then on, in that browser:
   *other* decks (matched on each note type's first field), so what you
   already know shows up on the graph without any setup. Statuses are saved
   to your account, so phones (which can't reach Anki) see them too;
-- "Review in Anki (N due)" in the header opens Anki's reviewer on the deck.
+- Anki is only contacted when your bookmarks change (a word added, or a
+  bookmark's tags), when you connect, or when you press sync — never while
+  you explore the graph.
+- Once connected (and signed in), both collapse into small pods at the top
+  of Bookmarks: status at a glance, a sync button each, and **Review** on
+  the Anki pod, which opens Anki's reviewer on the deck. Tap a pod to expand
+  it. "How to set up AnkiConnect" walks through the add-on and its
+  `webCorsOriginList`, with this site's exact origin ready to paste.
 
 Bookmarks also groups your words into **collections** automatically — by
 your tags, JLPT level, kanji shared by two or more words, and where you

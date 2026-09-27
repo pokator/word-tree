@@ -69,7 +69,7 @@ describe("BookmarksPanel", () => {
     expect(screen.getAllByRole("listitem").map((li) => li.textContent)).toEqual([expect.stringContaining("本当")]);
     await userEvent.click(screen.getByRole("button", { name: /Open “N3” in Anki/ }));
     expect(api.browse).toHaveBeenCalledWith('"tag:moto::jlpt::n3"');
-    await userEvent.click(screen.getByRole("button", { name: "Review 4 due" }));
+    await userEvent.click(screen.getByRole("button", { name: "Review" }));
     expect(api.review).toHaveBeenCalledOnce();
   });
 
@@ -78,5 +78,29 @@ describe("BookmarksPanel", () => {
     expect(screen.getByRole("heading", { name: "Can’t reach Anki" })).toBeInTheDocument();
     expect(screen.getByText(/2055492159/)).toBeInTheDocument();
     expect(screen.getByText(/local network access/)).toBeInTheDocument();
+  });
+
+  it("folds a connected Anki into a pod that shows status, syncs, and expands", async () => {
+    const api = anki({ state: "connected", due: 4 });
+    renderPanel(api);
+    // Collapsed: the full card is hidden behind the pod.
+    expect(screen.queryByRole("heading", { name: "Anki connected" })).not.toBeInTheDocument();
+    const pod = screen.getByRole("button", { name: /Anki · 4 to review/ });
+    await userEvent.click(screen.getByRole("button", { name: "Sync with Anki" }));
+    expect(api.syncNow).toHaveBeenCalledOnce();
+    await userEvent.click(pod);
+    expect(pod).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("heading", { name: "Anki connected" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Disconnect" })).toBeInTheDocument();
+  });
+
+  it("opens a setup guide with this site's exact webCorsOriginList entry", async () => {
+    renderPanel(anki());
+    await userEvent.click(screen.getByRole("button", { name: "How to set up AnkiConnect" }));
+    const dialog = screen.getByRole("dialog", { name: "Set up AnkiConnect" });
+    expect(dialog).toHaveTextContent("2055492159");
+    expect(dialog).toHaveTextContent(`"${window.location.origin}"`);
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 });

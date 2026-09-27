@@ -15,7 +15,7 @@ import { loadGuestBookmarks, saveGuestBookmarks } from "../lib/guestStore";
  * word being explored when it was bookmarked (the "found from" collection).
  */
 export function useSavedWords() {
-  const { user } = useAuth();
+  const { user, syncVersion } = useAuth();
   const [words, setWords] = useState(() => (user ? [] : loadGuestBookmarks()));
   const [syncedFor, setSyncedFor] = useState(user ? undefined : null);
 
@@ -52,7 +52,7 @@ export function useSavedWords() {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [user, syncVersion]);
 
   const update = useCallback(
     (fn) => {

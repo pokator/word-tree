@@ -14,7 +14,7 @@ const key = (type, id) => `${type}:${id}`;
  * auth/mergeGuestData.js).
  */
 export function useProgress() {
-  const { user } = useAuth();
+  const { user, syncVersion } = useAuth();
   const [map, setMap] = useState(() => (user ? new Map() : loadGuestMap()));
   const [syncedFor, setSyncedFor] = useState(user ? undefined : null);
 
@@ -50,7 +50,7 @@ export function useProgress() {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [user, syncVersion]);
 
   const mapRef = useRef(map);
   const loadingRef = useRef(loading);

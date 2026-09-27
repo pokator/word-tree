@@ -2927,3 +2927,210 @@ button.legend__row.is-inactive:hover {
   flex-shrink: 0;
   align-self: center;
 }
+
+/* Status pods (BookmarksPanel): a finished account / Anki connection
+   folded into one line at the top of Bookmarks -- dot, label (tap to
+   expand the full card), quick action, sync. */
+.pods {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.pod {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 9999px;
+  background: var(--code-bg);
+  font-size: 13px;
+}
+.pod.is-expanded {
+  border-color: var(--accent-border);
+}
+.pod__main {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 34px;
+  padding: 0 4px 0 12px;
+  border: none;
+  background: none;
+  color: var(--text-h);
+  font: inherit;
+  cursor: pointer;
+}
+.pod__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pod__dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--success);
+}
+.pod--warn .pod__dot {
+  background: var(--accent);
+}
+.pod__action {
+  flex-shrink: 0;
+  margin-left: 4px;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  border: 1px solid var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--accent);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pod__action:hover {
+  background: var(--accent);
+  color: #fff;
+}
+.pod__sync {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+}
+.pod__sync:hover:not(:disabled) {
+  color: var(--accent);
+}
+.pod__sync:disabled {
+  cursor: default;
+}
+.pod__main:focus-visible,
+.pod__action:focus-visible,
+.pod__sync:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.pod__sync-icon.is-spinning {
+  animation: pod-spin 900ms linear infinite;
+}
+@keyframes pod-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pod__sync-icon.is-spinning {
+    animation: none;
+    opacity: 0.5;
+  }
+}
+.anki-card__export {
+  align-self: flex-start;
+}
+
+/* AnkiConnect setup guide (AnkiSetupHelp). */
+.anki-help__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(28, 26, 20, 0.35);
+}
+.anki-help {
+  width: min(480px, 100%);
+  max-height: calc(100svh - 32px);
+  overflow-y: auto;
+  padding: 18px 20px 20px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.anki-help:focus {
+  outline: none;
+}
+.anki-help__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.anki-help__title {
+  margin: 0;
+  font-family: var(--heading);
+  font-weight: var(--heading-weight);
+  font-size: 20px;
+  letter-spacing: normal;
+  color: var(--text-h);
+}
+.anki-help__steps {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.anki-help__steps strong {
+  color: var(--text-h);
+  font-weight: 600;
+}
+.anki-help__code-row,
+.anki-help__snippet-wrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 6px 0;
+}
+.anki-help__code,
+.anki-help__snippet {
+  margin: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--code-bg);
+  color: var(--text-h);
+  font-size: 13px;
+}
+.anki-help__snippet {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  white-space: pre;
+}
+.anki-help__copy {
+  flex-shrink: 0;
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--accent);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.anki-help__copy:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.anki-help__note {
+  margin: 14px 0 0;
+  font-size: 13px;
+}
