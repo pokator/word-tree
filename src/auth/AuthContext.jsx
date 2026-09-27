@@ -26,14 +26,31 @@ export function AuthProvider({ children }) {
       const seq = ++latest;
       const user = session?.user ?? null;
       if (user) {
-        if (merge.userId !== user.id) merge = { userId: user.id, promise: mergeGuestData(supabase, user.id) };
+        if (merge.userId !== user.id) {
+          // A merge that throws must not strand the app in "loading" --
+          // the guest data stays put for the next sign-in, and the user is
+          // signed in regardless.
+          const promise = mergeGuestData(supabase, user.id).catch((err) => {
+            console.error("Merging guest data failed:", err);
+          });
+          merge = { userId: user.id, promise };
+        }
         await merge.promise;
       } else {
         merge = { userId: null, promise: null };
       }
       // A newer event (e.g. sign-out) may have landed while this one was
       // waiting on the merge -- it wins.
-      if (!cancelled && seq === latest) setState({ session, user, loading: false });
+      if (cancelled || seq !== latest) return;
+      // supabase-js re-emits SIGNED_IN (with a fresh user object) every
+      // time the tab regains focus. Keeping the existing object for the
+      // same account stops every data hook keyed on `user` from refetching
+      // -- which would briefly drop anything whose save was still in flight.
+      setState((prev) =>
+        prev.user && user && prev.user.id === user.id
+          ? { ...prev, session, loading: false }
+          : { session, user, loading: false }
+      );
     }
 
     // supabase-js warns against awaiting other Supabase calls inside this

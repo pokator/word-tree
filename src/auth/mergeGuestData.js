@@ -1,6 +1,19 @@
-import { clearGuestData, loadGuestBookmarks, loadGuestGroups, loadGuestProgress } from "../lib/guestStore";
+import { loadGuestBookmarks, loadGuestGroups, loadGuestProgress, removeMergedGuestData } from "../lib/guestStore";
 
 const STATUS_RANK = { new: 0, learning: 1, known: 2 };
+// Keeps each `.in()` filter's URL comfortably short.
+const ID_CHUNK = 200;
+// Each pass merges a snapshot, then removes exactly that snapshot from the
+// guest store; anything written mid-pass is picked up by the next one.
+// Bounded so a guest store that somehow never drains can't loop forever --
+// leftovers just wait for the next sign-in.
+const MAX_PASSES = 3;
+
+function chunks(list, size) {
+  const out = [];
+  for (let i = 0; i < list.length; i += size) out.push(list.slice(i, i + size));
+  return out;
+}
 
 /**
  * Folds everything built up while signed out (bookmarks, mastery, groups)
@@ -10,17 +23,31 @@ const STATUS_RANK = { new: 0, learning: 1, known: 2 };
  *  - mastery: the further-along status wins (known > learning > new), so
  *    a word you'd learned as a guest isn't knocked back by an older entry.
  *  - groups: matched by name; a same-named group gets the union of words.
- * Guest data is cleared only once every write succeeded -- on any error it
- * stays put, and the merge simply runs again on the next sign-in.
+ * Guest data is removed only once every write in a pass succeeded -- and
+ * then only what that pass copied, so anything bookmarked mid-merge (the
+ * app stays usable in guest mode meanwhile) survives to the next pass. On
+ * any error it all stays put, and the merge simply runs again on the next
+ * sign-in.
  * Runs before the account's data is loaded (see AuthContext.jsx), so the
  * hooks' first fetch already includes it.
  */
 export async function mergeGuestData(client, userId) {
-  const bookmarks = loadGuestBookmarks();
-  const progress = loadGuestProgress();
-  const groups = loadGuestGroups();
-  if (bookmarks.length === 0 && progress.size === 0 && groups.length === 0) return { merged: false };
+  let merged = false;
+  for (let pass = 0; pass < MAX_PASSES; pass++) {
+    const snapshot = { bookmarks: loadGuestBookmarks(), progress: loadGuestProgress(), groups: loadGuestGroups() };
+    if (snapshot.bookmarks.length === 0 && snapshot.progress.size === 0 && snapshot.groups.length === 0) break;
+    const errors = await mergeSnapshot(client, userId, snapshot);
+    if (errors.length > 0) {
+      console.error("Couldn't move everything from this browser into your account:", errors.map((e) => e.message));
+      return { merged, errors };
+    }
+    merged = true;
+    if (!removeMergedGuestData(snapshot)) break;
+  }
+  return { merged };
+}
 
+async function mergeSnapshot(client, userId, { bookmarks, progress, groups }) {
   const errors = [];
   const check = ({ error }) => {
     if (error) errors.push(error);
@@ -41,14 +68,27 @@ export async function mergeGuestData(client, userId) {
   }
 
   if (progress.size > 0) {
-    const { data: existing, error } = await client
-      .from("user_progress")
-      .select("item_type, item_id, status")
-      .eq("user_id", userId);
-    if (error) {
-      errors.push(error);
-    } else {
-      const accountStatus = new Map(existing.map((r) => [`${r.item_type}:${r.item_id}`, r.status]));
+    // Only the rows the guest actually has an opinion on -- reading the
+    // whole table would silently stop at the API's row cap (1000 by
+    // default), and any account row past it would look absent and get
+    // overwritten by an earlier guest status.
+    const ids = [...new Set([...progress.keys()].map((k) => k.slice(k.indexOf(":") + 1)))];
+    const accountStatus = new Map();
+    let readFailed = false;
+    for (const chunk of chunks(ids, ID_CHUNK)) {
+      const { data, error } = await client
+        .from("user_progress")
+        .select("item_type, item_id, status")
+        .eq("user_id", userId)
+        .in("item_id", chunk);
+      if (error) {
+        errors.push(error);
+        readFailed = true;
+        break;
+      }
+      for (const r of data) accountStatus.set(`${r.item_type}:${r.item_id}`, r.status);
+    }
+    if (!readFailed) {
       const now = new Date().toISOString();
       const rows = [];
       for (const [k, status] of progress) {
@@ -98,10 +138,5 @@ export async function mergeGuestData(client, userId) {
     }
   }
 
-  if (errors.length > 0) {
-    console.error("Couldn't move everything from this browser into your account:", errors.map((e) => e.message));
-    return { merged: false, errors };
-  }
-  clearGuestData();
-  return { merged: true };
+  return errors;
 }

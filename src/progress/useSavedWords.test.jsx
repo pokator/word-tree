@@ -20,4 +20,17 @@ describe("useSavedWords (guest)", () => {
     act(() => reloaded.result.current.toggleSave("日本"));
     expect(loadGuestBookmarks()).toEqual([]);
   });
+
+  it("two toggles before a re-render add the word once", () => {
+    const { result } = renderHook(() => useSavedWords(), { wrapper: AuthProvider });
+    act(() => {
+      result.current.toggleSave("日本");
+      result.current.toggleSave("日本");
+    });
+    expect(result.current.words).toEqual([]);
+    act(() => {
+      result.current.toggleSave("本当");
+    });
+    expect(loadGuestBookmarks()).toEqual([{ item_id: "本当", exported_at: null }]);
+  });
 });

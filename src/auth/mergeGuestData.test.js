@@ -12,7 +12,10 @@ import {
 // select().eq() reads, upsert (with onConflict/ignoreDuplicates), and
 // insert().select().single(). Enough to assert on the resulting tables
 // rather than on a list of mocked calls.
-function fakeClient(tables, { failOn } = {}) {
+// Hosted Supabase's default API row cap -- a read silently stops here.
+const MAX_ROWS = 1000;
+
+function fakeClient(tables, { failOn, onWrite } = {}) {
   let nextId = 1;
   const keyOf = (table, row, onConflict) => onConflict.split(",").map((c) => row[c]).join("|");
   return {
@@ -24,17 +27,22 @@ function fakeClient(tables, { failOn } = {}) {
           const filters = [];
           const query = {
             eq(col, val) {
-              filters.push([col, val]);
+              filters.push([col, (v) => v === val]);
+              return query;
+            },
+            in(col, vals) {
+              filters.push([col, (v) => vals.includes(v)]);
               return query;
             },
             then(resolve) {
-              resolve(fail ? { data: null, error: fail } : { data: rows.filter((r) => filters.every(([c, v]) => r[c] === v)), error: null });
+              resolve(fail ? { data: null, error: fail } : { data: rows.filter((r) => filters.every(([c, match]) => match(r[c]))).slice(0, MAX_ROWS), error: null });
             },
           };
           return query;
         },
         async upsert(input, { onConflict, ignoreDuplicates } = {}) {
           if (fail) return { error: fail };
+          onWrite?.(table);
           for (const row of [].concat(input)) {
             const i = rows.findIndex((r) => keyOf(table, r, onConflict) === keyOf(table, row, onConflict));
             if (i === -1) rows.push({ ...row });
@@ -111,6 +119,48 @@ describe("mergeGuestData", () => {
     ]);
     expect(loadGuestBookmarks()).toEqual([]);
     expect(loadGuestGroups()).toEqual([]);
+  });
+
+  it("keeps (and then merges) a bookmark made while the merge was running", async () => {
+    seedGuest({ bookmarks: [{ item_id: "A", exported_at: null }] });
+    const tables = {};
+    let injected = false;
+    const client = fakeClient(tables, {
+      onWrite: () => {
+        if (injected) return;
+        injected = true;
+        // The app is still in guest mode mid-merge -- a click lands here.
+        localStorage.setItem(
+          GUEST_BOOKMARKS_KEY,
+          JSON.stringify([...loadGuestBookmarks(), { item_id: "B", exported_at: null }])
+        );
+      },
+    });
+    expect(await mergeGuestData(client, "u1")).toEqual({ merged: true });
+    expect(tables.saved_items.map((r) => r.item_id)).toEqual(["A", "B"]);
+    expect(loadGuestBookmarks()).toEqual([]);
+  });
+
+  it("never lets a guest status overwrite a further-along account one, however big the account", async () => {
+    seedGuest({ progress: { "word:日本": "new" } });
+    // 1500 unrelated rows ahead of the one that matters: a whole-table read
+    // capped at 1000 wouldn't see it.
+    const tables = {
+      user_progress: [
+        ...Array.from({ length: 1500 }, (_, i) => ({ user_id: "u1", item_type: "word", item_id: `w${i}`, status: "new" })),
+        { user_id: "u1", item_type: "word", item_id: "日本", status: "known" },
+      ],
+    };
+    await mergeGuestData(fakeClient(tables), "u1");
+    expect(tables.user_progress.find((r) => r.item_id === "日本").status).toBe("known");
+  });
+
+  it("ignores malformed guest data instead of throwing", async () => {
+    localStorage.setItem(GUEST_PROGRESS_KEY, "null");
+    localStorage.setItem(GUEST_GROUPS_KEY, JSON.stringify([{ name: "N5" }, null, { words: ["x"] }]));
+    const tables = {};
+    await expect(mergeGuestData(fakeClient(tables), "u1")).resolves.toEqual({ merged: true });
+    expect(tables.groups.map((g) => g.name)).toEqual(["N5"]);
   });
 
   it("keeps guest data when any write fails, so the next sign-in retries", async () => {

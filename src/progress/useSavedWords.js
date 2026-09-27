@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "../auth/useAuth";
 import { supabase } from "../lib/supabaseClient";
 import { loadGuestBookmarks, saveGuestBookmarks } from "../lib/guestStore";
@@ -27,6 +27,14 @@ export function useSavedWords() {
   }
   const loading = Boolean(user) && syncedFor !== user.id;
 
+  // The latest list, updated synchronously on every change -- toggleSave
+  // decides add-vs-remove from this, not from the render-time `words`, so
+  // two toggles before a re-render (a double click) can't both "add".
+  const wordsRef = useRef(words);
+  useEffect(() => {
+    wordsRef.current = words;
+  }, [words]);
+
   useEffect(() => {
     if (!user) return; // guest path handled synchronously above
     let cancelled = false;
@@ -47,11 +55,10 @@ export function useSavedWords() {
 
   const update = useCallback(
     (fn) => {
-      setWords((prev) => {
-        const next = fn(prev);
-        if (!user) saveGuestBookmarks(next);
-        return next;
-      });
+      const next = fn(wordsRef.current);
+      wordsRef.current = next;
+      if (!user) saveGuestBookmarks(next);
+      setWords(next);
     },
     [user]
   );
@@ -60,7 +67,7 @@ export function useSavedWords() {
 
   const toggleSave = useCallback(
     (word) => {
-      const alreadySaved = words.some((w) => w.item_id === word);
+      const alreadySaved = wordsRef.current.some((w) => w.item_id === word);
       if (alreadySaved) {
         update((prev) => prev.filter((w) => w.item_id !== word));
         if (user) {
@@ -89,7 +96,7 @@ export function useSavedWords() {
         }
       }
     },
-    [user, words, update]
+    [user, update]
   );
 
   const markExported = useCallback(

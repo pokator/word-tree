@@ -61,4 +61,48 @@ describe("AccountSync", () => {
     await userEvent.click(screen.getByRole("button", { name: "Sign out" }));
     expect(auth.signOut).toHaveBeenCalledOnce();
   });
+
+  it("locks the form after a correct code until sign-in completes", async () => {
+    renderAs(null);
+    await userEvent.type(screen.getByLabelText("Email"), "me@example.com");
+    await userEvent.click(screen.getByRole("button", { name: "Send code" }));
+    await userEvent.type(await screen.findByLabelText("Sign-in code"), "123456");
+    await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    expect(await screen.findByRole("button", { name: "Signing in…" })).toBeDisabled();
+  });
+
+  it("keeps every digit of a pasted code with spaces", async () => {
+    renderAs(null);
+    await userEvent.type(screen.getByLabelText("Email"), "me@example.com");
+    await userEvent.click(screen.getByRole("button", { name: "Send code" }));
+    const input = await screen.findByLabelText("Sign-in code");
+    await userEvent.click(input);
+    await userEvent.paste(" 123 456");
+    expect(input).toHaveValue("123456");
+  });
+
+  it("starts over at the email step after signing out", async () => {
+    const view = renderAs(null);
+    await userEvent.type(screen.getByLabelText("Email"), "me@example.com");
+    await userEvent.click(screen.getByRole("button", { name: "Send code" }));
+    await screen.findByLabelText("Sign-in code");
+    const rerender = (user) =>
+      view.rerender(
+        <AuthContext.Provider value={{ user, session: null, loading: false }}>
+          <AccountSync />
+        </AuthContext.Provider>
+      );
+    rerender({ id: "u1", email: "me@example.com" });
+    rerender(null);
+    expect(screen.getByLabelText("Email")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Sign-in code")).not.toBeInTheDocument();
+  });
+
+  it("doesn't call a bad email address a bad code", async () => {
+    auth.signInWithOtp.mockResolvedValue({ error: { message: "Unable to validate email address: invalid format" } });
+    renderAs(null);
+    await userEvent.type(screen.getByLabelText("Email"), "me@example.com");
+    await userEvent.click(screen.getByRole("button", { name: "Send code" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("invalid format");
+  });
 });

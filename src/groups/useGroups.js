@@ -151,7 +151,9 @@ export function useGroups() {
       if (user) {
         supabase
           .from("group_words")
-          .upsert({ group_id: groupId, word }, { onConflict: "group_id,word" })
+          // ignoreDuplicates (ON CONFLICT DO NOTHING): group_words has no
+          // UPDATE policy, so an updating upsert would be refused on conflict.
+          .upsert({ group_id: groupId, word }, { onConflict: "group_id,word", ignoreDuplicates: true })
           .then(({ error }) => {
             if (error) console.error("Failed to add word to group:", error.message);
           });

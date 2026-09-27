@@ -5,7 +5,7 @@
 project_id = "word-tree"
 
 [auth]
-# Sign-in is a 6-digit code typed into the app (see components/AuthPanel.jsx
+# Sign-in is a 6-digit code typed into the app (see components/AccountSync.jsx
 # and the templates below), so no email link has to land anywhere. These
 # URLs only matter for any link-based email Supabase still sends (e.g. an
 # email change); the old default Site URL, http://localhost:3000, is what

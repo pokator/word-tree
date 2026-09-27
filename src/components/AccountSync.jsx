@@ -8,9 +8,9 @@ import { supabase, isSupabaseConfigured } from "../lib/supabaseClient";
 const RESEND_COOLDOWN_S = 60;
 const CODE_LENGTH = 6;
 
-function friendlyError(error) {
+function friendlyError(error, step) {
   const msg = error?.message ?? "";
-  if (/expired|invalid/i.test(msg)) return "That code didn't work. Check it, or send a new one.";
+  if (step === "code" && /expired|invalid/i.test(msg)) return "That code didn't work. Check it, or send a new one.";
   if (/rate limit|security purposes/i.test(msg)) return "Too many tries. Wait a minute, then send a new code.";
   return msg || "Something went wrong. Try again.";
 }
@@ -32,6 +32,25 @@ export default function AccountSync() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [cooldown, setCooldown] = useState(0);
+  // verifyOtp resolving isn't the end of signing in -- AuthProvider still
+  // merges guest data before publishing the user. Until then the form stays
+  // locked, so the (now used-up) code can't be submitted a second time.
+  const [verified, setVerified] = useState(false);
+
+  // Whenever the signed-in account changes (sign-in, sign-out), start the
+  // form over -- otherwise signing out from an open panel would land back
+  // on "Check your email" with the old code still filled in.
+  const userId = user?.id ?? null;
+  const [formFor, setFormFor] = useState(userId);
+  if (formFor !== userId) {
+    setFormFor(userId);
+    setStep("email");
+    setCode("");
+    setError(null);
+    setCooldown(0);
+    setVerified(false);
+    setBusy(false);
+  }
 
   useEffect(() => {
     if (cooldown <= 0) return undefined;
@@ -64,7 +83,7 @@ export default function AccountSync() {
     });
     setBusy(false);
     if (err) {
-      setError(friendlyError(err));
+      setError(friendlyError(err, "email"));
       return;
     }
     setStep("code");
@@ -77,74 +96,104 @@ export default function AccountSync() {
     setBusy(true);
     setError(null);
     const { error: err } = await supabase.auth.verifyOtp({ email: email.trim(), token: code, type: "email" });
-    setBusy(false);
     // On success AuthProvider picks the session up (merging anything
     // bookmarked as a guest first) and this re-renders as signed in.
-    if (err) setError(friendlyError(err));
+    if (err) {
+      setBusy(false);
+      setError(friendlyError(err, "code"));
+    } else {
+      setVerified(true);
+    }
   }
 
   if (step === "code") {
     return (
-      <form className="account-sync" onSubmit={verify}>
-        <p className="account-sync__title">Check your email</p>
-        <p className="account-sync__hint">
+      <form className="account-sync" onSubmit={verify} aria-labelledby="account-sync-title">
+        <h3 className="account-sync__title" id="account-sync-title">
+          Check your email
+        </h3>
+        <p className="account-sync__hint" id="account-sync-code-hint">
           Enter the {CODE_LENGTH}-digit code sent to <strong>{email.trim()}</strong>.
         </p>
         <div className="account-sync__row">
+          <label className="visually-hidden" htmlFor="account-sync-code">
+            Sign-in code
+          </label>
           <input
+            id="account-sync-code"
             className="account-sync__code"
             type="text"
             inputMode="numeric"
             autoComplete="one-time-code"
             pattern={`[0-9]{${CODE_LENGTH}}`}
-            maxLength={CODE_LENGTH}
             placeholder="123456"
-            aria-label="Sign-in code"
+            aria-describedby={error ? "account-sync-code-hint account-sync-error" : "account-sync-code-hint"}
+            aria-invalid={Boolean(error)}
             value={code}
+            // No maxLength: the browser would truncate a paste like
+            // " 123456" to 6 raw characters before the spaces are
+            // stripped here, silently losing a digit.
             onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, CODE_LENGTH))}
+            disabled={verified}
             autoFocus
             required
           />
-          <button type="submit" className="account-sync__btn" disabled={busy || code.length !== CODE_LENGTH}>
-            {busy ? "Checking…" : "Sign in"}
+          <button
+            type="submit"
+            className="account-sync__btn"
+            disabled={busy || verified || code.length !== CODE_LENGTH}
+          >
+            {verified ? "Signing in…" : busy ? "Checking…" : "Sign in"}
           </button>
         </div>
         {error && (
-          <p className="account-sync__error" role="alert">
+          <p className="account-sync__error" id="account-sync-error" role="alert">
             {error}
           </p>
         )}
-        <div className="account-sync__links">
-          <button type="button" className="account-sync__link" onClick={sendCode} disabled={busy || cooldown > 0}>
-            {cooldown > 0 ? `Resend code in ${cooldown}s` : "Resend code"}
-          </button>
-          <button
-            type="button"
-            className="account-sync__link"
-            onClick={() => {
-              setStep("email");
-              setError(null);
-            }}
-          >
-            Use a different email
-          </button>
-        </div>
+        {!verified && (
+          <div className="account-sync__links">
+            <button type="button" className="account-sync__link" onClick={sendCode} disabled={busy || cooldown > 0}>
+              {cooldown > 0 ? `Resend code in ${cooldown}s` : "Resend code"}
+            </button>
+            <button
+              type="button"
+              className="account-sync__link"
+              onClick={() => {
+                setStep("email");
+                setError(null);
+              }}
+            >
+              Use a different email
+            </button>
+          </div>
+        )}
+        <p className="visually-hidden" aria-live="polite">
+          {verified ? "Signing in" : busy ? "Checking code" : ""}
+        </p>
       </form>
     );
   }
 
   return (
-    <form className="account-sync" onSubmit={sendCode}>
-      <p className="account-sync__title">Keep your bookmarks everywhere</p>
-      <p className="account-sync__hint">
+    <form className="account-sync" onSubmit={sendCode} aria-labelledby="account-sync-title">
+      <h3 className="account-sync__title" id="account-sync-title">
+        Keep your bookmarks everywhere
+      </h3>
+      <p className="account-sync__hint" id="account-sync-email-hint">
         Sign in to sync bookmarks and progress across devices. We&rsquo;ll email you a code. No password needed.
       </p>
       <div className="account-sync__row">
+        <label className="visually-hidden" htmlFor="account-sync-email">
+          Email
+        </label>
         <input
+          id="account-sync-email"
           type="email"
           autoComplete="email"
           placeholder="you@example.com"
-          aria-label="Email"
+          aria-describedby={error ? "account-sync-email-hint account-sync-error" : "account-sync-email-hint"}
+          aria-invalid={Boolean(error)}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
@@ -154,10 +203,13 @@ export default function AccountSync() {
         </button>
       </div>
       {error && (
-        <p className="account-sync__error" role="alert">
+        <p className="account-sync__error" id="account-sync-error" role="alert">
           {error}
         </p>
       )}
+      <p className="visually-hidden" aria-live="polite">
+        {busy ? "Sending code" : ""}
+      </p>
     </form>
   );
 }

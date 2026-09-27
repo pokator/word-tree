@@ -193,9 +193,11 @@
   font-weight: 600;
 }
 .account-sync__title {
+  font-family: var(--heading);
   margin: 0;
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: var(--heading-weight);
+  letter-spacing: normal;
   color: var(--text-h);
 }
 .account-sync__hint {
@@ -2904,4 +2906,18 @@ button.legend__row.is-inactive:hover {
 .saved-panel__export .saved-panel__setup {
   border-top: none;
   padding-top: 0;
+}
+
+/* Present for screen readers, invisible on screen (form labels whose
+   visible stand-in is a placeholder, live status text). */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
