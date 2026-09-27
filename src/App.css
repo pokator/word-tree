@@ -703,27 +703,6 @@
   text-align: center;
 }
 
-.groups-panel__quiz-btn {
-  font: inherit;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 6px 10px;
-  border-radius: 6px;
-  border: 1px solid var(--accent-border);
-  background: var(--accent-bg);
-  color: var(--accent);
-  cursor: pointer;
-  flex-shrink: 0;
-}
-.groups-panel__quiz-btn:hover:not(:disabled) {
-  background: var(--accent);
-  color: #fff;
-}
-.groups-panel__quiz-btn:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
 .groups-panel__icon-btn {
   flex-shrink: 0;
   width: 28px;
@@ -1114,161 +1093,6 @@
   font-weight: 600;
 }
 
-.review-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.45);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-  padding: 24px;
-}
-
-.review-card {
-  width: 100%;
-  max-width: 420px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  box-shadow: var(--shadow);
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-
-.review-card__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-h);
-}
-
-.review-card__exit {
-  font: inherit;
-  font-size: 12px;
-  font-weight: 400;
-  background: none;
-  border: none;
-  color: var(--text);
-  cursor: pointer;
-  text-decoration: underline;
-  padding: 0;
-}
-
-.review-card__progress {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 12px;
-  color: var(--text);
-}
-
-.review-card__progress-bar {
-  flex: 1;
-  height: 5px;
-  border-radius: 3px;
-  background: var(--code-bg);
-  overflow: hidden;
-}
-.review-card__progress-fill {
-  height: 100%;
-  background: var(--accent);
-  transition: width 200ms ease;
-}
-
-.review-card__word {
-  text-align: center;
-  font-size: 48px;
-  font-weight: 700;
-  color: var(--text-h);
-  padding: 20px 0;
-}
-
-.review-card__reading {
-  text-align: center;
-  font-size: 16px;
-  color: var(--text);
-}
-
-.review-card__meaning {
-  text-align: center;
-  font-size: 15px;
-  color: var(--text-h);
-  margin-top: -8px;
-}
-
-.review-card__reveal {
-  font: inherit;
-  font-size: 14px;
-  padding: 12px;
-  border-radius: 8px;
-  border: 1px solid var(--accent-border);
-  background: var(--accent-bg);
-  color: var(--text-h);
-  cursor: pointer;
-}
-
-.review-card__grade-buttons {
-  display: flex;
-  gap: 10px;
-}
-.review-card__grade {
-  flex: 1;
-  font: inherit;
-  font-size: 14px;
-  padding: 12px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--code-bg);
-  color: var(--text-h);
-  cursor: pointer;
-  font-weight: 600;
-}
-.review-card__grade--again:hover {
-  border-color: var(--node-root);
-}
-.review-card__grade--good:hover {
-  border-color: var(--success);
-}
-
-.review-card__empty,
-.review-card__summary {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  text-align: center;
-  padding: 16px 0;
-  color: var(--text);
-}
-
-.review-card__hint {
-  font-size: 13px;
-  opacity: 0.8;
-}
-
-.review-card__summary-headline {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--text-h);
-}
-
-.review-card__summary-tally {
-  display: flex;
-  gap: 16px;
-  font-size: 13px;
-}
-.review-card__tally-good {
-  color: var(--success);
-}
-.review-card__tally-again {
-  color: var(--node-root);
-}
-
 .progress-stats {
   display: flex;
   align-items: center;
@@ -1310,18 +1134,6 @@
   font-size: 12px;
   color: var(--text-h);
   font-weight: 600;
-}
-
-.review-card__done-btn {
-  font: inherit;
-  font-size: 14px;
-  padding: 10px 20px;
-  border-radius: 8px;
-  border: 1px solid var(--accent-border);
-  background: var(--accent-bg);
-  color: var(--text-h);
-  cursor: pointer;
-  margin-top: 8px;
 }
 
 .app__main {
@@ -2325,37 +2137,6 @@
   margin: 4px 0 0;
 }
 
-.mastery-control {
-  display: flex;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  overflow: hidden;
-  max-width: 320px;
-}
-
-.mastery-control__btn {
-  flex: 1;
-  font: inherit;
-  font-size: 13px;
-  padding: 8px 4px;
-  border: none;
-  border-right: 1px solid var(--border);
-  background: var(--bg);
-  color: var(--text);
-  cursor: pointer;
-}
-.mastery-control__btn:last-child {
-  border-right: none;
-}
-.mastery-control__btn:hover {
-  background: var(--accent-bg);
-}
-.mastery-control__btn.is-active {
-  background: var(--accent);
-  color: #fff;
-  font-weight: 600;
-}
-
 /* Floats over the bottom-left corner of the canvas, the mirror image of
    .graph-zoom-controls at bottom-right -- a small card rather than a bar
    sharing the footer with the stats line. Matches Obsidian's own
@@ -2520,7 +2301,6 @@ button.legend__row.is-inactive:hover {
   background: var(--jlpt-unrated);
 }
 
-
 /* ---------------------------------------------------------------------
    Touch layouts. App sets data-layout on .app from lib/useLayoutMode.js
    ("phone" | "rail" | "tablet" | "desktop"), and every layout-specific rule
@@ -2612,7 +2392,6 @@ button.legend__row.is-inactive:hover {
   font-variant-numeric: tabular-nums;
   color: var(--text);
 }
-
 
 .mobile-menu__credit {
   margin-top: 4px;
@@ -2755,7 +2534,6 @@ button.legend__row.is-inactive:hover {
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
-
 
 /* Search results on a phone: a full-width sheet under the header rather
    than a dropdown the width of the (narrow) search field, with the meaning
@@ -3190,4 +2968,58 @@ button.legend__row.is-inactive:hover {
 .app[data-layout="rail"] .dictionary-panel__kanji-card,
 .app[data-layout="rail"] .dictionary-panel__word-card {
   flex: 1 1 120px;
+}
+
+/* Study status (DictionaryPanel's StudyStatus): what Anki reports for this
+   word, read-only, plus the "I already know this" toggle. The chip reuses
+   the badge shape; only "known" carries color (the same --success as the
+   Common-word badge), since it's the one state worth celebrating. */
+.study-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.study-status__chip {
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 2px 10px;
+  border: 1px solid var(--border);
+  color: var(--text);
+  background: var(--code-bg);
+}
+.study-status__chip--known {
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 14%, transparent);
+  border-color: color-mix(in srgb, var(--success) 45%, transparent);
+}
+.study-status__chip--learning {
+  color: var(--text-h);
+}
+.study-status__known {
+  font: inherit;
+  font-size: 13px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.study-status__known:hover,
+.study-status__known.is-active {
+  color: var(--accent);
+}
+.study-status__known:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.study-status__hint {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 12px;
+  color: var(--text);
+  opacity: 0.85;
 }

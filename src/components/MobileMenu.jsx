@@ -48,11 +48,14 @@ export default function MobileMenu({
       </button>
       {isOpen && (
         <div className="mobile-menu__sheet" id="mobile-menu-sheet">
-          <button type="button" className="mobile-menu__item" onClick={act(onReview)}>
-            <ReviewIcon />
-            <span className="mobile-menu__label">Review</span>
-            <span className="mobile-menu__count">{reviewCount}</span>
-          </button>
+          {/* Only while Anki is connected -- reviews happen there. */}
+          {onReview && (
+            <button type="button" className="mobile-menu__item" onClick={act(onReview)}>
+              <ReviewIcon />
+              <span className="mobile-menu__label">Review in Anki</span>
+              {reviewCount > 0 && <span className="mobile-menu__count">{reviewCount}</span>}
+            </button>
+          )}
           <button type="button" className="mobile-menu__item" onClick={act(onOpenSaved)}>
             <BookmarkIcon />
             <span className="mobile-menu__label">Bookmarks</span>

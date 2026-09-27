@@ -1,5 +1,5 @@
 const MASTERY_OPTIONS = [
-  { value: "new", label: "New" },
+  { value: "new", label: "Not studied" },
   { value: "learning", label: "Learning" },
   { value: "known", label: "Known" },
 ];

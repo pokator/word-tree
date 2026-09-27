@@ -6,7 +6,6 @@ import PaneLayout from "./components/PaneLayout";
 import ThemeToggle from "./components/ThemeToggle";
 import BookmarksPanel from "./components/BookmarksPanel";
 import GroupsPanel from "./components/GroupsPanel";
-import ReviewMode from "./components/ReviewMode";
 import Tutorial from "./components/Tutorial";
 import MobileMenu from "./components/MobileMenu";
 import { BookmarkIcon, GroupsIcon, TutorialIcon } from "./components/icons";
@@ -16,6 +15,7 @@ import { useProgress } from "./progress/useProgress";
 import { useSavedWords } from "./progress/useSavedWords";
 import { useStreak } from "./progress/useStreak";
 import { useGroups } from "./groups/useGroups";
+import { useAnkiSync } from "./anki/useAnkiSync";
 import { useTheme } from "./theme/useTheme";
 import { useLayoutMode } from "./lib/useLayoutMode";
 import {
@@ -134,7 +134,6 @@ export default function App() {
   const [colorByKanjiPath, setColorByKanjiPath] = useState(loadColorByKanjiPath);
   const [focusGroupId, setFocusGroupId] = useState(null);
   const [isFiltersPanelOpen, setIsFiltersPanelOpen] = useState(false);
-  const [reviewSession, setReviewSession] = useState(null); // { title, words } | null
   const [tutorialOpen, setTutorialOpen] = useState(false);
 
   const { recents, addRecent } = useRecentRoots();
@@ -200,7 +199,7 @@ export default function App() {
       : jlptBucketToLevel(wordJlptBucket(dataset, selectedNode.word))
     : null;
 
-  const { getStatus, setStatus: setMasteryStatus, wordStats, wordsByStatus } = useProgress();
+  const { getStatus, setStatus: setMasteryStatus, applyStatuses, wordStats } = useProgress();
   const handleSetStatus = useCallback(
     (status) => {
       if (selectedNode) setMasteryStatus(selectedNode.type, selectedItemId, status);
@@ -441,28 +440,21 @@ export default function App() {
     return new Set([selectedId, targetId]);
   }, [hoverRelated, selectedId]);
 
-  const handleGradeReview = useCallback(
-    (word, grade) => {
-      setMasteryStatus("word", word, grade === "good" ? "known" : "learning");
-    },
-    [setMasteryStatus]
-  );
 
-  const startGlobalReview = useCallback(() => {
-    const pool = [...wordsByStatus.new, ...wordsByStatus.learning]
-      .map((w) => dataset.WORDS_BY_TEXT[w])
-      .filter(Boolean);
-    setReviewSession({ title: "Review", words: pool });
-  }, [wordsByStatus, dataset]);
-
-  const startGroupQuiz = useCallback(
-    (group) => {
-      const pool = group.words.map((w) => dataset.WORDS_BY_TEXT[w]).filter(Boolean);
-      setReviewSession({ title: `Quiz: ${group.name}`, words: pool });
-      closeSidebar();
-    },
-    [dataset, closeSidebar]
+  // Every word currently on the graph -- Anki sync pulls status for these
+  // (as well as for bookmarks), so the graph shows what you already know.
+  const graphWords = useMemo(() => {
+    if (!graph) return [];
+    const words = [];
+    for (const n of graph.nodes.values()) if (n.type === "word") words.push(n.word);
+    return words;
+  }, [graph]);
+  const userTagsFor = useCallback(
+    (word) => groupsApi.groupsForWord(word).map((g) => g.name),
+    [groupsApi]
   );
+  const anki = useAnkiSync({ dataset, bookmarks: saved.words, userTagsFor, graphWords, applyStatuses });
+  const ankiConnected = anki.state === "connected";
 
   const stats = useMemo(() => {
     if (!graph) return { words: 0, kanji: 0 };
@@ -483,6 +475,7 @@ export default function App() {
       onSetStatus={handleSetStatus}
       isSaved={selectedNode?.type === "word" && saved.isSaved(selectedNode.word)}
       onToggleSave={handleToggleSave}
+      ankiConnected={ankiConnected}
       groups={groupsApi.groups}
       memberOf={memberOf}
       onToggleGroup={handleToggleGroup}
@@ -549,8 +542,8 @@ export default function App() {
         <SearchBar words={dataset.WORDS} onSelectWord={handleSelectWord} recents={recents} wordsByText={dataset.WORDS_BY_TEXT} />
         {!isDesktop ? (
           <MobileMenu
-            reviewCount={wordStats.new + wordStats.learning}
-            onReview={startGlobalReview}
+            reviewCount={anki.due}
+            onReview={ankiConnected ? anki.review : null}
             savedCount={saved.words.length}
             onOpenSaved={() => setActiveSidebar("saved")}
             groupsCount={groupsApi.groups.length}
@@ -562,13 +555,14 @@ export default function App() {
           />
         ) : (
           <div className="app__controls">
-            <button
-              className="reset-btn"
-              onClick={startGlobalReview}
-              title="Review words you've marked New or Learning"
-            >
-              Review ({wordStats.new + wordStats.learning})
-            </button>
+            {/* Reviews happen in Anki, Moto's only scheduler -- this just
+                opens its reviewer on the Moto deck, so it's only here
+                while Anki is connected. */}
+            {ankiConnected && (
+              <button className="reset-btn" onClick={anki.review} title="Open your Moto deck's review in Anki">
+                Review in Anki{anki.due ? ` (${anki.due} due)` : ""}
+              </button>
+            )}
             <div className="icon-toolbar">
               <button
                 type="button"
@@ -634,7 +628,6 @@ export default function App() {
                 dataset={dataset}
                 groupsApi={groupsApi}
                 onSelectWord={handleSelectFromSidebar}
-                onQuizGroup={startGroupQuiz}
                 onClose={closeSidebar}
               />
             )}
@@ -642,14 +635,6 @@ export default function App() {
         )}
       </main>
 
-      {reviewSession && (
-        <ReviewMode
-          title={reviewSession.title}
-          words={reviewSession.words}
-          onGrade={handleGradeReview}
-          onExit={() => setReviewSession(null)}
-        />
-      )}
 
       {tutorialOpen && <Tutorial layout={layout} onClose={() => setTutorialOpen(false)} />}
 

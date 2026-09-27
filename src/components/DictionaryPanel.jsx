@@ -2,7 +2,9 @@ import { useState } from "react";
 import ProgressStats from "./ProgressStats";
 import { BookmarkIcon } from "./icons";
 
-const MASTERY_LABELS = { new: "New", learning: "Learning", known: "Known" };
+// Status is read from Anki now (see anki/useAnkiSync.js), not picked by
+// hand -- these just name what Anki reports.
+const STATUS_LABELS = { new: "Not studied yet", learning: "Learning", known: "Known" };
 
 // Fallback for word entries that predate structured `senses` (the tiny
 // emergency fixture, or any stale cached data) -- same flat-string split
@@ -51,19 +53,27 @@ function GroupMembership({ word, groups, memberOf, onToggleGroup, onCreateGroup 
   );
 }
 
-function MasteryControl({ status, onSetStatus }) {
+/** Where this word stands, as far as Anki knows, plus the one thing you can
+ * still set by hand: "I already know this" -- for words you know but will
+ * never need a card for, so they read as known on the graph too. */
+function StudyStatus({ status, isSaved, ankiConnected, onSetStatus }) {
+  const known = status === "known";
   return (
-    <div className="mastery-control" role="group" aria-label="Mastery status">
-      {Object.entries(MASTERY_LABELS).map(([value, label]) => (
-        <button
-          key={value}
-          type="button"
-          className={`mastery-control__btn${status === value ? " is-active" : ""}`}
-          onClick={() => onSetStatus(value)}
-        >
-          {label}
-        </button>
-      ))}
+    <div className="study-status">
+      {status && (
+        <span className={`study-status__chip study-status__chip--${status}`}>{STATUS_LABELS[status]}</span>
+      )}
+      <button
+        type="button"
+        className={`study-status__known${known ? " is-active" : ""}`}
+        aria-pressed={known}
+        onClick={() => onSetStatus(known ? "new" : "known")}
+      >
+        {known ? "Marked as known" : "I already know this"}
+      </button>
+      {isSaved && !ankiConnected && (
+        <p className="study-status__hint">Connect Anki in Bookmarks to study this word.</p>
+      )}
     </div>
   );
 }
@@ -266,6 +276,7 @@ export default function DictionaryPanel({
   onSetStatus,
   isSaved,
   onToggleSave,
+  ankiConnected = false,
   groups = [],
   memberOf = [],
   onToggleGroup,
@@ -371,10 +382,12 @@ export default function DictionaryPanel({
         )}
       </div>
 
-      <div className="dictionary-panel__actions">
-        <MasteryControl status={status} onSetStatus={onSetStatus} />
-        {!isKanji && <BookmarkToggle isSaved={isSaved} onToggleSave={onToggleSave} />}
-      </div>
+      {!isKanji && (
+        <div className="dictionary-panel__actions">
+          <BookmarkToggle isSaved={isSaved} onToggleSave={onToggleSave} />
+          <StudyStatus status={status} isSaved={isSaved} ankiConnected={ankiConnected} onSetStatus={onSetStatus} />
+        </div>
+      )}
 
       
     </div>
