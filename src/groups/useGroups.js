@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "../auth/useAuth";
 import { supabase } from "../lib/supabaseClient";
 import { loadGuestGroups, saveGuestGroups } from "../lib/guestStore";
@@ -63,6 +63,12 @@ export function useGroups() {
     };
   }, [user]);
 
+  const groupsRef = useRef(groups);
+  useEffect(() => {
+    groupsRef.current = groups;
+  }, [groups]);
+  const addWordToGroupRef = useRef(null);
+
   const persistGuest = useCallback(
     (next) => {
       if (!user) saveGuestGroups(next);
@@ -70,17 +76,32 @@ export function useGroups() {
     [user]
   );
 
+  // `word`, if given, goes straight into the new group -- tags are created
+  // by typing one onto a word (DictionaryPanel's TagEditor), so making the
+  // user tick it afterwards would be a pointless extra step. An existing
+  // name just gets the word added.
   const createGroup = useCallback(
-    (name) => {
+    (name, { word = null } = {}) => {
       const trimmed = name.trim();
       if (!trimmed) return;
       if (!user) {
         setGroups((prev) => {
-          if (prev.some((g) => g.name === trimmed)) return prev;
-          const next = [...prev, { id: guestId(), name: trimmed, words: [] }];
+          const existing = prev.find((g) => g.name === trimmed);
+          let next;
+          if (existing) {
+            if (!word || existing.words.includes(word)) return prev;
+            next = prev.map((g) => (g === existing ? { ...g, words: [...g.words, word] } : g));
+          } else {
+            next = [...prev, { id: guestId(), name: trimmed, words: word ? [word] : [] }];
+          }
           persistGuest(next);
           return next;
         });
+        return;
+      }
+      const existing = groupsRef.current.find((g) => g.name === trimmed);
+      if (existing) {
+        if (word) addWordToGroupRef.current(existing.id, word);
         return;
       }
       supabase
@@ -93,7 +114,15 @@ export function useGroups() {
             console.error("Failed to create group:", error.message);
             return;
           }
-          setGroups((prev) => [...prev, { id: data.id, name: data.name, words: [] }]);
+          setGroups((prev) => [...prev, { id: data.id, name: data.name, words: word ? [word] : [] }]);
+          if (word) {
+            supabase
+              .from("group_words")
+              .upsert({ group_id: data.id, word }, { onConflict: "group_id,word", ignoreDuplicates: true })
+              .then(({ error: wordError }) => {
+                if (wordError) console.error("Failed to add word to new group:", wordError.message);
+              });
+          }
         });
     },
     [user, persistGuest]
@@ -182,6 +211,10 @@ export function useGroups() {
     },
     [user, persistGuest]
   );
+
+  useEffect(() => {
+    addWordToGroupRef.current = addWordToGroup;
+  }, [addWordToGroup]);
 
   const groupsForWord = useCallback((word) => groups.filter((g) => g.words.includes(word)), [groups]);
 

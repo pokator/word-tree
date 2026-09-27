@@ -449,47 +449,6 @@
   color: var(--text);
 }
 
-/* Saved words */
-
-.saved-panel__status {
-  display: flex;
-  align-items: center;
-  align-self: flex-start;
-  gap: 8px;
-  padding: 6px 10px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--code-bg);
-  color: var(--text);
-  font-size: 12px;
-}
-
-.saved-panel__dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--border);
-  flex-shrink: 0;
-}
-.saved-panel__dot--connected {
-  background: var(--success);
-}
-.saved-panel__dot--not-connected {
-  background: var(--node-root);
-}
-
-.saved-panel__recheck {
-  margin-left: auto;
-  font: inherit;
-  font-size: 11px;
-  background: none;
-  border: none;
-  color: var(--text);
-  text-decoration: underline;
-  cursor: pointer;
-  padding: 0;
-}
-
 .saved-panel__list {
   list-style: none;
   margin: 0;
@@ -538,16 +497,6 @@
   white-space: nowrap;
 }
 
-.saved-panel__item-badge {
-  flex-shrink: 0;
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: var(--success);
-  opacity: 0.85;
-}
-
 .saved-panel__item-remove {
   flex-shrink: 0;
   width: 26px;
@@ -568,228 +517,6 @@
   opacity: 1;
   background: var(--bg);
   color: var(--node-root);
-}
-
-.saved-panel__setup {
-  font-size: 12px;
-  color: var(--text);
-  border-top: 1px solid var(--border);
-  padding-top: 12px;
-}
-.saved-panel__setup summary {
-  cursor: pointer;
-  color: var(--text-h);
-}
-.saved-panel__setup ol {
-  margin: 8px 0 0;
-  padding-left: 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.saved-panel__setup code {
-  background: var(--code-bg);
-  padding: 1px 4px;
-  border-radius: 3px;
-}
-
-/* Groups */
-
-.groups-panel__create {
-  display: flex;
-  gap: 6px;
-}
-.groups-panel__create input {
-  flex: 1;
-  min-width: 0;
-  font: inherit;
-  font-size: 13px;
-  padding: 9px 10px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--code-bg);
-  color: var(--text-h);
-}
-.groups-panel__create-btn {
-  flex-shrink: 0;
-  width: 38px;
-  height: 38px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 8px;
-  border: 1px solid var(--accent-border);
-  background: var(--accent-bg);
-  color: var(--accent);
-  cursor: pointer;
-}
-.groups-panel__create-btn:hover:not(:disabled) {
-  background: var(--accent);
-  color: #fff;
-}
-.groups-panel__create-btn:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-.groups-panel__list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.groups-panel__group {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--code-bg);
-  overflow: hidden;
-}
-
-.groups-panel__group-row {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  padding: 4px;
-  padding-left: 8px;
-}
-
-.groups-panel__group-name {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  text-align: left;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-h);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 8px 0;
-}
-
-.groups-panel__chevron {
-  flex-shrink: 0;
-  color: var(--text);
-  opacity: 0.6;
-  transition: transform 150ms ease;
-}
-.is-open .groups-panel__chevron {
-  transform: rotate(90deg);
-}
-
-.groups-panel__group-name-text {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.groups-panel__count {
-  flex-shrink: 0;
-  min-width: 20px;
-  padding: 1px 6px;
-  border-radius: 999px;
-  background: var(--bg);
-  color: var(--text);
-  font-size: 11px;
-  font-weight: 600;
-  text-align: center;
-}
-
-.groups-panel__icon-btn {
-  flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-  border: none;
-  background: none;
-  color: var(--text);
-  cursor: pointer;
-}
-.groups-panel__icon-btn:hover {
-  background: var(--bg);
-  color: var(--text-h);
-}
-
-.groups-panel__rename-input {
-  flex: 1;
-  min-width: 0;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  padding: 6px 8px;
-  border-radius: 6px;
-  border: 1px solid var(--accent-border);
-  background: var(--bg);
-  color: var(--text-h);
-}
-
-.groups-panel__words {
-  list-style: none;
-  margin: 0;
-  padding: 0 8px 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.groups-panel__words-empty {
-  padding: 6px 4px;
-  font-size: 12px;
-  color: var(--text);
-  opacity: 0.75;
-}
-
-.groups-panel__word-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  border-radius: 6px;
-  padding-left: 4px;
-}
-.groups-panel__word-row:hover {
-  background: var(--bg);
-}
-
-.groups-panel__word {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  font: inherit;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 6px 4px;
-  text-align: left;
-}
-
-.groups-panel__word-text {
-  flex-shrink: 0;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-h);
-}
-
-.groups-panel__meaning {
-  font-size: 12px;
-  color: var(--text);
-  opacity: 0.85;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
 }
 
 .group-membership {
@@ -2553,18 +2280,6 @@ button.legend__row.is-inactive:hover {
   outline: none;
 }
 
-/* Anki export sits in the Bookmarks footer: one thing to do with the list,
-   not its headline. */
-.saved-panel__export {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.saved-panel__export .saved-panel__setup {
-  border-top: none;
-  padding-top: 0;
-}
-
 /* Present for screen readers, invisible on screen (form labels whose
    visible stand-in is a placeholder, live status text). */
 .visually-hidden {
@@ -3022,4 +2737,193 @@ button.legend__row.is-inactive:hover {
   font-size: 12px;
   color: var(--text);
   opacity: 0.85;
+}
+
+/* Anki section of the Bookmarks panel (BookmarksPanel's AnkiSection) --
+   the same quiet bordered card as AccountSync above it. */
+.anki-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--code-bg);
+  font-size: 13px;
+  color: var(--text);
+}
+.anki-card--problem {
+  border-color: var(--accent-border);
+}
+.anki-card__title {
+  margin: 0;
+  font-family: var(--heading);
+  font-weight: var(--heading-weight);
+  font-size: 16px;
+  letter-spacing: normal;
+  color: var(--text-h);
+}
+.anki-card__text,
+.anki-card__note {
+  margin: 0;
+  line-height: 1.45;
+}
+.anki-card__note {
+  font-size: 12px;
+  opacity: 0.85;
+}
+.anki-card__checklist {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  line-height: 1.45;
+}
+.anki-card__checklist code {
+  font-size: 12px;
+  word-break: break-all;
+}
+.anki-card__status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.anki-card__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--success);
+  flex-shrink: 0;
+}
+.anki-card__meta {
+  margin-left: auto;
+  font-size: 12px;
+}
+.anki-card__error {
+  margin: 0;
+  color: var(--node-root);
+}
+.anki-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-top: 4px;
+}
+.anki-card__btn {
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--accent);
+  cursor: pointer;
+}
+.anki-card__btn:hover {
+  background: var(--accent);
+  color: #fff;
+}
+.anki-card__link {
+  font: inherit;
+  font-size: 13px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.anki-card__link:hover:not(:disabled) {
+  color: var(--accent);
+}
+.anki-card__link:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.anki-card__btn:focus-visible,
+.anki-card__link:focus-visible,
+.collections__chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Collections: bookmarks sliced by tag / JLPT / shared kanji / found-from
+   (bookmarks/collections.js). Chips filter the list below; each kind gets
+   a small label the first time it appears. */
+.collections {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.collections__chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 6px;
+}
+.collections__item {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.collections__kind {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text);
+  opacity: 0.8;
+}
+.collections__chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font: inherit;
+  font-size: 13px;
+  min-height: 32px;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-h);
+  cursor: pointer;
+}
+.collections__chip:hover {
+  border-color: var(--accent-border);
+}
+.collections__chip.is-active {
+  border-color: var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-weight: 600;
+}
+.collections__count {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+}
+.collections__open {
+  align-self: flex-start;
+}
+
+.saved-panel__item-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+.saved-panel__item-tag {
+  font-size: 11px;
+  padding: 1px 8px;
+  border-radius: 9999px;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.saved-panel__item .study-status__chip {
+  flex-shrink: 0;
+  align-self: center;
 }

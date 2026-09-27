@@ -129,7 +129,7 @@ export default function FiltersPanel({
       </div>
 
       <div className="filters-panel__section">
-        <span className="filters-panel__label">Group focus</span>
+        <span className="filters-panel__label">Tag focus</span>
         <select
           value={focusGroupId ?? ""}
           onChange={(e) => onSetFocusGroup(e.target.value || null)}
@@ -142,7 +142,7 @@ export default function FiltersPanel({
             </option>
           ))}
         </select>
-        {groups.length === 0 && <p className="filters-panel__hint">Create a group first.</p>}
+        {groups.length === 0 && <p className="filters-panel__hint">Tag a bookmarked word first.</p>}
       </div>
 
       <div className="filters-panel__section">

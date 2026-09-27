@@ -5,10 +5,9 @@ import GraphPanel from "./components/GraphPanel";
 import PaneLayout from "./components/PaneLayout";
 import ThemeToggle from "./components/ThemeToggle";
 import BookmarksPanel from "./components/BookmarksPanel";
-import GroupsPanel from "./components/GroupsPanel";
 import Tutorial from "./components/Tutorial";
 import MobileMenu from "./components/MobileMenu";
-import { BookmarkIcon, GroupsIcon, TutorialIcon } from "./components/icons";
+import { BookmarkIcon, TutorialIcon } from "./components/icons";
 import { useWordData } from "./data/useWordData";
 import { useRecentRoots } from "./data/useRecentRoots";
 import { useProgress } from "./progress/useProgress";
@@ -215,10 +214,9 @@ export default function App() {
   const groupsApi = useGroups();
   const memberOf = selectedNode?.type === "word" ? groupsApi.groupsForWord(selectedNode.word) : [];
 
-  // Saved and Groups share one side panel slot -- opening one always closes
-  // the other, rather than tracking two independent booleans that could
-  // both end up true. null closes the panel entirely.
-  const [activeSidebar, setActiveSidebar] = useState(null); // null | "saved" | "groups"
+  // The side panel slot (Bookmarks). Kept as a keyed slot rather than a
+  // boolean so another panel can share it without both ending up open.
+  const [activeSidebar, setActiveSidebar] = useState(null); // null | "saved"
   const toggleSidebar = useCallback((key) => {
     setActiveSidebar((prev) => (prev === key ? null : key));
   }, []);
@@ -238,15 +236,13 @@ export default function App() {
   const handleCreateGroupWithWord = useCallback(
     (name) => {
       if (selectedNode?.type !== "word") return;
-      groupsApi.createGroup(name);
-      // createGroup is fire-and-forget (Supabase round-trip for signed-in
-      // users) -- rather than plumb the new id back through, just let the
-      // user tick the checkbox once it appears; still saves them a step
-      // versus creating then re-opening the word to add it.
+      groupsApi.createGroup(name, { word: selectedNode.word });
     },
     [selectedNode, groupsApi]
   );
-  const isInGroup = useCallback((word) => groupsApi.groups.some((g) => g.words.includes(word)), [groupsApi.groups]);
+  // The graph's small dot marks your bookmarks (it used to mark group
+  // membership, before groups became bookmark tags).
+  const isBookmarked = useCallback((word) => saved.isSaved(word), [saved]);
 
   const handleSelectWord = useCallback(
     (word) => {
@@ -499,7 +495,7 @@ export default function App() {
       onNodeClick={handleNodeSelect}
       onNodeExpand={handleNodeExpand}
       getStatus={getStatus}
-      isInGroup={isInGroup}
+      isInGroup={isBookmarked}
       isDimmed={isNodeDimmed}
       theme={theme}
       onReset={handleReset}
@@ -546,8 +542,6 @@ export default function App() {
             onReview={ankiConnected ? anki.review : null}
             savedCount={saved.words.length}
             onOpenSaved={() => setActiveSidebar("saved")}
-            groupsCount={groupsApi.groups.length}
-            onOpenGroups={() => setActiveSidebar("groups")}
             onTutorial={handleStartTutorial}
             tutorialDisabled={dataset.loading}
             theme={theme}
@@ -586,17 +580,6 @@ export default function App() {
                 <BookmarkIcon />
                 {saved.words.length > 0 && <span className="icon-toolbar__badge">{saved.words.length}</span>}
               </button>
-              <button
-                type="button"
-                className={`icon-toolbar__btn${activeSidebar === "groups" ? " is-active" : ""}`}
-                onClick={() => toggleSidebar("groups")}
-                aria-pressed={activeSidebar === "groups"}
-                aria-label={`Groups (${groupsApi.groups.length})`}
-                title="Groups"
-              >
-                <GroupsIcon />
-                {groupsApi.groups.length > 0 && <span className="icon-toolbar__badge">{groupsApi.groups.length}</span>}
-              </button>
             </div>
           </div>
         )}
@@ -619,14 +602,14 @@ export default function App() {
           <div className="side-panel-scrim" onClick={closeSidebar} aria-hidden="true" />
         )}
         {activeSidebar && (
-          <aside className="side-panel" aria-label={activeSidebar === "saved" ? "Bookmarks" : "Groups"}>
+          <aside className="side-panel" aria-label="Bookmarks">
             {activeSidebar === "saved" && (
-              <BookmarksPanel dataset={dataset} saved={saved} onSelectWord={handleSelectFromSidebar} onClose={closeSidebar} />
-            )}
-            {activeSidebar === "groups" && (
-              <GroupsPanel
+              <BookmarksPanel
                 dataset={dataset}
-                groupsApi={groupsApi}
+                saved={saved}
+                anki={anki}
+                getStatus={getStatus}
+                userTagsFor={userTagsFor}
                 onSelectWord={handleSelectFromSidebar}
                 onClose={closeSidebar}
               />

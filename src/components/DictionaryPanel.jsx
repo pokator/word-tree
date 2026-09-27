@@ -16,7 +16,10 @@ function splitMeanings(meaning) {
     .filter(Boolean);
 }
 
-function GroupMembership({ word, groups, memberOf, onToggleGroup, onCreateGroup }) {
+/** Your own labels on a bookmarked word (e.g. "N4 exam") -- each becomes a
+ * collection in Bookmarks and a moto::tag:: tag on its Anki card. Stored in
+ * the groups tables (see groups/useGroups.js), which is what tags replaced. */
+function TagEditor({ word, groups, memberOf, onToggleGroup, onCreateGroup }) {
   const [newName, setNewName] = useState("");
   const memberIds = new Set(memberOf.map((g) => g.id));
 
@@ -30,7 +33,7 @@ function GroupMembership({ word, groups, memberOf, onToggleGroup, onCreateGroup 
 
   return (
     <div className="group-membership">
-      <span className="dictionary-panel__section-label">Groups</span>
+      <span className="dictionary-panel__section-label">Tags</span>
       {groups.length > 0 && (
         <div className="group-membership__list">
           {groups.map((g) => (
@@ -44,7 +47,8 @@ function GroupMembership({ word, groups, memberOf, onToggleGroup, onCreateGroup 
       <form className="group-membership__create" onSubmit={handleCreate}>
         <input
           type="text"
-          placeholder="+ New group..."
+          placeholder="+ Add a tag…"
+          aria-label="New tag"
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
         />
@@ -353,8 +357,8 @@ export default function DictionaryPanel({
 
           {wordStats && <ProgressStats wordStats={wordStats} streak={streak} />}
 
-          {!isKanji && onToggleGroup && (
-            <GroupMembership
+          {!isKanji && isSaved && onToggleGroup && (
+            <TagEditor
               word={node.word}
               groups={groups}
               memberOf={memberOf}

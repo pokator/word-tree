@@ -32,20 +32,6 @@ export function BookmarkIcon() {
   );
 }
 
-export function GroupsIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
-      <path
-        d="M4 6.75A1.25 1.25 0 0 1 5.25 5.5h4.19a1.25 1.25 0 0 1 .93.42l1.4 1.58h7.02a1.25 1.25 0 0 1 1.25 1.25v9A1.25 1.25 0 0 1 18.75 19H5.25A1.25 1.25 0 0 1 4 17.75Z"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
 export function ReviewIcon() {
   return (
     <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">

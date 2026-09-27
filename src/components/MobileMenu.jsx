@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useClickOutside } from "../lib/useClickOutside";
-import { BookmarkIcon, GroupsIcon, MenuIcon, MoonIcon, ReviewIcon, SunIcon, TutorialIcon } from "./icons";
+import { BookmarkIcon, MenuIcon, MoonIcon, ReviewIcon, SunIcon, TutorialIcon } from "./icons";
 
 /**
  * The mobile header's single ☰ entry point for everything the desktop
@@ -16,8 +16,6 @@ export default function MobileMenu({
   onReview,
   savedCount,
   onOpenSaved,
-  groupsCount,
-  onOpenGroups,
   onTutorial,
   tutorialDisabled,
   theme,
@@ -60,11 +58,6 @@ export default function MobileMenu({
             <BookmarkIcon />
             <span className="mobile-menu__label">Bookmarks</span>
             {savedCount > 0 && <span className="mobile-menu__count">{savedCount}</span>}
-          </button>
-          <button type="button" className="mobile-menu__item" onClick={act(onOpenGroups)}>
-            <GroupsIcon />
-            <span className="mobile-menu__label">Groups</span>
-            {groupsCount > 0 && <span className="mobile-menu__count">{groupsCount}</span>}
           </button>
           <button
             type="button"
