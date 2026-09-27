@@ -32,14 +32,12 @@ import "./App.css";
 
 const DEFAULT_ROOT = "日本語";
 const MAX_WORDS_KEY = "word-tree:max-words-per-branch";
-const MASTERY_FILTER_KEY = "word-tree:mastery-filter";
 const JLPT_FILTER_KEY = "word-tree:jlpt-filter";
 const COLOR_BY_DIFFICULTY_KEY = "word-tree:color-by-difficulty";
 const LINK_COLOR_MODE_KEY = "word-tree:link-color-mode";
 const LEGACY_COLOR_BY_READING_KEY = "word-tree:color-by-reading";
 const COLOR_BY_KANJI_PATH_KEY = "word-tree:color-by-kanji-path";
 const MAX_WORDS_OPTIONS = [5, 8, 12, 20, 40, Infinity];
-const DEFAULT_MASTERY_FILTER = { new: true, learning: true, known: true };
 const DEFAULT_JLPT_FILTER = { n5: true, n4: true, n3: true, n2: true, n1: true, unrated: true };
 const EMPTY_SET = new Set();
 
@@ -53,14 +51,13 @@ function loadMaxWords() {
   }
 }
 
-function loadMasteryFilter() {
-  try {
-    const raw = localStorage.getItem(MASTERY_FILTER_KEY);
-    if (!raw) return DEFAULT_MASTERY_FILTER;
-    return { ...DEFAULT_MASTERY_FILTER, ...JSON.parse(raw) };
-  } catch {
-    return DEFAULT_MASTERY_FILTER;
-  }
+
+// The Status filter is gone; drop its saved setting rather than leave it
+// sitting in every returning visitor's storage.
+try {
+  localStorage.removeItem("word-tree:mastery-filter");
+} catch {
+  // localStorage unavailable -- nothing to clean up
 }
 
 function loadJlptFilter() {
@@ -126,7 +123,6 @@ export default function App() {
   const [builtFor, setBuiltFor] = useState(null);
   const [selectedId, setSelectedId] = useState(wordNodeId(DEFAULT_ROOT));
   const [maxWords, setMaxWords] = useState(loadMaxWords);
-  const [masteryFilter, setMasteryFilter] = useState(loadMasteryFilter);
   const [jlptFilter, setJlptFilter] = useState(loadJlptFilter);
   const [colorByDifficulty, setColorByDifficulty] = useState(loadColorByDifficulty);
   const [linkColorMode, setLinkColorMode] = useState(loadLinkColorMode);
@@ -296,17 +292,6 @@ export default function App() {
     }
   }, []);
 
-  const handleToggleMasteryFilter = useCallback((status) => {
-    setMasteryFilter((prev) => {
-      const next = { ...prev, [status]: !prev[status] };
-      try {
-        localStorage.setItem(MASTERY_FILTER_KEY, JSON.stringify(next));
-      } catch {
-        // localStorage unavailable -- setting just won't persist this session
-      }
-      return next;
-    });
-  }, []);
 
   const handleToggleJlptFilter = useCallback((bucket) => {
     setJlptFilter((prev) => {
@@ -355,9 +340,9 @@ export default function App() {
 
   const isNodeDimmed = useCallback(
     (node) => {
+      // Study status never dims the graph -- that's Anki's side of the app
+      // (see DESIGN.md, 2026-09-27); only what you're exploring does.
       if (node.type === "word") {
-        const status = getStatus("word", node.word) ?? "new";
-        if (!masteryFilter[status]) return true;
         if (focusGroupId) {
           const group = groupsApi.groups.find((g) => g.id === focusGroupId);
           if (group && !group.words.includes(node.word)) return true;
@@ -366,14 +351,11 @@ export default function App() {
       if (!isJlptAllowed(node.type, node.type === "kanji" ? node.char : node.word)) return true;
       return false;
     },
-    [getStatus, masteryFilter, focusGroupId, groupsApi.groups, isJlptAllowed]
+    [focusGroupId, groupsApi.groups, isJlptAllowed]
   );
 
   const jlptFilterActive = Object.values(jlptFilter).some((v) => !v);
   const filtersActive =
-    !masteryFilter.new ||
-    !masteryFilter.learning ||
-    !masteryFilter.known ||
     jlptFilterActive ||
     focusGroupId !== null ||
     maxWords !== 8;
@@ -505,8 +487,6 @@ export default function App() {
       onToggleFiltersPanel={() => setIsFiltersPanelOpen((v) => !v)}
       onCloseFiltersPanel={() => setIsFiltersPanelOpen(false)}
       filtersActive={filtersActive}
-      masteryFilter={masteryFilter}
-      onToggleMastery={handleToggleMasteryFilter}
       jlptFilter={jlptFilter}
       onToggleJlpt={handleToggleJlptFilter}
       colorByDifficulty={colorByDifficulty}

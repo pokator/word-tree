@@ -67,7 +67,7 @@ const STEPS = [
   {
     target: ".filters-btn",
     title: "Filters",
-    body: "Narrow what's shown by mastery or JLPT level, or turn on extra graph coloring.",
+    body: "Narrow what's shown by JLPT level or tag, or turn on extra graph coloring.",
     placement: "bottom",
   },
   {

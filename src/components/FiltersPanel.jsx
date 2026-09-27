@@ -1,9 +1,3 @@
-const MASTERY_OPTIONS = [
-  { value: "new", label: "Not studied" },
-  { value: "learning", label: "Learning" },
-  { value: "known", label: "Known" },
-];
-
 const JLPT_OPTIONS = [
   { value: "n5", label: "N5" },
   { value: "n4", label: "N4" },
@@ -22,8 +16,6 @@ const LINK_COLOR_OPTIONS = [
 ];
 
 export default function FiltersPanel({
-  masteryFilter,
-  onToggleMastery,
   jlptFilter,
   onToggleJlpt,
   groups,
@@ -41,25 +33,6 @@ export default function FiltersPanel({
 }) {
   return (
     <div className="filters-panel">
-      <div className="filters-panel__section">
-        <span className="filters-panel__label">Mastery</span>
-        <div className="filters-panel__chips">
-          {MASTERY_OPTIONS.map(({ value, label }) => (
-            <button
-              key={value}
-              type="button"
-              className={`filters-panel__chip filters-panel__chip--${value}${
-                masteryFilter[value] ? " is-active" : ""
-              }`}
-              onClick={() => onToggleMastery(value)}
-              aria-pressed={masteryFilter[value]}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-
       <div className="filters-panel__section">
         <span className="filters-panel__label">JLPT level</span>
         <div className="filters-panel__chips filters-panel__chips--jlpt">

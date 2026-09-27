@@ -93,12 +93,10 @@ halves visible on a portrait tablet; on a phone, one half at a time (tap the
 word strip for the full entry, tap Explore to go back); and on a phone
 turned sideways, a side rail for the word next to a full-height graph.
 
-**Filters** (graph panel toolbar) — three ways to control what the graph
+**Filters** (graph panel toolbar) — ways to control what the graph
 shows:
-- **Status** — hide/dim words by Not studied / Learning / Known (as
-  reported by Anki, or marked "I already know this").
 - **JLPT level** — hide/dim by a word's hardest-tagged kanji (N5 easiest —
-  N1 hardest, plus "Other" for untagged). Unlike the status/tag filters,
+  N1 hardest, plus "Other" for untagged). Unlike the tag filter,
   this one also limits what *future* kanji/word reveals show up, not just
   what's already on screen — hit Reset to fully apply it retroactively.
 - **Tag focus** — show only words with one of your tags, dimming

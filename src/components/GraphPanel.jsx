@@ -124,8 +124,6 @@ export default function GraphPanel({
   onToggleFiltersPanel,
   onCloseFiltersPanel,
   filtersActive,
-  masteryFilter,
-  onToggleMastery,
   jlptFilter,
   onToggleJlpt,
   groups,
@@ -226,8 +224,6 @@ export default function GraphPanel({
               </button>
               {isFiltersPanelOpen && (
                 <FiltersPanel
-                  masteryFilter={masteryFilter}
-                  onToggleMastery={onToggleMastery}
                   jlptFilter={jlptFilter}
                   onToggleJlpt={onToggleJlpt}
                   groups={groups}
