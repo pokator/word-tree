@@ -1,11 +1,13 @@
 import { useEffect, useRef } from "react";
 
 // Backs every dropdown/popover in the header and graph toolbars (Filters,
-// Sign in). Without this, two popovers anchored near the same corner (the
-// header's Sign in button drops down right on top of the graph panel's
-// Filters button below it) could stay open at once and visually collide --
-// closing on an outside click keeps at most one open at a time, as well as
-// being the behavior users already expect from a popover.
+// Sign in, the mobile menu). Without this, two popovers anchored near the
+// same corner could stay open at once and visually collide -- closing on an
+// outside press keeps at most one open at a time, as well as being the
+// behavior users already expect from a popover.
+// Listens for pointerdown, not mousedown: iOS Safari doesn't reliably
+// synthesize mouse events for a tap on non-interactive content, so a tap
+// on plain text would otherwise leave a popover stuck open on a phone.
 // `onOutside` is read via a ref rather than listed as an effect dependency
 // so passing a fresh inline callback each render (the common case) doesn't
 // tear down and re-attach the document listeners on every render -- only
@@ -32,10 +34,10 @@ export function useClickOutside(active, onOutside) {
       if (e.key === "Escape") onOutsideRef.current();
     }
 
-    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("pointerdown", handlePointerDown);
     document.addEventListener("keydown", handleKeyDown);
     return () => {
-      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("pointerdown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [active]);

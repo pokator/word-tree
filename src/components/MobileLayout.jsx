@@ -1,3 +1,5 @@
+import { useEffect, useRef } from "react";
+
 function firstGloss(node) {
   if (!node || node.type === "kanji") return node?.meaning ?? "";
   return node.senses?.[0]?.gloss?.join("; ") ?? node.meaning?.split(";")[0] ?? "";
@@ -30,6 +32,18 @@ function Chevron({ up }) {
  */
 export default function MobileLayout({ view, onChangeView, node, definitions, explore }) {
   const isExplore = view === "explore";
+  // The toggle you just pressed unmounts as the view flips, which would
+  // drop keyboard/screen-reader focus to <body> -- hand it to the section
+  // that just expanded instead. Skipped on first render (nothing was
+  // pressed yet).
+  const definitionsBodyRef = useRef(null);
+  const exploreBodyRef = useRef(null);
+  const prevViewRef = useRef(view);
+  useEffect(() => {
+    if (prevViewRef.current === view) return;
+    prevViewRef.current = view;
+    (isExplore ? exploreBodyRef : definitionsBodyRef).current?.focus({ preventScroll: true });
+  }, [view, isExplore]);
   const headword = node ? (node.type === "kanji" ? node.char : node.word) : null;
   const reading = node?.type === "word" ? node.reading : node?.onyomi?.[0] ?? node?.kunyomi?.[0];
   const gloss = firstGloss(node);
@@ -43,6 +57,7 @@ export default function MobileLayout({ view, onChangeView, node, definitions, ex
             className="mobile-strip"
             onClick={() => onChangeView("definitions")}
             aria-expanded="false"
+            aria-controls="mobile-definitions"
             aria-label={headword ? `Show full definition of ${headword}` : "Show definition"}
           >
             <span className="mobile-strip__word">{headword ?? "—"}</span>
@@ -53,7 +68,14 @@ export default function MobileLayout({ view, onChangeView, node, definitions, ex
             </span>
           </button>
         ) : (
-          <div className="mobile-layout__definitions-body">{definitions}</div>
+          <div
+            className="mobile-layout__definitions-body"
+            id="mobile-definitions"
+            ref={definitionsBodyRef}
+            tabIndex={-1}
+          >
+            {definitions}
+          </div>
         )}
       </section>
 
@@ -64,6 +86,7 @@ export default function MobileLayout({ view, onChangeView, node, definitions, ex
             className="mobile-explore-bar"
             onClick={() => onChangeView("explore")}
             aria-expanded="false"
+            aria-controls="mobile-explore"
           >
             <span className="mobile-toggle mobile-toggle--top">
               <Chevron up />
@@ -71,7 +94,13 @@ export default function MobileLayout({ view, onChangeView, node, definitions, ex
             <span className="mobile-explore-bar__label">Explore</span>
           </button>
         )}
-        <div className="mobile-layout__explore-body" hidden={!isExplore}>
+        <div
+          className="mobile-layout__explore-body"
+          id="mobile-explore"
+          ref={exploreBodyRef}
+          tabIndex={-1}
+          hidden={!isExplore}
+        >
           {explore}
         </div>
       </section>

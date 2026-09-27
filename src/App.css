@@ -2600,9 +2600,17 @@ button.legend__row.is-inactive:hover {
 }
 
 @media (max-width: 900px) {
+  .app {
+    /* Shared by the header's own height and everything positioned just
+       below it (search results, the Filters sheet), instead of each
+       hard-coding the same number. */
+    --mobile-header-h: 53px;
+  }
   .app__header {
     flex-wrap: nowrap;
     gap: 8px;
+    box-sizing: border-box;
+    height: var(--mobile-header-h);
     padding: 6px 12px;
   }
   .app__title h1 {
@@ -2782,16 +2790,28 @@ button.legend__row.is-inactive:hover {
   .app {
     overflow: hidden;
   }
-  /* Bookmarks/Groups take over the screen below the header instead of
-     docking beside a graph that has no width to give up. */
+  /* Bookmarks/Groups take over the whole screen (header included -- they
+     carry their own close button) instead of docking beside a graph that
+     has no width to give up. */
   .side-panel {
     position: fixed;
     inset: 0;
     width: 100%;
     z-index: 40;
     border-left: none;
-    padding-top: env(safe-area-inset-top, 0px);
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px)
+      env(safe-area-inset-left, 0px);
+  }
+  /* Anchored under its toolbar button, the Filters popover started ~200px
+     down and ran off the bottom of a phone screen. As a sheet under the
+     header it always fits, scrolling inside itself if it has to. */
+  .filters-panel {
+    position: fixed;
+    top: calc(var(--mobile-header-h) + env(safe-area-inset-top, 0px) + 8px);
+    left: 8px;
+    right: 8px;
+    width: auto;
+    max-height: calc(100svh - var(--mobile-header-h) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 16px);
   }
   .graph-panel__toolbar {
     padding: 6px 12px;
@@ -2807,7 +2827,7 @@ button.legend__row.is-inactive:hover {
 @media (max-width: 900px) {
   .search-results {
     position: fixed;
-    top: calc(56px + env(safe-area-inset-top, 0px));
+    top: calc(var(--mobile-header-h) + env(safe-area-inset-top, 0px) + 3px);
     left: 8px;
     right: 8px;
     max-height: min(60svh, 440px);
@@ -2836,4 +2856,27 @@ button.legend__row.is-inactive:hover {
     overflow: hidden;
     text-overflow: ellipsis;
   }
+}
+
+/* viewport-fit=cover (index.html) lets the page draw under a notch/home
+   indicator so the Explore bar and side panel can extend there; everything
+   else is kept clear of it here. env() is 0 everywhere without a notch. */
+.app {
+  box-sizing: border-box;
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) 0 env(safe-area-inset-left, 0px);
+}
+@media (max-width: 900px) {
+  .mobile-layout--explore .graph-panel__footer {
+    padding-bottom: calc(4px + env(safe-area-inset-bottom, 0px));
+  }
+  .search-results {
+    left: calc(8px + env(safe-area-inset-left, 0px));
+    right: calc(8px + env(safe-area-inset-right, 0px));
+  }
+}
+/* Focus lands here programmatically when a view flips (see MobileLayout);
+   the section itself isn't a control, so it shows no ring. */
+.mobile-layout__definitions-body:focus,
+.mobile-layout__explore-body:focus {
+  outline: none;
 }

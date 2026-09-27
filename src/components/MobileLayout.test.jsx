@@ -40,8 +40,11 @@ describe("MobileLayout", () => {
     // Graph stays mounted (keeps its simulation/zoom) but hidden.
     expect(screen.getByText("graph")).not.toBeVisible();
 
+    expect(document.activeElement).toBe(screen.getByText("full definition").parentElement);
+
     await userEvent.click(screen.getByRole("button", { name: /Explore/ }));
     expect(screen.queryByText("full definition")).not.toBeInTheDocument();
     expect(screen.getByText("graph")).toBeVisible();
+    expect(document.activeElement).toBe(screen.getByText("graph").parentElement);
   });
 });

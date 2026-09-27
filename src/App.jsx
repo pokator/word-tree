@@ -260,6 +260,18 @@ export default function App() {
     [addRecent]
   );
 
+  // On desktop the Bookmarks/Groups panel docks beside the graph, so it
+  // stays open while you jump between its words. On a phone it covers the
+  // whole screen -- picking a word has to close it, or the word you picked
+  // loads invisibly underneath.
+  const handleSelectFromSidebar = useCallback(
+    (word) => {
+      handleSelectWord(word);
+      if (isMobile) closeSidebar();
+    },
+    [handleSelectWord, isMobile, closeSidebar]
+  );
+
   const handleReset = useCallback(() => {
     setGraph(createInitialGraph(dataset, rootWord, { isJlptAllowed }));
     setSelectedId(wordNodeId(rootWord));
@@ -275,6 +287,9 @@ export default function App() {
     setRootWord(DEFAULT_ROOT);
     setSelectedId(wordNodeId(DEFAULT_ROOT));
     setGraph(createInitialGraph(dataset, DEFAULT_ROOT, { isJlptAllowed }));
+    // On a phone the tour's graph steps need the graph on screen, not
+    // collapsed behind the definitions.
+    setMobileView("explore");
     setTutorialOpen(true);
   }, [dataset, isJlptAllowed]);
 
@@ -597,6 +612,11 @@ export default function App() {
       </header>
 
       <main className="app__main" inert={tutorialOpen}>
+        {/* Crossing the breakpoint swaps these two shells, which remounts
+            the graph (positions, zoom, dragged-apart links reset). Accepted:
+            it only happens on a window resize or a tablet rotating across
+            900px, and keeping one tree for both layouts would mean the
+            desktop SplitPane carrying phone-only structure. */}
         {isMobile ? (
           <MobileLayout
             view={mobileView}
@@ -611,13 +631,13 @@ export default function App() {
         {activeSidebar && (
           <aside className="side-panel" aria-label={activeSidebar === "saved" ? "Saved words" : "Groups"}>
             {activeSidebar === "saved" && (
-              <SavedWordsPanel dataset={dataset} saved={saved} onSelectWord={handleSelectWord} onClose={closeSidebar} />
+              <SavedWordsPanel dataset={dataset} saved={saved} onSelectWord={handleSelectFromSidebar} onClose={closeSidebar} />
             )}
             {activeSidebar === "groups" && (
               <GroupsPanel
                 dataset={dataset}
                 groupsApi={groupsApi}
-                onSelectWord={handleSelectWord}
+                onSelectWord={handleSelectFromSidebar}
                 onQuizGroup={startGroupQuiz}
                 onClose={closeSidebar}
               />

@@ -90,6 +90,12 @@ export default function WordTreeGraph({
   const zoomTransformRef = useRef(zoomIdentity);
   const zoomBehaviorRef = useRef(null);
   const lastClickRef = useRef({ id: null, time: 0 });
+  // Tears down the in-progress node gesture (long-press timer + window
+  // listeners) -- see handleNodePointerDown. Called on unmount so a hold
+  // that outlives the graph (e.g. a rotation across the mobile breakpoint
+  // remounting it) can't fire a stale expand afterwards.
+  const abortGestureRef = useRef(null);
+  useEffect(() => () => abortGestureRef.current?.(), []);
   const [size, setSize] = useState({ width: 800, height: 600 });
   // Mirrors detailTier but read synchronously inside the zoom handler (state
   // updates are async/batched) so repeated zoom events while already past
@@ -160,7 +166,20 @@ export default function WordTreeGraph({
 
   function handleNodePointerDown(e, node) {
     e.stopPropagation();
+    // One gesture at a time: a second finger landing on another node mid-
+    // hold doesn't start a competing drag/timer. A leftover gesture from
+    // this same pointer (its release never arrived) is replaced instead, so
+    // a lost event can't lock the graph.
+    if (abortGestureRef.current) {
+      if (abortGestureRef.current.pointerId !== e.pointerId) return;
+      abortGestureRef.current();
+    }
     e.currentTarget.setPointerCapture?.(e.pointerId);
+    // Only this pointer drives the gesture -- the move/up listeners below
+    // are on window, where a second finger (the start of a pinch, a tap on
+    // the background) would otherwise end the hold, count as a tap, or
+    // drag the held node toward itself.
+    const pointerId = e.pointerId;
     const svgRect = svgRef.current.getBoundingClientRect();
     const startClient = { x: e.clientX, y: e.clientY };
     const dragThreshold = e.pointerType === "touch" ? DRAG_TOUCH_THRESHOLD_PX : DRAG_CLICK_THRESHOLD_PX;
@@ -249,6 +268,7 @@ export default function WordTreeGraph({
     }
 
     function onMove(ev) {
+      if (ev.pointerId !== pointerId) return;
       const dx = ev.clientX - startClient.x;
       const dy = ev.clientY - startClient.y;
       if (!moved && Math.hypot(dx, dy) > dragThreshold) {
@@ -267,11 +287,17 @@ export default function WordTreeGraph({
       wake();
     }
 
-    function onUp(ev) {
+    function detach() {
       clearTimeout(longPressTimer);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);
+      abortGestureRef.current = null;
+    }
+
+    function onUp(ev) {
+      if (ev.pointerId !== pointerId) return;
+      detach();
 
       // Read every final position from fx/fy (guaranteed current -- it's
       // exactly what the last pointermove set) before nulling any of them:
@@ -290,8 +316,9 @@ export default function WordTreeGraph({
         n.fy = null;
       }
       // The browser took the gesture over (e.g. the start of a pinch) --
-      // release the pins above, but it wasn't a tap.
-      if (ev?.type === "pointercancel" || longPressed) return;
+      // release the pins above, but it wasn't a tap. A long press already
+      // acted; only a drag that followed it still needs saving below.
+      if (ev.type === "pointercancel" || (longPressed && !moved)) return;
       if (moved) {
         // Persist the distance this drag left between the node and each of
         // its parents and children as that link's new target -- without
@@ -319,6 +346,17 @@ export default function WordTreeGraph({
       if (isDoubleClick) onNodeExpand?.(node.id);
     }
 
+    const abort = () => {
+      detach();
+      node.fx = null;
+      node.fy = null;
+      for (const { n } of children) {
+        n.fx = null;
+        n.fy = null;
+      }
+    };
+    abort.pointerId = pointerId;
+    abortGestureRef.current = abort;
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
     window.addEventListener("pointercancel", onUp);

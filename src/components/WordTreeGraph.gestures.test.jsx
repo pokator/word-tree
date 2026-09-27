@@ -87,3 +87,31 @@ describe("WordTreeGraph node gestures", () => {
     expect(onNodeExpand).not.toHaveBeenCalled();
   });
 });
+
+describe("WordTreeGraph multi-touch and teardown", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("a second finger doesn't end, tap, or cancel the first finger's hold", async () => {
+    const { onNodeClick, onNodeExpand, kanji } = await renderGraph();
+    fireEvent.pointerDown(kanji(), { pointerType: "touch", pointerId: 1, clientX: 0, clientY: 0 });
+    fireEvent.pointerMove(window, { pointerType: "touch", pointerId: 2, clientX: 80, clientY: 80 });
+    fireEvent.pointerUp(window, { pointerType: "touch", pointerId: 2, clientX: 80, clientY: 80 });
+    expect(onNodeClick).not.toHaveBeenCalled();
+    act(() => vi.advanceTimersByTime(LONG_PRESS_MS));
+    expect(onNodeExpand).toHaveBeenCalledOnce();
+  });
+
+  it("unmounting mid-hold cancels the pending expand", async () => {
+    const onNodeExpand = vi.fn();
+    const onNodeClick = vi.fn();
+    const utils = render(
+      <WordTreeGraph graph={makeGraph()} selectedId="w:日本" onNodeClick={onNodeClick} onNodeExpand={onNodeExpand} />
+    );
+    await waitFor(() => expect(utils.container.querySelector("[data-node]")).toBeTruthy());
+    vi.useFakeTimers();
+    fireEvent.pointerDown(utils.container.querySelector("[data-node]"), { pointerType: "touch", pointerId: 1 });
+    utils.unmount();
+    act(() => vi.advanceTimersByTime(LONG_PRESS_MS * 2));
+    expect(onNodeExpand).not.toHaveBeenCalled();
+  });
+});

@@ -24,25 +24,26 @@ function setup(overrides = {}) {
 describe("MobileMenu", () => {
   it("stays closed until the trigger is pressed", async () => {
     setup();
-    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Bookmarks/ })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Menu" }));
-    expect(screen.getByRole("menu")).toBeInTheDocument();
-    expect(screen.queryByRole("menuitem", { name: /account|sign in/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Menu" })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("button", { name: /Bookmarks/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /account|sign in/i })).not.toBeInTheDocument();
   });
 
   it("runs an item's action and closes", async () => {
     const props = setup();
     await userEvent.click(screen.getByRole("button", { name: "Menu" }));
-    await userEvent.click(screen.getByRole("menuitem", { name: /Bookmarks/ }));
+    await userEvent.click(screen.getByRole("button", { name: /Bookmarks/ }));
     expect(props.onOpenSaved).toHaveBeenCalledOnce();
-    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Bookmarks/ })).not.toBeInTheDocument();
   });
 
   it("toggles the theme in place without closing", async () => {
     const props = setup();
     await userEvent.click(screen.getByRole("button", { name: "Menu" }));
-    await userEvent.click(screen.getByRole("menuitem", { name: /Light theme/ }));
+    await userEvent.click(screen.getByRole("button", { name: /Switch to dark theme/ }));
     expect(props.onToggleTheme).toHaveBeenCalledOnce();
-    expect(screen.getByRole("menu")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Bookmarks/ })).toBeInTheDocument();
   });
 });
