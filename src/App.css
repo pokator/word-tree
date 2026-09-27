@@ -2519,3 +2519,143 @@ button.legend__row.is-inactive:hover {
     font-size: 40px;
   }
 }
+
+/* ---------------------------------------------------------------------
+   Mobile shell (≤900px, see lib/useIsMobile.js's MOBILE_QUERY -- keep the
+   two in step). App renders a different header and main layout below this
+   breakpoint; these rules style that structure.
+   --------------------------------------------------------------------- */
+
+.mobile-menu {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.mobile-menu__trigger {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--code-bg);
+  width: 40px;
+  height: 40px;
+}
+
+.mobile-menu__sheet {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(260px, calc(100vw - 24px));
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  z-index: 30;
+  animation: mobile-menu-in 150ms cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+@keyframes mobile-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-menu__sheet {
+    animation: none;
+  }
+}
+
+.mobile-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--text-h);
+  font: inherit;
+  font-size: 15px;
+  text-align: left;
+  cursor: pointer;
+}
+.mobile-menu__item:hover,
+.mobile-menu__item:focus-visible {
+  background: var(--code-bg);
+}
+.mobile-menu__item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.mobile-menu__item:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.mobile-menu__label {
+  flex: 1;
+}
+
+.mobile-menu__count {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+@media (max-width: 900px) {
+  .app__header {
+    flex-wrap: nowrap;
+    gap: 8px;
+    padding: 6px 12px;
+  }
+  .app__title h1 {
+    gap: 0;
+  }
+  .app__logo {
+    height: 26px;
+    width: 26px;
+  }
+  /* The wordmark stays in the accessibility tree (the h1 is still named
+     "Moto") -- only its visual footprint goes, leaving the mark alone. */
+  .app__title-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .search-bar {
+    min-width: 0;
+  }
+  /* 16px, not the desktop 15px: iOS Safari zooms the whole page in on
+     focus for any input under 16px, which then has to be pinched back out. */
+  .search-bar input {
+    font-size: 16px;
+    padding: 8px 40px 8px 12px;
+  }
+  .app__credit {
+    display: none;
+  }
+}
+
+.mobile-menu__credit {
+  margin-top: 4px;
+  padding: 10px 12px 6px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text);
+  text-decoration: none;
+}
+.mobile-menu__credit:hover,
+.mobile-menu__credit:focus-visible {
+  color: var(--accent);
+}

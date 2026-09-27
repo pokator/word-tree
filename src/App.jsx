@@ -9,6 +9,8 @@ import SavedWordsPanel from "./components/SavedWordsPanel";
 import GroupsPanel from "./components/GroupsPanel";
 import ReviewMode from "./components/ReviewMode";
 import Tutorial from "./components/Tutorial";
+import MobileMenu from "./components/MobileMenu";
+import { BookmarkIcon, GroupsIcon, TutorialIcon } from "./components/icons";
 import { useWordData } from "./data/useWordData";
 import { useRecentRoots } from "./data/useRecentRoots";
 import { useAuth } from "./auth/useAuth";
@@ -17,6 +19,7 @@ import { useSavedWords } from "./progress/useSavedWords";
 import { useStreak } from "./progress/useStreak";
 import { useGroups } from "./groups/useGroups";
 import { useTheme } from "./theme/useTheme";
+import { useIsMobile } from "./lib/useIsMobile";
 import {
   createInitialGraph,
   expandKanji,
@@ -139,6 +142,7 @@ export default function App() {
   const { recents, addRecent } = useRecentRoots();
   const streak = useStreak();
   const { theme, toggle: toggleTheme } = useTheme();
+  const isMobile = useIsMobile();
 
   // A word's JLPT bucket is derived from its hardest-tagged kanji (see
   // graph/buildGraph.js) -- there's no stored per-word JLPT field.
@@ -460,82 +464,70 @@ export default function App() {
         <div className="app__title">
           <h1>
             <img src={theme === "dark" ? "/moto_logo_dark.svg" : "/moto_logo_light.svg"} alt="" className="app__logo" />
-            Moto
+            <span className="app__title-text">Moto</span>
           </h1>
         </div>
         <SearchBar words={dataset.WORDS} onSelectWord={handleSelectWord} recents={recents} wordsByText={dataset.WORDS_BY_TEXT} />
-        <div className="app__controls">
-          <button
-            className="reset-btn"
-            onClick={startGlobalReview}
-            title="Review words you've marked New or Learning"
-          >
-            Review ({wordStats.new + wordStats.learning})
-          </button>
-          <div className="icon-toolbar">
+        {isMobile ? (
+          <MobileMenu
+            reviewCount={wordStats.new + wordStats.learning}
+            onReview={startGlobalReview}
+            savedCount={saved.words.length}
+            onOpenSaved={() => setActiveSidebar("saved")}
+            groupsCount={groupsApi.groups.length}
+            onOpenGroups={() => setActiveSidebar("groups")}
+            onTutorial={handleStartTutorial}
+            tutorialDisabled={dataset.loading}
+            theme={theme}
+            onToggleTheme={toggleTheme}
+          />
+        ) : (
+          <div className="app__controls">
             <button
-              type="button"
-              className="icon-toolbar__btn"
-              onClick={handleStartTutorial}
-              disabled={dataset.loading}
-              aria-label="Tutorial"
-              title={dataset.loading ? "Loading dictionary…" : "Take a tour of the app"}
+              className="reset-btn"
+              onClick={startGlobalReview}
+              title="Review words you've marked New or Learning"
             >
-              <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
-                <circle cx="12" cy="12" r="9.25" fill="none" stroke="currentColor" strokeWidth="1.7" />
-                <path
-                  d="M9.4 9.6a2.6 2.6 0 0 1 5.05.87c0 1.73-2.6 2.6-2.6 2.6"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.7"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <circle cx="11.87" cy="16.85" r="1.05" fill="currentColor" stroke="none" />
-              </svg>
+              Review ({wordStats.new + wordStats.learning})
             </button>
-            <ThemeToggle theme={theme} onToggle={toggleTheme} />
-            <button
-              type="button"
-              className={`icon-toolbar__btn${activeSidebar === "saved" ? " is-active" : ""}`}
-              onClick={() => toggleSidebar("saved")}
-              aria-pressed={activeSidebar === "saved"}
-              aria-label={`Saved words (${saved.words.length})`}
-              title="Saved words"
-            >
-              <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
-                <path
-                  d="M6.5 3.75h11a.75.75 0 0 1 .75.75v16l-6.25-3.6-6.25 3.6v-16a.75.75 0 0 1 .75-.75Z"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.7"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              {saved.words.length > 0 && <span className="icon-toolbar__badge">{saved.words.length}</span>}
-            </button>
-            <button
-              type="button"
-              className={`icon-toolbar__btn${activeSidebar === "groups" ? " is-active" : ""}`}
-              onClick={() => toggleSidebar("groups")}
-              aria-pressed={activeSidebar === "groups"}
-              aria-label={`Groups (${groupsApi.groups.length})`}
-              title="Groups"
-            >
-              <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
-                <path
-                  d="M4 6.75A1.25 1.25 0 0 1 5.25 5.5h4.19a1.25 1.25 0 0 1 .93.42l1.4 1.58h7.02a1.25 1.25 0 0 1 1.25 1.25v9A1.25 1.25 0 0 1 18.75 19H5.25A1.25 1.25 0 0 1 4 17.75Z"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.7"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              {groupsApi.groups.length > 0 && <span className="icon-toolbar__badge">{groupsApi.groups.length}</span>}
-            </button>
+            <div className="icon-toolbar">
+              <button
+                type="button"
+                className="icon-toolbar__btn"
+                onClick={handleStartTutorial}
+                disabled={dataset.loading}
+                aria-label="Tutorial"
+                title={dataset.loading ? "Loading dictionary…" : "Take a tour of the app"}
+              >
+                <TutorialIcon />
+              </button>
+              <ThemeToggle theme={theme} onToggle={toggleTheme} />
+              <button
+                type="button"
+                className={`icon-toolbar__btn${activeSidebar === "saved" ? " is-active" : ""}`}
+                onClick={() => toggleSidebar("saved")}
+                aria-pressed={activeSidebar === "saved"}
+                aria-label={`Saved words (${saved.words.length})`}
+                title="Saved words"
+              >
+                <BookmarkIcon />
+                {saved.words.length > 0 && <span className="icon-toolbar__badge">{saved.words.length}</span>}
+              </button>
+              <button
+                type="button"
+                className={`icon-toolbar__btn${activeSidebar === "groups" ? " is-active" : ""}`}
+                onClick={() => toggleSidebar("groups")}
+                aria-pressed={activeSidebar === "groups"}
+                aria-label={`Groups (${groupsApi.groups.length})`}
+                title="Groups"
+              >
+                <GroupsIcon />
+                {groupsApi.groups.length > 0 && <span className="icon-toolbar__badge">{groupsApi.groups.length}</span>}
+              </button>
+            </div>
+            <AuthPanel />
           </div>
-          <AuthPanel />
-        </div>
+        )}
       </header>
 
       <main className="app__main" inert={tutorialOpen}>
