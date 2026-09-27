@@ -2904,11 +2904,11 @@ button.legend__row.is-inactive:hover {
   text-overflow: ellipsis;
 }
 
-/* Phone only. */
-/* Anchored under its toolbar button, the Filters popover started ~200px
-   down and ran off the bottom of the screen. As a sheet under the header
-   it always fits, scrolling inside itself if it has to. */
-.app[data-layout="phone"] .filters-panel {
+/* Phone + tablet: anchored under its toolbar button, the Filters popover
+   starts well down the screen (under the definitions on a tablet) and ran
+   off the bottom. As a sheet under the header it always fits, scrolling
+   inside itself if it has to. */
+.app:is([data-layout="phone"], [data-layout="tablet"]) .filters-panel {
   position: fixed;
   top: calc(var(--mobile-header-h) + env(safe-area-inset-top, 0px) + 8px);
   left: 8px;
@@ -2969,6 +2969,10 @@ button.legend__row.is-inactive:hover {
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+  /* Lets the dictionary entry stack its kanji column under the definition
+     when the rail is narrow (see @container at .dictionary-panel__entry),
+     same as .split-pane__left does on desktop. */
+  container-type: inline-size;
 }
 .rail-layout__definitions-body:focus,
 .rail-layout__explore-body:focus {
@@ -3043,7 +3047,8 @@ button.legend__row.is-inactive:hover {
 .app[data-layout="rail"] .graph-panel__toolbar {
   position: absolute;
   top: 8px;
-  right: calc(8px + env(safe-area-inset-right, 0px));
+  /* No inset here: .app is already padded by the safe area. */
+  right: 8px;
   z-index: 6;
   padding: 0;
   border: none;
@@ -3052,6 +3057,12 @@ button.legend__row.is-inactive:hover {
 .app[data-layout="rail"] .graph-panel__heading,
 .app[data-layout="rail"] .graph-panel__footer {
   display: none;
+}
+/* With the footer gone, the floating controls sit at the very bottom --
+   clear of a landscape iPhone's home indicator. */
+.app[data-layout="rail"] .graph-legend,
+.app[data-layout="rail"] .graph-zoom-controls {
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
 }
 /* Filters as a sheet down the right edge -- anchored under its button it
    would run off a ~380px-tall screen. */
@@ -3113,6 +3124,31 @@ button.legend__row.is-inactive:hover {
   background: var(--border);
   z-index: 1;
 }
+/* The drawer covers part of a live graph and the header's ☰ -- a scrim
+   dims what's behind it and closes the drawer on tap (App.jsx). */
+.side-panel-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 39;
+  background: rgba(28, 26, 20, 0.28);
+  animation: scrim-in 200ms ease-out;
+}
+@keyframes scrim-in {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .side-panel-scrim {
+    animation: none;
+  }
+}
+/* Search results stay a dropdown on a tablet (the field is wide), but
+   with finger-sized rows. */
+.app[data-layout="tablet"] .search-results li {
+  min-height: 44px;
+  align-items: center;
+}
 .app[data-layout="tablet"] .side-panel {
   position: fixed;
   top: 0;
@@ -3134,4 +3170,24 @@ button.legend__row.is-inactive:hover {
   .split-pane:not(.split-pane--vertical) .split-pane__handle::after {
     left: 9px;
   }
+}
+
+/* The rail is never wide enough for the entry's side-by-side columns
+   (expanded it tops out at 460px, just past the 440px container query
+   above) -- always stack them, as a narrow pane does elsewhere. */
+.app[data-layout="rail"] .dictionary-panel__entry {
+  flex-direction: column;
+}
+.app[data-layout="rail"] .dictionary-panel__entry-kanji,
+.app[data-layout="rail"] .dictionary-panel__entry-words {
+  flex: 0 0 auto;
+}
+.app[data-layout="rail"] .dictionary-panel__kanji-list,
+.app[data-layout="rail"] .dictionary-panel__word-list {
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+.app[data-layout="rail"] .dictionary-panel__kanji-card,
+.app[data-layout="rail"] .dictionary-panel__word-card {
+  flex: 1 1 120px;
 }

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const STORAGE_PREFIX = "word-tree:split-pane:";
+const VERTICAL_MIN = 20;
+const VERTICAL_MAX = 55;
 
 function loadPct(key, fallback) {
   try {
@@ -99,33 +101,58 @@ export default function PaneLayout({
     [storageKey]: loadPct(storageKey, defaultPct),
     [`${storageKey}-vertical`]: loadPct(`${storageKey}-vertical`, defaultPct),
   }));
-  const pct = pctByKey[splitKey];
+  // Clamped on read too: a ratio saved under older limits still has to
+  // leave the graph usable.
+  const pct = vertical
+    ? Math.min(VERTICAL_MAX, Math.max(VERTICAL_MIN, pctByKey[splitKey]))
+    : pctByKey[splitKey];
   const [isDragging, setIsDragging] = useState(false);
+
+  // The stacked tablet split keeps the graph from being squeezed below a
+  // usable height (its toolbar and footer alone take ~90px).
+  const lo = vertical ? VERTICAL_MIN : min;
+  const hi = vertical ? VERTICAL_MAX : max;
+
+  // Tears down an in-progress drag -- on release, on a cancelled touch
+  // (a system gesture, palm rejection), and on unmount -- so a drag can
+  // never be left "stuck" resizing on the next unrelated touch.
+  const endDragRef = useRef(null);
+  useEffect(() => () => endDragRef.current?.(), []);
 
   const handlePointerDown = useCallback(
     (e) => {
       e.preventDefault();
+      endDragRef.current?.();
+      const handle = e.currentTarget;
+      const pointerId = e.pointerId;
+      handle.setPointerCapture?.(pointerId);
       setIsDragging(true);
       let latest = null;
 
       function onMove(ev) {
+        if (ev.pointerId !== pointerId) return;
         const rect = containerRef.current.getBoundingClientRect();
         const raw = vertical
           ? ((ev.clientY - rect.top) / rect.height) * 100
           : ((ev.clientX - rect.left) / rect.width) * 100;
-        latest = Math.min(max, Math.max(min, raw));
+        latest = Math.min(hi, Math.max(lo, raw));
         setPctByKey((prev) => ({ ...prev, [splitKey]: latest }));
       }
-      function onUp() {
+      function end(ev) {
+        if (ev && ev.pointerId !== pointerId) return;
         window.removeEventListener("pointermove", onMove);
-        window.removeEventListener("pointerup", onUp);
+        window.removeEventListener("pointerup", end);
+        window.removeEventListener("pointercancel", end);
+        endDragRef.current = null;
         setIsDragging(false);
         if (latest !== null) savePct(splitKey, latest);
       }
+      endDragRef.current = () => end();
       window.addEventListener("pointermove", onMove);
-      window.addEventListener("pointerup", onUp);
+      window.addEventListener("pointerup", end);
+      window.addEventListener("pointercancel", end);
     },
-    [min, max, splitKey, vertical]
+    [lo, hi, splitKey, vertical]
   );
 
   const handleDoubleClick = useCallback(() => {

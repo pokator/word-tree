@@ -621,6 +621,9 @@ export default function App() {
           left={definitionsPanel}
           right={explorePanel}
         />
+        {activeSidebar && layout === "tablet" && (
+          <div className="side-panel-scrim" onClick={closeSidebar} aria-hidden="true" />
+        )}
         {activeSidebar && (
           <aside className="side-panel" aria-label={activeSidebar === "saved" ? "Bookmarks" : "Groups"}>
             {activeSidebar === "saved" && (

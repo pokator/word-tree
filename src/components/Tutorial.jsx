@@ -54,6 +54,10 @@ const STEPS = [
     title: "Dictionary panel",
     body: "Definitions, readings, and JLPT level for whatever's currently selected on the graph.",
     placement: "right",
+    // The stacked tablet split scrolls the dictionary inside its pane --
+    // spotlight the pane (what's actually on screen), not the whole
+    // scrolling panel, which runs on past the divider.
+    tablet: { target: ".split-pane__left" },
     strip: {
       target: ".mobile-strip",
       title: "The selected word",
@@ -85,7 +89,9 @@ function stepsFor(layout) {
   const touch = layout !== "desktop";
   const strip = layout === "phone" || layout === "rail";
   return STEPS.filter((s) => touch || !s.touchOnly).map((s) =>
-    touch ? { ...s, placement: "bottom", ...s.touch, ...(strip ? s.strip : null) } : s
+    touch
+      ? { ...s, placement: "bottom", ...s.touch, ...(strip ? s.strip : null), ...(layout === "tablet" ? s.tablet : null) }
+      : s
   );
 }
 
@@ -146,6 +152,13 @@ function tooltipPosition(rect, placement, tooltipHeight) {
       top = rect.top + rect.height / 2 - tooltipHeight / 2;
       left = rect.right + GAP;
       if (left + width > window.innerWidth - VIEWPORT_MARGIN) left = rect.left - GAP - width;
+      // No room beside it either (a full-width target) -- dock the card to
+      // whichever screen edge the target leaves more of.
+      if (left < VIEWPORT_MARGIN) {
+        left = window.innerWidth / 2 - width / 2;
+        const roomBelow = window.innerHeight - rect.bottom;
+        top = roomBelow >= rect.top ? window.innerHeight - tooltipHeight - VIEWPORT_MARGIN : VIEWPORT_MARGIN;
+      }
     }
   }
   top = Math.min(Math.max(top, VIEWPORT_MARGIN), window.innerHeight - tooltipHeight - VIEWPORT_MARGIN);

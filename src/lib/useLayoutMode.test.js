@@ -4,17 +4,19 @@ import { layoutFor, useLayoutMode } from "./useLayoutMode";
 
 describe("layoutFor", () => {
   it.each([
-    [390, 844, "phone"], // phone portrait
-    [844, 390, "rail"], // phone landscape
-    [932, 430, "rail"], // big phone landscape (was "desktop" by width alone)
-    [780, 360, "rail"], // android landscape
-    [820, 1180, "tablet"], // iPad Air portrait
-    [1024, 1366, "tablet"], // iPad Pro portrait
-    [800, 700, "tablet"], // mid-width window
-    [1180, 820, "desktop"], // tablet landscape
-    [1440, 900, "desktop"],
-  ])("%ix%i -> %s", (w, h, expected) => {
-    expect(layoutFor(w, h)).toBe(expected);
+    [390, 844, false, "phone"], // phone portrait
+    [844, 390, true, "rail"], // phone landscape
+    [932, 430, true, "rail"], // big phone landscape (was "desktop" by width alone)
+    [780, 360, true, "rail"], // android landscape
+    [820, 1180, true, "tablet"], // iPad Air portrait
+    [1024, 1366, true, "tablet"], // iPad Pro portrait
+    [800, 700, false, "tablet"], // mid-width window
+    [1180, 820, true, "desktop"], // tablet landscape
+    [1440, 900, false, "desktop"],
+    [1400, 480, false, "desktop"], // short mouse-driven window stays desktop
+    [1400, 480, true, "rail"], // ...but a short touch screen gets the rail
+  ])("%ix%i (coarse %s) -> %s", (w, h, coarse, expected) => {
+    expect(layoutFor(w, h, { coarse })).toBe(expected);
   });
 });
 
@@ -25,16 +27,33 @@ describe("useLayoutMode", () => {
     window.innerHeight = original.h;
   });
 
-  it("follows rotation", () => {
-    window.innerWidth = 390;
-    window.innerHeight = 844;
-    const { result } = renderHook(() => useLayoutMode());
-    expect(result.current).toBe("phone");
+  function resize(w, h) {
     act(() => {
-      window.innerWidth = 844;
-      window.innerHeight = 390;
+      window.innerWidth = w;
+      window.innerHeight = h;
       window.dispatchEvent(new Event("resize"));
     });
+  }
+
+  it("follows rotation", () => {
+    resize(390, 844);
+    const { result } = renderHook(() => useLayoutMode());
+    expect(result.current).toBe("phone");
+    resize(844, 390);
     expect(result.current).toBe("rail");
+    resize(390, 844);
+    expect(result.current).toBe("phone");
+  });
+
+  it("ignores the on-screen keyboard shrinking the height", () => {
+    resize(360, 640);
+    const { result } = renderHook(() => useLayoutMode());
+    expect(result.current).toBe("phone");
+    resize(360, 340); // keyboard opens: same width, much shorter
+    expect(result.current).toBe("phone");
+    resize(924, 1480);
+    expect(result.current).toBe("tablet");
+    resize(924, 880); // tablet keyboard
+    expect(result.current).toBe("tablet");
   });
 });
