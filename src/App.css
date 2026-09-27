@@ -1389,6 +1389,16 @@
   background-color: var(--bg);
 }
 
+/* The graph owns every touch on it: no page scroll or browser pinch-zoom
+   (d3-zoom does its own), and no text-selection/callout on long press,
+   which is how nodes expand on touch. */
+.graph-container svg {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
 .graph-container svg {
   display: block;
   cursor: grab;

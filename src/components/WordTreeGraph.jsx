@@ -9,7 +9,15 @@ import { linkDistanceKey } from "../graph/linkDistanceKey";
 import { kanjiPathColorMap, charOffsetX } from "../graph/kanjiPathColors";
 
 const DRAG_CLICK_THRESHOLD_PX = 5;
+// A fingertip wobbles far more than a mouse between press and release --
+// at the mouse's 5px, a lot of honest taps would register as tiny drags
+// and select nothing.
+const DRAG_TOUCH_THRESHOLD_PX = 10;
 const DOUBLE_CLICK_MS = 350;
+// Press-and-hold on a node expands it, the touch counterpart to double-
+// click -- long enough not to fire on a slow tap, short enough not to
+// feel like waiting.
+export const LONG_PRESS_MS = 450;
 const noStatus = () => undefined;
 const noGroup = () => false;
 const noDim = () => false;
@@ -155,7 +163,24 @@ export default function WordTreeGraph({
     e.currentTarget.setPointerCapture?.(e.pointerId);
     const svgRect = svgRef.current.getBoundingClientRect();
     const startClient = { x: e.clientX, y: e.clientY };
+    const dragThreshold = e.pointerType === "touch" ? DRAG_TOUCH_THRESHOLD_PX : DRAG_CLICK_THRESHOLD_PX;
     let moved = false;
+    // Expands in place once the hold completes, rather than waiting for
+    // release, so you feel it land; the release that follows is then
+    // swallowed instead of also counting as a tap (or half a double-tap).
+    // Touch/pen only: a mouse user pausing before a drag shouldn't expand.
+    let longPressed = false;
+    const longPressTimer =
+      e.pointerType === "mouse"
+        ? null
+        : setTimeout(() => {
+            if (moved) return;
+            longPressed = true;
+            lastClickRef.current = { id: null, time: 0 };
+            navigator.vibrate?.(10);
+            onNodeClick(node.id);
+            onNodeExpand?.(node.id);
+          }, LONG_PRESS_MS);
     const startX = node.x;
     const startY = node.y;
     node.fx = startX;
@@ -226,7 +251,10 @@ export default function WordTreeGraph({
     function onMove(ev) {
       const dx = ev.clientX - startClient.x;
       const dy = ev.clientY - startClient.y;
-      if (Math.hypot(dx, dy) > DRAG_CLICK_THRESHOLD_PX) moved = true;
+      if (!moved && Math.hypot(dx, dy) > dragThreshold) {
+        moved = true;
+        clearTimeout(longPressTimer);
+      }
       const [lx, ly] = toLocal(ev.clientX, ev.clientY);
       node.fx = lx;
       node.fy = ly;
@@ -239,9 +267,11 @@ export default function WordTreeGraph({
       wake();
     }
 
-    function onUp() {
+    function onUp(ev) {
+      clearTimeout(longPressTimer);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
 
       // Read every final position from fx/fy (guaranteed current -- it's
       // exactly what the last pointermove set) before nulling any of them:
@@ -259,6 +289,9 @@ export default function WordTreeGraph({
         n.fx = null;
         n.fy = null;
       }
+      // The browser took the gesture over (e.g. the start of a pinch) --
+      // release the pins above, but it wasn't a tap.
+      if (ev?.type === "pointercancel" || longPressed) return;
       if (moved) {
         // Persist the distance this drag left between the node and each of
         // its parents and children as that link's new target -- without
@@ -277,7 +310,8 @@ export default function WordTreeGraph({
       // A click always just selects (shows its definition) -- it never
       // expands on its own, so you can browse without the graph growing
       // out from under you. Expanding is a deliberate second action: a
-      // double-click here, or the "Expand" button in the dictionary panel.
+      // double-click/double-tap here, a long press (above), or the "Expand"
+      // button in the dictionary panel.
       const now = Date.now();
       const isDoubleClick = lastClickRef.current.id === node.id && now - lastClickRef.current.time < DOUBLE_CLICK_MS;
       lastClickRef.current = { id: node.id, time: now };
@@ -287,6 +321,7 @@ export default function WordTreeGraph({
 
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
   }
 
   // Reading ref.current here is intentional: useForceSimulation's tick
@@ -465,6 +500,9 @@ export default function WordTreeGraph({
                   data-node
                   transform={`translate(${node.x},${node.y})`}
                   onPointerDown={(e) => handleNodePointerDown(e, node)}
+                  // Android fires contextmenu on a long press -- the hold
+                  // already means "expand" here.
+                  onContextMenu={(e) => e.preventDefault()}
                   className={`graph-node graph-node--${node.type}${selected ? " is-selected" : ""}${
                     node.isRoot ? " is-root" : ""
                   }${hintedIds.has(node.id) ? " graph-node--hint" : ""}${
@@ -473,7 +511,7 @@ export default function WordTreeGraph({
                   style={pathRingColor ? { opacity, "--node-ring-stroke": pathRingColor } : { opacity }}
                 >
                   <g className="graph-node__pop">
-                    {!node.expanded && <title>Double-click to reveal more</title>}
+                    {!node.expanded && <title>Double-click or press and hold to reveal more</title>}
                     {/* Selection is a soft blurred glow behind the node
                         rather than an outline ring -- a real Gaussian blur
                         (CSS filter, not a radial-gradient falloff), so it
