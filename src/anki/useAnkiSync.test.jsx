@@ -63,8 +63,12 @@ describe("useAnkiSync", () => {
 
     expect(result.current.state).toBe("connected");
     const moto = anki.state.notes.filter((n) => n.modelName === MODEL_NAME);
-    // 日本 is already studied in the user's own deck: no duplicate card.
-    expect(moto.map((n) => [n.fields.Word, n.deck])).toEqual([["日本語", DECK_NAME]]);
+    // Every bookmark gets a card in the 元 deck -- 日本 too, even though it
+    // also sits in the user's own deck (the bug: it used to be skipped).
+    expect(moto.map((n) => [n.fields.Word, n.deck])).toEqual([
+      ["日本語", DECK_NAME],
+      ["日本", DECK_NAME],
+    ]);
     // Status is read before cards are added: 日本 is mature in the user's
     // own deck; 日本語's brand-new card shows up on the next sync.
     expect(new Map(applyStatuses.mock.calls.at(-1)[0])).toEqual(new Map([["word:日本", "known"]]));
@@ -84,7 +88,8 @@ describe("useAnkiSync", () => {
     await waitFor(() => expect(result.current.state).toBe("connected"));
     await act(() => new Promise((r) => setTimeout(r, 1200)));
     const actions = fetchSpy.mock.calls.map(([, init]) => JSON.parse(init.body).action);
-    expect(actions).toEqual(["version"]);
+    // A connection probe and a read of the deck counts -- nothing written.
+    expect(actions).toEqual(["version", "getDeckStats"]);
     expect(anki.state.notes.filter((n) => n.modelName === MODEL_NAME)).toHaveLength(0);
 
     // Bookmarking a word is what sends it.

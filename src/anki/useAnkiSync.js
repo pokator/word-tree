@@ -61,6 +61,8 @@ export function useAnkiSync({ dataset, bookmarks, bookmarksLoading = false, user
   const [lastSynced, setLastSynced] = useState(null);
   const [error, setError] = useState(null);
   const [syncing, setSyncing] = useState(false);
+  // Bookmarks Anki refused to add as cards on the last sync.
+  const [rejected, setRejected] = useState([]);
   // Bumped to ask for a sync (Connect, Try again, Sync, a queued follow-up).
   const [tick, setTick] = useState(0);
 
@@ -87,19 +89,22 @@ export function useAnkiSync({ dataset, bookmarks, bookmarksLoading = false, user
     setSyncing(true);
     try {
       const { dataset: ds, bookmarks: bm, userTagsFor: tagsFor, statusFor: known, applyStatuses: apply } = inputs;
-      // Status first: it also tells us which bookmarks shouldn't get a Moto
-      // card -- ones already studied in another deck (no duplicate card),
-      // and ones the user marked "I already know this" that Anki has never
-      // seen.
-      const { statuses, foreign } = await pullStatuses(bm.map((b) => b.item_id));
+      // Status first: it also tells us which bookmarks shouldn't get a card
+      // -- only ones the user marked "I already know this" that Anki has
+      // never seen. Every other bookmark gets a card in the 元 deck, even if
+      // the word also sits in another deck: bookmarking means "study this
+      // here", and a card merely sitting unstudied in some big premade deck
+      // shouldn't silently swallow it.
+      const { statuses } = await pullStatuses(bm.map((b) => b.item_id));
       if (!current()) return;
       apply([...statuses].map(([word, status]) => [`word:${word}`, status]));
 
-      const skip = new Set(foreign);
+      const skip = new Set();
       for (const b of bm) if (!statuses.has(b.item_id) && known?.(b.item_id) === "known") skip.add(b.item_id);
       let pushError = null;
       try {
-        await pushBookmarks(syncItemsFor(ds, bm, tagsFor), { skipWords: skip });
+        const pushed = await pushBookmarks(syncItemsFor(ds, bm, tagsFor), { skipWords: skip });
+        if (current()) setRejected(pushed.rejected);
       } catch (err) {
         pushError = err; // statuses above still stand -- one bad note shouldn't blank them
       }
@@ -155,7 +160,16 @@ export function useAnkiSync({ dataset, bookmarks, bookmarksLoading = false, user
     if (!loadEnabled()) return undefined;
     let cancelled = false;
     probeConnection().then((ok) => {
-      if (!cancelled) setState((s) => (s === "checking" ? (ok ? "connected" : "unreachable") : s));
+      if (cancelled) return;
+      setState((s) => (s === "checking" ? (ok ? "connected" : "unreachable") : s));
+      // Read-only: today's count for the Anki pod, without a sync.
+      if (ok) {
+        dueCount()
+          .then((n) => {
+            if (!cancelled) setDue(n);
+          })
+          .catch(() => {});
+      }
     });
     return () => {
       cancelled = true;
@@ -200,5 +214,5 @@ export function useAnkiSync({ dataset, bookmarks, bookmarksLoading = false, user
   const review = useCallback(() => guard(openReview), [guard]);
   const browse = useCallback((query) => guard(() => openBrowser(query)), [guard]);
 
-  return { enabled, state, due, lastSynced, error, syncing, connect, disconnect, check, syncNow, review, browse };
+  return { enabled, state, due, lastSynced, error, rejected, syncing, connect, disconnect, check, syncNow, review, browse };
 }

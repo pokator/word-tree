@@ -85,7 +85,7 @@ describe("BookmarksPanel", () => {
     renderPanel(api);
     // Collapsed: the full card is hidden behind the pod.
     expect(screen.queryByRole("heading", { name: "Anki connected" })).not.toBeInTheDocument();
-    const pod = screen.getByRole("button", { name: /Anki · 4 to review/ });
+    const pod = screen.getByRole("button", { name: /Anki · 4 due/ });
     await userEvent.click(screen.getByRole("button", { name: "Sync with Anki" }));
     expect(api.syncNow).toHaveBeenCalledOnce();
     await userEvent.click(pod);

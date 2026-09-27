@@ -37,10 +37,10 @@ function SyncIcon({ spinning }) {
 /** A finished connection, folded down to one line: a status dot, a label
  * that expands the full card, a sync button, and any quick action (Anki's
  * Review). */
-function Pod({ tone = "ok", label, expanded, onToggle, onSync, syncing, syncLabel, children }) {
+function Pod({ tone = "ok", yieldSpace = false, label, title, expanded, onToggle, onSync, syncing, syncLabel, children }) {
   return (
-    <div className={`pod pod--${tone}${expanded ? " is-expanded" : ""}`}>
-      <button type="button" className="pod__main" aria-expanded={expanded} onClick={onToggle}>
+    <div className={`pod pod--${tone}${yieldSpace ? " pod--yield" : ""}${expanded ? " is-expanded" : ""}`}>
+      <button type="button" className="pod__main" aria-expanded={expanded} onClick={onToggle} title={title}>
         <span className="pod__dot" aria-hidden="true" />
         <span className="pod__label">{label}</span>
       </button>
@@ -148,6 +148,12 @@ function AnkiSection({ anki, hasBookmarks, onExportTsv, onHelp }) {
           {anki.error}
         </p>
       )}
+      {anki.rejected?.length > 0 && (
+        <p className="anki-card__error" role="alert">
+          Anki wouldn&rsquo;t add {anki.rejected.join("、")}: it says {anki.rejected.length === 1 ? "that card is" : "those cards are"}{" "}
+          already in the 元 deck under a different note. Check the 元 deck in Anki&rsquo;s browser.
+        </p>
+      )}
       <div className="anki-card__actions">
         {helpLink}
         <button type="button" className="anki-card__link" onClick={anki.disconnect}>
@@ -217,11 +223,15 @@ export default function BookmarksPanel({
   const connected = anki.state === "connected";
   const signedIn = isSupabaseConfigured && Boolean(user);
   const toggle = (key) => setExpanded((prev) => (prev === key ? null : key));
+  // Kept short so both pods fit on one row, even in a phone-width panel --
+  // the expanded cards carry the detail.
+  const ankiTrouble = Boolean(anki.error) || anki.rejected?.length > 0;
   const ankiLabel = anki.syncing
-    ? "Anki · syncing…"
-    : anki.error
-      ? "Anki · needs attention"
-      : `Anki${anki.due ? ` · ${anki.due} to review` : " · up to date"}`;
+    ? "Anki · syncing"
+    : ankiTrouble
+      ? "Anki · check"
+      : `Anki${anki.due ? ` · ${anki.due} due` : ""}`;
+  const accountLabel = user?.email?.split("@")[0] ?? "";
 
   return (
     <>
@@ -237,7 +247,9 @@ export default function BookmarksPanel({
           <div className="pods" role="group" aria-label="Sync status">
             {signedIn && (
               <Pod
-                label={user.email}
+                yieldSpace
+                label={accountLabel}
+                title={`Signed in as ${user.email}`}
                 expanded={expanded === "account"}
                 onToggle={() => toggle("account")}
                 onSync={refreshAccount}
@@ -247,7 +259,7 @@ export default function BookmarksPanel({
             )}
             {connected && (
               <Pod
-                tone={anki.error ? "warn" : "ok"}
+                tone={ankiTrouble ? "warn" : "ok"}
                 label={ankiLabel}
                 expanded={expanded === "anki"}
                 onToggle={() => toggle("anki")}

@@ -57,7 +57,7 @@ describe("pushBookmarks", () => {
 
   it("creates the Moto note type and deck, then one tagged note per bookmark", async () => {
     const items = syncItemsFor(DATASET, [{ item_id: "日本語", found_from: "日本語" }, { item_id: "本当", found_from: "日本語" }]);
-    expect(await pushBookmarks(items)).toEqual({ added: 2, retagged: 0 });
+    expect(await pushBookmarks(items)).toMatchObject({ added: 2, retagged: 0 });
 
     expect(anki.state.models[MODEL_NAME]).toEqual(["Word", "Reading", "Meaning", "Kanji"]);
     expect(anki.state.decks.has(DECK_NAME)).toBe(true);
@@ -74,10 +74,10 @@ describe("pushBookmarks", () => {
     const items = syncItemsFor(DATASET, [{ item_id: "本当", found_from: null }]);
     await pushBookmarks(items);
     anki.state.notes[0].tags.push("my-hand-tag");
-    expect(await pushBookmarks(items)).toEqual({ added: 0, retagged: 0 });
+    expect(await pushBookmarks(items)).toMatchObject({ added: 0, retagged: 0 });
 
     const retagged = syncItemsFor(DATASET, [{ item_id: "本当", found_from: null }], () => ["travel"]);
-    expect(await pushBookmarks(retagged)).toEqual({ added: 0, retagged: 1 });
+    expect(await pushBookmarks(retagged)).toMatchObject({ added: 0, retagged: 1 });
     expect(anki.state.notes).toHaveLength(1);
     expect(anki.state.notes[0].tags).toContain("my-hand-tag");
     expect(anki.state.notes[0].tags).toContain("moto::tag::travel");
@@ -86,6 +86,23 @@ describe("pushBookmarks", () => {
 
 describe("pushBookmarks resilience", () => {
   afterEach(() => vi.unstubAllGlobals());
+
+  it("reports words Anki refuses instead of dropping them silently", async () => {
+    install({
+      models: { [MODEL_NAME]: ["Word", "Reading", "Meaning", "Kanji"] },
+      // Not matchable as a Moto note by its Word (e.g. corrupted), but still
+      // a duplicate to Anki's own check.
+      notes: [{ modelName: MODEL_NAME, deck: DECK_NAME, fields: { Word: "日本語" }, tags: [] }],
+    });
+    const realFetch = globalThis.fetch;
+    vi.stubGlobal("fetch", async (url, init) => {
+      const body = JSON.parse(init.body);
+      if (body.action === "findNotes") return { json: async () => ({ result: [], error: null }) };
+      return realFetch(url, init);
+    });
+    const result = await pushBookmarks(syncItemsFor(DATASET, [{ item_id: "日本語" }, { item_id: "本当" }]));
+    expect(result).toMatchObject({ added: 1, rejected: ["日本語"] });
+  });
 
   it("recognises a Moto note the user reformatted in Anki, and still adds other bookmarks", async () => {
     install({
@@ -98,10 +115,10 @@ describe("pushBookmarks resilience", () => {
     expect(anki.state.notes.map((n) => n.fields.Word)).toEqual(["<b>日本語</b>", "本当"]);
   });
 
-  it("skips words it's told to (already studied elsewhere, or marked known)", async () => {
+  it("skips words it's told to (marked known)", async () => {
     install();
     const items = syncItemsFor(DATASET, [{ item_id: "日本語" }, { item_id: "本当" }]);
-    expect(await pushBookmarks(items, { skipWords: new Set(["本当"]) })).toEqual({ added: 1, retagged: 0 });
+    expect(await pushBookmarks(items, { skipWords: new Set(["本当"]) })).toMatchObject({ added: 1, retagged: 0 });
     expect(anki.state.notes.map((n) => n.fields.Word)).toEqual(["日本語"]);
   });
 

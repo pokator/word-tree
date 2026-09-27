@@ -161,15 +161,17 @@ const isMotoTag = (t) => t.toLowerCase() === TAG_ROOT || t.toLowerCase().startsW
  * Makes Anki hold one Moto note per bookmarked word, with current tags.
  * Adds the missing ones; retags existing ones (tags change as a word joins
  * collections). Never deletes -- un-bookmarking a word leaves its Anki card
- * and review history alone. Words in `skipWords` get no new card (already
- * studied in another deck, or marked known -- see useAnkiSync).
+ * and review history alone. Words in `skipWords` get no new card (marked
+ * "I already know this" -- see useAnkiSync).
  *
  * Existing notes are matched on their Word field's plain text, so one the
  * user reformatted inside Anki is still recognised rather than re-added.
  * New notes are checked with canAddNotes first: addNotes fails the WHOLE
  * batch if any one note is a duplicate, which would otherwise block every
  * other bookmark on every sync.
- * `items`: [{ entry, componentKanji, tags }]. Returns { added, retagged }.
+ * `items`: [{ entry, componentKanji, tags }]. Returns { added, retagged,
+ * rejected } -- `rejected` being the words Anki refused to add (so the UI
+ * can say so instead of the word silently never appearing).
  */
 export async function pushBookmarks(items, { skipWords = new Set() } = {}) {
   await ensureModelAndDeck();
@@ -204,8 +206,12 @@ export async function pushBookmarks(items, { skipWords = new Set() } = {}) {
   }
 
   let added = 0;
+  const rejected = [];
   if (candidates.length) {
     const ok = await invoke("canAddNotes", { notes: candidates });
+    candidates.forEach((c, i) => {
+      if (!ok[i]) rejected.push(plainField(c.fields.Word));
+    });
     const addable = candidates.filter((_, i) => ok[i]);
     if (addable.length) {
       const ids = await invoke("addNotes", { notes: addable });
@@ -221,7 +227,7 @@ export async function pushBookmarks(items, { skipWords = new Set() } = {}) {
     const failed = results.filter((r) => r.error);
     if (failed.length) console.warn("Some Anki notes couldn't be retagged:", failed.map((r) => r.error));
   }
-  return { added, retagged: retag.length };
+  return { added, retagged: retag.length, rejected };
 }
 
 /**
