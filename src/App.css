@@ -2800,3 +2800,40 @@ button.legend__row.is-inactive:hover {
     padding: 4px 12px;
   }
 }
+
+/* Search results on a phone: a full-width sheet under the header rather
+   than a dropdown the width of the (narrow) search field, with the meaning
+   on its own line so long entries truncate instead of scrolling sideways. */
+@media (max-width: 900px) {
+  .search-results {
+    position: fixed;
+    top: calc(56px + env(safe-area-inset-top, 0px));
+    left: 8px;
+    right: 8px;
+    max-height: min(60svh, 440px);
+    overflow-x: hidden;
+    z-index: 30;
+  }
+  .search-results li {
+    flex-wrap: wrap;
+    row-gap: 2px;
+    min-height: 44px;
+    align-content: center;
+  }
+  .search-results__word,
+  .search-results__reading {
+    flex-shrink: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .search-results__meaning {
+    flex-basis: 100%;
+    min-width: 0;
+    margin-left: 0;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
