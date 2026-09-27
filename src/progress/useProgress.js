@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../auth/useAuth";
 import { supabase } from "../lib/supabaseClient";
 import { loadGuestProgress as loadGuestMap, saveGuestProgress as saveGuestMap } from "../lib/guestStore";
@@ -52,6 +52,11 @@ export function useProgress() {
     };
   }, [user]);
 
+  const mapRef = useRef(map);
+  useEffect(() => {
+    mapRef.current = map;
+  }, [map]);
+
   const getStatus = useCallback((type, id) => map.get(key(type, id)), [map]);
 
   const setStatus = useCallback(
@@ -71,6 +76,47 @@ export function useProgress() {
           )
           .then(({ error }) => {
             if (error) console.error("Failed to save progress:", error.message);
+          });
+      }
+    },
+    [user]
+  );
+
+  // Many statuses at once -- what an Anki sync pulls back (see
+  // anki/useAnkiSync.js). Writes only the ones that actually changed, in
+  // one upsert, rather than a request per word. `entries`: Map or iterable
+  // of [key "type:id", status].
+  const applyStatuses = useCallback(
+    (entries) => {
+      // Diffed against the latest map via the ref, not inside a setMap
+      // updater -- React may run updaters later, and the Supabase write
+      // below needs the list of changes now.
+      const prev = mapRef.current;
+      const changed = [];
+      let next = null;
+      for (const [k, status] of entries) {
+        if (prev.get(k) === status) continue;
+        next ??= new Map(prev);
+        next.set(k, status);
+        changed.push([k, status]);
+      }
+      if (!next) return;
+      mapRef.current = next;
+      setMap(next);
+      if (!user) saveGuestMap(next);
+      if (user) {
+        const now = new Date().toISOString();
+        supabase
+          .from("user_progress")
+          .upsert(
+            changed.map(([k, status]) => {
+              const sep = k.indexOf(":");
+              return { user_id: user.id, item_type: k.slice(0, sep), item_id: k.slice(sep + 1), status, updated_at: now };
+            }),
+            { onConflict: "user_id,item_type,item_id" }
+          )
+          .then(({ error }) => {
+            if (error) console.error("Failed to save synced progress:", error.message);
           });
       }
     },
@@ -99,5 +145,5 @@ export function useProgress() {
     [wordsByStatus]
   );
 
-  return { getStatus, setStatus, loading, wordStats, wordsByStatus };
+  return { getStatus, setStatus, applyStatuses, loading, wordStats, wordsByStatus };
 }
