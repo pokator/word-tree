@@ -161,113 +161,122 @@
   border: 1.5px solid var(--code-bg);
 }
 
-.auth-chip {
+/* In-panel sign-in (AccountSync, top of the Bookmarks panel). Quiet by
+   design -- a bordered card, not a banner -- since bookmarks work fine
+   without it. */
+.account-sync {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 13px;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--code-bg);
 }
-.auth-chip__email {
+.account-sync--signed-in {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  font-size: 13px;
   color: var(--text);
-  max-width: 160px;
+}
+.account-sync__synced {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.auth-chip__signout {
-  font: inherit;
+.account-sync__email {
+  color: var(--text-h);
+  font-weight: 600;
+}
+.account-sync__title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-h);
+}
+.account-sync__hint {
+  margin: 0;
   font-size: 13px;
-  padding: 6px 10px;
+  line-height: 1.45;
+  color: var(--text);
+}
+.account-sync__row {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+.account-sync input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 16px; /* 16px: iOS zooms the page into anything smaller on focus */
+  padding: 8px 10px;
   border-radius: 6px;
   border: 1px solid var(--border);
-  background: var(--code-bg);
-  color: var(--text-h);
-  cursor: pointer;
-}
-.auth-chip__signout:hover {
-  border-color: var(--accent-border);
-}
-
-.auth-panel-wrap {
-  position: relative;
-}
-
-.auth-form {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  width: 240px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 14px;
   background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  box-shadow: var(--shadow);
-  z-index: 20;
+  color: var(--text-h);
 }
-
-.auth-form input {
+.account-sync input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.account-sync__code {
+  letter-spacing: 0.3em;
+  font-variant-numeric: tabular-nums;
+}
+.account-sync__btn {
+  flex-shrink: 0;
   font: inherit;
   font-size: 14px;
-  padding: 8px 10px;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-  background: var(--code-bg);
-  color: var(--text-h);
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.auth-form button[type="submit"],
-.auth-form button[type="button"]:not(.auth-form__switch) {
-  font: inherit;
-  font-size: 13px;
-  padding: 8px 10px;
+  font-weight: 600;
+  padding: 8px 14px;
   border-radius: 6px;
   border: 1px solid var(--accent-border);
   background: var(--accent-bg);
-  color: var(--text-h);
+  color: var(--accent);
   cursor: pointer;
-  flex: 1;
 }
-.auth-form button:disabled {
-  opacity: 0.6;
+.account-sync__btn:hover:not(:disabled) {
+  background: var(--accent);
+  color: #fff;
+}
+.account-sync__btn:disabled {
+  opacity: 0.5;
   cursor: default;
 }
-
-.auth-form__row {
-  display: flex;
-  gap: 8px;
-}
-
-.auth-form__switch {
-  font: inherit;
-  font-size: 12px;
-  background: none;
-  border: none;
-  color: var(--text);
-  text-decoration: underline;
-  cursor: pointer;
-  padding: 0;
-  text-align: left;
-}
-
-.auth-form__hint {
-  font-size: 13px;
-  color: var(--text);
-}
-
-.auth-form__status {
-  font-size: 12px;
+.account-sync__error {
   margin: 0;
-}
-.auth-form__status--error {
+  font-size: 13px;
   color: var(--node-root);
 }
-.auth-form__status--info {
+.account-sync__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+.account-sync__link {
+  flex-shrink: 0;
+  font: inherit;
+  font-size: 13px;
+  padding: 0;
+  border: none;
+  background: none;
   color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.account-sync__link:hover:not(:disabled) {
+  color: var(--accent);
+}
+.account-sync__link:disabled {
+  opacity: 0.6;
+  cursor: default;
+  text-decoration: none;
 }
 
 .save-toggle {
@@ -2883,4 +2892,16 @@ button.legend__row.is-inactive:hover {
 .mobile-layout__definitions-body:focus,
 .mobile-layout__explore-body:focus {
   outline: none;
+}
+
+/* Anki export sits in the Bookmarks footer: one thing to do with the list,
+   not its headline. */
+.saved-panel__export {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.saved-panel__export .saved-panel__setup {
+  border-top: none;
+  padding-top: 0;
 }

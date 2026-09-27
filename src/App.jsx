@@ -4,8 +4,7 @@ import DictionaryPanel from "./components/DictionaryPanel";
 import GraphPanel from "./components/GraphPanel";
 import SplitPane from "./components/SplitPane";
 import ThemeToggle from "./components/ThemeToggle";
-import AuthPanel from "./components/AuthPanel";
-import SavedWordsPanel from "./components/SavedWordsPanel";
+import BookmarksPanel from "./components/BookmarksPanel";
 import GroupsPanel from "./components/GroupsPanel";
 import ReviewMode from "./components/ReviewMode";
 import Tutorial from "./components/Tutorial";
@@ -585,8 +584,8 @@ export default function App() {
                 className={`icon-toolbar__btn${activeSidebar === "saved" ? " is-active" : ""}`}
                 onClick={() => toggleSidebar("saved")}
                 aria-pressed={activeSidebar === "saved"}
-                aria-label={`Saved words (${saved.words.length})`}
-                title="Saved words"
+                aria-label={`Bookmarks (${saved.words.length})`}
+                title="Bookmarks"
               >
                 <BookmarkIcon />
                 {saved.words.length > 0 && <span className="icon-toolbar__badge">{saved.words.length}</span>}
@@ -603,7 +602,6 @@ export default function App() {
                 {groupsApi.groups.length > 0 && <span className="icon-toolbar__badge">{groupsApi.groups.length}</span>}
               </button>
             </div>
-            <AuthPanel />
           </div>
         )}
       </header>
@@ -626,9 +624,9 @@ export default function App() {
           <SplitPane storageKey="main" defaultPct={40} min={26} max={62} left={definitionsPanel} right={explorePanel} />
         )}
         {activeSidebar && (
-          <aside className="side-panel" aria-label={activeSidebar === "saved" ? "Saved words" : "Groups"}>
+          <aside className="side-panel" aria-label={activeSidebar === "saved" ? "Bookmarks" : "Groups"}>
             {activeSidebar === "saved" && (
-              <SavedWordsPanel dataset={dataset} saved={saved} onSelectWord={handleSelectFromSidebar} onClose={closeSidebar} />
+              <BookmarksPanel dataset={dataset} saved={saved} onSelectWord={handleSelectFromSidebar} onClose={closeSidebar} />
             )}
             {activeSidebar === "groups" && (
               <GroupsPanel
