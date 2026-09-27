@@ -1,25 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../auth/useAuth";
 import { supabase } from "../lib/supabaseClient";
-
-const GUEST_KEY = "word-tree:guest-groups";
-
-function loadGuestGroups() {
-  try {
-    const raw = localStorage.getItem(GUEST_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveGuestGroups(groups) {
-  try {
-    localStorage.setItem(GUEST_KEY, JSON.stringify(groups));
-  } catch {
-    // localStorage unavailable -- groups just won't persist this session
-  }
-}
+import { loadGuestGroups, saveGuestGroups } from "../lib/guestStore";
 
 function guestId() {
   return typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `g${Date.now()}${Math.random()}`;

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import ProgressStats from "./ProgressStats";
+import { BookmarkIcon } from "./icons";
 
 const MASTERY_LABELS = { new: "New", learning: "Learning", known: "Known" };
 
@@ -67,10 +68,7 @@ function MasteryControl({ status, onSetStatus }) {
   );
 }
 
-function SaveToggle({ canSave, isSaved, onToggleSave }) {
-  if (!canSave) {
-    return <p className="save-toggle__hint">Sign in to save words for export.</p>;
-  }
+function BookmarkToggle({ isSaved, onToggleSave }) {
   return (
     <button
       type="button"
@@ -78,7 +76,8 @@ function SaveToggle({ canSave, isSaved, onToggleSave }) {
       onClick={onToggleSave}
       aria-pressed={isSaved}
     >
-      {isSaved ? "Saved for Anki" : "Save for Anki"}
+      <BookmarkIcon />
+      {isSaved ? "Bookmarked" : "Bookmark"}
     </button>
   );
 }
@@ -265,7 +264,6 @@ export default function DictionaryPanel({
   loading,
   status,
   onSetStatus,
-  canSave,
   isSaved,
   onToggleSave,
   groups = [],
@@ -375,7 +373,7 @@ export default function DictionaryPanel({
 
       <div className="dictionary-panel__actions">
         <MasteryControl status={status} onSetStatus={onSetStatus} />
-        {!isKanji && <SaveToggle canSave={canSave} isSaved={isSaved} onToggleSave={onToggleSave} />}
+        {!isKanji && <BookmarkToggle isSaved={isSaved} onToggleSave={onToggleSave} />}
       </div>
 
       

@@ -14,7 +14,6 @@ import MobileLayout from "./components/MobileLayout";
 import { BookmarkIcon, GroupsIcon, TutorialIcon } from "./components/icons";
 import { useWordData } from "./data/useWordData";
 import { useRecentRoots } from "./data/useRecentRoots";
-import { useAuth } from "./auth/useAuth";
 import { useProgress } from "./progress/useProgress";
 import { useSavedWords } from "./progress/useSavedWords";
 import { useStreak } from "./progress/useStreak";
@@ -209,7 +208,6 @@ export default function App() {
     [selectedNode, selectedItemId, setMasteryStatus]
   );
 
-  const { user } = useAuth();
   const saved = useSavedWords();
   const handleToggleSave = useCallback(() => {
     if (selectedNode?.type === "word") saved.toggleSave(selectedNode.word);
@@ -483,7 +481,6 @@ export default function App() {
       loading={dataset.loading}
       status={selectedNode && getStatus(selectedNode.type, selectedItemId)}
       onSetStatus={handleSetStatus}
-      canSave={Boolean(user)}
       isSaved={selectedNode?.type === "word" && saved.isSaved(selectedNode.word)}
       onToggleSave={handleToggleSave}
       groups={groupsApi.groups}

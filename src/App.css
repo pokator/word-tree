@@ -273,6 +273,10 @@
 .save-toggle {
   margin-top: 10px;
   width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   font: inherit;
   font-size: 13px;
   padding: 8px 10px;
@@ -285,18 +289,18 @@
 .save-toggle:hover {
   border-color: var(--accent-border);
 }
+.save-toggle svg {
+  width: 16px;
+  height: 16px;
+}
+.save-toggle.is-active svg path {
+  fill: currentColor;
+}
 .save-toggle.is-active {
   background: var(--accent-bg);
   border-color: var(--accent-border);
   color: var(--accent);
   font-weight: 600;
-}
-
-.save-toggle__hint {
-  margin-top: 10px;
-  font-size: 12px;
-  color: var(--text);
-  opacity: 0.8;
 }
 
 /* Saved/Groups side panel -- docked beside the Explore graph as a sibling

@@ -1,34 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../auth/useAuth";
 import { supabase } from "../lib/supabaseClient";
+import { loadGuestProgress as loadGuestMap, saveGuestProgress as saveGuestMap } from "../lib/guestStore";
 
-const GUEST_KEY = "word-tree:guest-progress";
 const key = (type, id) => `${type}:${id}`;
-
-function loadGuestMap() {
-  try {
-    const raw = localStorage.getItem(GUEST_KEY);
-    return raw ? new Map(Object.entries(JSON.parse(raw))) : new Map();
-  } catch {
-    return new Map();
-  }
-}
-
-function saveGuestMap(map) {
-  try {
-    localStorage.setItem(GUEST_KEY, JSON.stringify(Object.fromEntries(map)));
-  } catch {
-    // localStorage unavailable -- progress just won't persist this session
-  }
-}
 
 /**
  * Tri-state (new/learning/known) mastery tracking per word/kanji.
  * Logged in: backed by Supabase's `user_progress` table.
  * Guest/logged-out: identical Map-shaped API backed by localStorage, so
  * callers (DictionaryPanel, WordTreeGraph) never need to know which is active.
- * No guest -> account migration in this phase -- signing in starts a fresh
- * (empty, then Supabase-loaded) progress map rather than merging the two.
+ * Signing in folds guest progress into the account before this loads (see
+ * auth/mergeGuestData.js).
  */
 export function useProgress() {
   const { user } = useAuth();
