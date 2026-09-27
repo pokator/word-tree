@@ -646,7 +646,7 @@ export default function App() {
         />
       )}
 
-      {tutorialOpen && <Tutorial onClose={() => setTutorialOpen(false)} />}
+      {tutorialOpen && <Tutorial mobile={isMobile} onClose={() => setTutorialOpen(false)} />}
 
       <a
         className="app__credit"

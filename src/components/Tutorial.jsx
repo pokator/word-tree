@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 // Anchored by selector, not ref, so this stays decoupled from every
 // component it points at -- most of these are already-stable, semantic
@@ -8,6 +8,23 @@ import { useCallback, useEffect, useRef, useState } from "react";
 // buttons. ".graph-node--kanji" matches whichever kanji happens to be
 // first in the DOM -- fine, since the point is just "a kanji node", not a
 // specific one.
+//
+// The two graph-node steps target the inner `__fill` circle, not the
+// `.graph-node` group itself: the root starts out selected, and a
+// selected node's group also contains the blurred `__select-glow`
+// sibling circle (see App.css's select-glow-breathe), which scales up to
+// 1.12x on a 2.4s loop purely for decoration. That animation changes the
+// GROUP's bounding rect every frame, and useTrackedRect below re-measures
+// every frame too -- so pointing at the group made the step-2 spotlight
+// visibly pulse and re-render in lockstep with the glow. `__fill` has
+// fixed geometry regardless of selection, so the spotlight stays calm.
+//
+// On a phone (the `mobile` prop), a step's `mobile` fields override its
+// desktop ones: the layout is different (the tour opens on the Explore
+// view, where the dictionary is collapsed to the word strip -- see
+// PaneLayout), interactions are taps rather than clicks, and every tooltip
+// sits above/below its target since there's no room beside one. Steps
+// marked `mobileOnly` point at phone-only UI.
 const STEPS = [
   {
     target: ".search-bar input",
@@ -16,22 +33,31 @@ const STEPS = [
     placement: "bottom",
   },
   {
-    target: ".graph-node.is-root",
+    target: ".graph-node.is-root .graph-node__fill",
     title: "Your word",
     body: "Every search starts here, at the center. Click any node to see its full entry on the left.",
     placement: "right",
+    mobile: { body: "Every search starts here, at the center. Tap any node to select it." },
   },
   {
-    target: ".graph-node--kanji",
+    target: ".graph-node--kanji .graph-node__fill",
     title: "Its kanji",
     body: "Double-click a kanji node to reveal every other word built from that same kanji.",
     placement: "right",
+    mobile: {
+      body: "Double-tap a kanji node, or press and hold it, to reveal every other word built from that same kanji.",
+    },
   },
   {
     target: ".dictionary-panel",
     title: "Dictionary panel",
     body: "Definitions, readings, and JLPT level for whatever's currently selected on the graph.",
     placement: "right",
+    mobile: {
+      target: ".mobile-strip",
+      title: "The selected word",
+      body: "Whatever you've selected shows up here. Tap it for the full entry (definitions, readings, kanji), then tap Explore at the bottom to come back.",
+    },
   },
   {
     target: ".filters-btn",
@@ -45,7 +71,20 @@ const STEPS = [
     body: "Collapses the graph back down to just your starting word.",
     placement: "bottom",
   },
+  {
+    mobileOnly: true,
+    target: ".mobile-menu__trigger",
+    title: "Menu",
+    body: "Review, bookmarks, groups, the theme, and this tour live here.",
+    placement: "bottom",
+  },
 ];
+
+function stepsFor(mobile) {
+  return STEPS.filter((s) => mobile || !s.mobileOnly).map((s) =>
+    mobile ? { ...s, placement: "bottom", ...s.mobile } : s
+  );
+}
 
 const SPOTLIGHT_PAD = 8;
 const TOOLTIP_WIDTH = 280;
@@ -79,24 +118,29 @@ function useTrackedRect(selector) {
   return rect;
 }
 
+function tooltipWidth() {
+  return Math.min(TOOLTIP_WIDTH, window.innerWidth - VIEWPORT_MARGIN * 2);
+}
+
 function tooltipPosition(rect, placement, tooltipHeight) {
+  const width = tooltipWidth();
   if (!rect) {
-    return { top: window.innerHeight / 2 - tooltipHeight / 2, left: window.innerWidth / 2 - TOOLTIP_WIDTH / 2 };
+    return { top: window.innerHeight / 2 - tooltipHeight / 2, left: window.innerWidth / 2 - width / 2 };
   }
   let top;
   let left;
   if (placement === "right") {
     top = rect.top + rect.height / 2 - tooltipHeight / 2;
     left = rect.right + GAP;
-    if (left + TOOLTIP_WIDTH > window.innerWidth - VIEWPORT_MARGIN) left = rect.left - GAP - TOOLTIP_WIDTH;
+    if (left + width > window.innerWidth - VIEWPORT_MARGIN) left = rect.left - GAP - width;
   } else {
     top = rect.bottom + GAP;
-    left = rect.left + rect.width / 2 - TOOLTIP_WIDTH / 2;
+    left = rect.left + rect.width / 2 - width / 2;
     if (top + tooltipHeight > window.innerHeight - VIEWPORT_MARGIN) top = rect.top - GAP - tooltipHeight;
   }
   top = Math.min(Math.max(top, VIEWPORT_MARGIN), window.innerHeight - tooltipHeight - VIEWPORT_MARGIN);
-  left = Math.min(Math.max(left, VIEWPORT_MARGIN), window.innerWidth - TOOLTIP_WIDTH - VIEWPORT_MARGIN);
-  return { top, left };
+  left = Math.min(Math.max(left, VIEWPORT_MARGIN), window.innerWidth - width - VIEWPORT_MARGIN);
+  return { top, left, width };
 }
 
 /**
@@ -113,15 +157,37 @@ function tooltipPosition(rect, placement, tooltipHeight) {
  * is mounted, so the rest of the app is unfocusable and hidden from
  * assistive tech, not merely visually dimmed and click-blocked.
  */
-export default function Tutorial({ onClose }) {
+export default function Tutorial({ onClose, mobile = false }) {
+  const steps = useMemo(() => stepsFor(mobile), [mobile]);
   const [stepIndex, setStepIndex] = useState(0);
   const [tooltipHeight, setTooltipHeight] = useState(160);
   const dialogRef = useRef(null);
   const previousFocusRef = useRef(null);
 
-  const step = STEPS[stepIndex];
-  const isLast = stepIndex === STEPS.length - 1;
+  // Clamped: crossing the breakpoint mid-tour changes how many steps
+  // there are, and the index must never point past the end.
+  const step = steps[Math.min(stepIndex, steps.length - 1)];
+  const isLast = stepIndex >= steps.length - 1;
   const rect = useTrackedRect(step.target);
+
+  // Mirrors stepIndex, but updated synchronously (not through React's
+  // batched/async commit) so goNext can tell, on every single invocation,
+  // exactly how far the tour has already been advanced -- even when
+  // several Next clicks or ArrowRight keydowns land before React gets a
+  // chance to re-render in between (key-repeat from holding the arrow
+  // down, or just impatient clicking while the tab is busy). Without this,
+  // every one of those rapid-fire calls closes over the SAME stale `isLast
+  // = false` from the render that was current when the burst started, so
+  // none of them ever recognizes it's reached the end -- they all fall
+  // into the `else` branch and keep incrementing, running stepIndex past
+  // STEPS.length - 1 with onClose() never called. The next render then
+  // reads STEPS[stepIndex] as undefined and crashes on `step.target`, and
+  // since nothing here is wrapped in an error boundary, that takes the
+  // entire app down, not just the tour.
+  const stepIndexRef = useRef(stepIndex);
+  useEffect(() => {
+    stepIndexRef.current = stepIndex;
+  }, [stepIndex]);
 
   // Restore focus to whatever launched the tour once it closes -- same
   // "give focus back to the trigger" expectation as any other dialog.
@@ -141,10 +207,19 @@ export default function Tutorial({ onClose }) {
   }, [step]);
 
   const goNext = useCallback(() => {
-    if (isLast) onClose();
-    else setStepIndex((i) => i + 1);
-  }, [isLast, onClose]);
-  const goBack = useCallback(() => setStepIndex((i) => Math.max(0, i - 1)), []);
+    if (stepIndexRef.current >= steps.length - 1) {
+      onClose();
+      return;
+    }
+    stepIndexRef.current += 1;
+    setStepIndex(stepIndexRef.current);
+  }, [onClose, steps.length]);
+  // Kept in step with the ref too, so a Back followed by a fast Next
+  // advances from where Back left it, not from a stale index.
+  const goBack = useCallback(() => {
+    stepIndexRef.current = Math.max(0, Math.min(stepIndexRef.current, steps.length - 1) - 1);
+    setStepIndex(stepIndexRef.current);
+  }, [steps.length]);
 
   // Attached to `document`, not the overlay's own onKeyDown -- the overlay
   // is a full-viewport, background-less click-catcher (it has to be, to
@@ -199,7 +274,7 @@ export default function Tutorial({ onClose }) {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [onClose, goNext, goBack]);
 
-  const { top, left } = tooltipPosition(rect, step.placement, tooltipHeight);
+  const { top, left, width } = tooltipPosition(rect, step.placement, tooltipHeight);
 
   return (
     <div className="tutorial-overlay">
@@ -222,7 +297,7 @@ export default function Tutorial({ onClose }) {
         aria-labelledby="tutorial-title"
         aria-describedby="tutorial-body"
         tabIndex={-1}
-        style={{ top, left, width: TOOLTIP_WIDTH }}
+        style={{ top, left, width }}
       >
         {/* One live region around the step count AND the content that
             changes with it -- an aria-live scoped to just the counter
@@ -230,7 +305,7 @@ export default function Tutorial({ onClose }) {
             step actually says. */}
         <div aria-live="polite">
           <div className="tutorial-card__step">
-            {stepIndex + 1} of {STEPS.length}
+            {Math.min(stepIndex, steps.length - 1) + 1} of {steps.length}
           </div>
           <h3 id="tutorial-title" className="tutorial-card__title">
             {step.title}

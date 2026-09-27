@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import Tutorial from "./Tutorial";
 
@@ -45,5 +45,54 @@ describe("Tutorial", () => {
     const done = screen.getByRole("button", { name: "Done" });
     fireEvent.click(done);
     expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  // Regression test: goNext used to decide "am I on the last step?" from a
+  // plain render-time variable, closed over by the useCallback. Several
+  // Next/ArrowRight events landing back-to-back, before React gets to
+  // re-render in between (exactly what OS key-repeat on a held-down arrow
+  // key produces, and what the earlier stale closure also failed against),
+  // meant every one of those calls saw the SAME stale "not last yet" answer
+  // and kept incrementing stepIndex past STEPS.length - 1 instead of ever
+  // calling onClose -- the next render then read STEPS[stepIndex] as
+  // undefined and crashed the whole app. `fireEvent` alone can't reproduce
+  // this: it wraps each call in its own `act()`, so React fully commits
+  // between clicks and the race never has a chance to occur. Dispatching
+  // the raw DOM clicks inside one shared `act()` block instead defers every
+  // resulting state update to a single flush at the end, exactly like a
+  // real burst of native events arriving before a render -- STEPS has only
+  // 6 entries, so 10 clicks in that one flush is guaranteed to overrun it.
+  it("survives more Next clicks than there are steps, fired in one burst, without crashing", () => {
+    const onClose = vi.fn();
+    render(<Tutorial onClose={onClose} />);
+    const button = screen.getByRole("button", { name: "Next" });
+    expect(() => {
+      act(() => {
+        for (let i = 0; i < 10; i++) button.click();
+      });
+    }).not.toThrow();
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("on a phone, speaks in taps, points at the word strip, and adds the menu step", () => {
+    render(<Tutorial mobile onClose={vi.fn()} />);
+    const next = () => fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    expect(screen.getByText("1 of 7")).toBeInTheDocument();
+    next();
+    expect(screen.getByText(/Tap any node/)).toBeInTheDocument();
+    next();
+    expect(screen.getByText(/press and hold/)).toBeInTheDocument();
+    next();
+    expect(screen.getByRole("heading", { name: "The selected word" })).toBeInTheDocument();
+    next();
+    next();
+    next();
+    expect(screen.getByRole("heading", { name: "Menu" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Done" })).toBeInTheDocument();
+  });
+
+  it("on desktop, has no phone-only steps", () => {
+    render(<Tutorial onClose={vi.fn()} />);
+    expect(screen.getByText("1 of 6")).toBeInTheDocument();
   });
 });
