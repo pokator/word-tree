@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useClickOutside } from "../lib/useClickOutside";
-import { BookmarkIcon, MenuIcon, MoonIcon, ReviewIcon, SunIcon, TutorialIcon } from "./icons";
+import { BookmarkIcon, MenuIcon, MoonIcon, SunIcon, TutorialIcon } from "./icons";
 
 /**
  * The mobile header's single ☰ entry point for everything the desktop
@@ -12,8 +12,6 @@ import { BookmarkIcon, MenuIcon, MoonIcon, ReviewIcon, SunIcon, TutorialIcon } f
  * arrow-key roving focus this doesn't need.
  */
 export default function MobileMenu({
-  reviewCount,
-  onReview,
   savedCount,
   onOpenSaved,
   onTutorial,
@@ -46,14 +44,6 @@ export default function MobileMenu({
       </button>
       {isOpen && (
         <div className="mobile-menu__sheet" id="mobile-menu-sheet">
-          {/* Only while Anki is connected -- reviews happen there. */}
-          {onReview && (
-            <button type="button" className="mobile-menu__item" onClick={act(onReview)}>
-              <ReviewIcon />
-              <span className="mobile-menu__label">Review in Anki</span>
-              {reviewCount > 0 && <span className="mobile-menu__count">{reviewCount}</span>}
-            </button>
-          )}
           <button type="button" className="mobile-menu__item" onClick={act(onOpenSaved)}>
             <BookmarkIcon />
             <span className="mobile-menu__label">Bookmarks</span>

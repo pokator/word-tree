@@ -419,20 +419,19 @@ export default function App() {
   }, [hoverRelated, selectedId]);
 
 
-  // Every word currently on the graph -- Anki sync pulls status for these
-  // (as well as for bookmarks), so the graph shows what you already know.
-  const graphWords = useMemo(() => {
-    if (!graph) return [];
-    const words = [];
-    for (const n of graph.nodes.values()) if (n.type === "word") words.push(n.word);
-    return words;
-  }, [graph]);
   const userTagsFor = useCallback(
     (word) => groupsApi.groupsForWord(word).map((g) => g.name),
     [groupsApi]
   );
   const statusFor = useCallback((word) => getStatus("word", word), [getStatus]);
-  const anki = useAnkiSync({ dataset, bookmarks: saved.words, userTagsFor, graphWords, statusFor, applyStatuses });
+  const anki = useAnkiSync({
+    dataset,
+    bookmarks: saved.words,
+    bookmarksLoading: saved.loading,
+    userTagsFor,
+    statusFor,
+    applyStatuses,
+  });
   const ankiConnected = anki.state === "connected";
 
   const stats = useMemo(() => {
@@ -518,8 +517,6 @@ export default function App() {
         <SearchBar words={dataset.WORDS} onSelectWord={handleSelectWord} recents={recents} wordsByText={dataset.WORDS_BY_TEXT} />
         {!isDesktop ? (
           <MobileMenu
-            reviewCount={anki.due}
-            onReview={ankiConnected ? anki.review : null}
             savedCount={saved.words.length}
             onOpenSaved={() => setActiveSidebar("saved")}
             onTutorial={handleStartTutorial}
@@ -529,14 +526,6 @@ export default function App() {
           />
         ) : (
           <div className="app__controls">
-            {/* Reviews happen in Anki, Moto's only scheduler -- this just
-                opens its reviewer on the Moto deck, so it's only here
-                while Anki is connected. */}
-            {ankiConnected && (
-              <button className="reset-btn" onClick={anki.review} title="Open your Moto deck's review in Anki">
-                Review in Anki{anki.due ? ` (${anki.due} due)` : ""}
-              </button>
-            )}
             <div className="icon-toolbar">
               <button
                 type="button"

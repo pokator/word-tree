@@ -10,6 +10,7 @@ const DATASET = {
   WORDS_BY_TEXT: {
     日本語: { word: "日本語", reading: "にほんご", meaning: "Japanese language" },
     日本: { word: "日本", reading: "にほん", meaning: "Japan" },
+    本当: { word: "本当", reading: "ほんとう", meaning: "truth" },
   },
   KANJI: { 日: { char: "日", meaning: "day", jlpt: 5 }, 本: { char: "本", meaning: "book", jlpt: 5 }, 語: { char: "語", meaning: "word", jlpt: 5 } },
 };
@@ -19,9 +20,11 @@ function setup(props = {}) {
   const hook = renderHook((p) => useAnkiSync(p), {
     initialProps: {
       dataset: DATASET,
-      bookmarks: [{ item_id: "日本語", found_from: "日本語" }],
+      bookmarks: [
+        { item_id: "日本語", found_from: "日本語" },
+        { item_id: "日本", found_from: "日本語" },
+      ],
       userTagsFor: () => [],
-      graphWords: ["日本語", "日本"],
       applyStatuses,
       ...props,
     },
@@ -53,13 +56,14 @@ describe("useAnkiSync", () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it("on connect, pushes bookmarks as cards and pulls statuses for bookmarks and graph words", async () => {
+  it("on connect, pulls bookmarks' statuses and pushes the rest as cards", async () => {
     const { result, applyStatuses } = setup();
-    act(() => result.current.connect());
+    await act(() => result.current.connect());
     await waitFor(() => expect(result.current.lastSynced).not.toBeNull(), { timeout: 3000 });
 
     expect(result.current.state).toBe("connected");
     const moto = anki.state.notes.filter((n) => n.modelName === MODEL_NAME);
+    // 日本 is already studied in the user's own deck: no duplicate card.
     expect(moto.map((n) => [n.fields.Word, n.deck])).toEqual([["日本語", DECK_NAME]]);
     // Status is read before cards are added: 日本 is mature in the user's
     // own deck; 日本語's brand-new card shows up on the next sync.
@@ -70,7 +74,31 @@ describe("useAnkiSync", () => {
   it("reports Anki as unreachable when it isn't running, without throwing", async () => {
     vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new TypeError("Failed to fetch"))));
     const { result } = setup();
-    act(() => result.current.connect());
+    await act(() => result.current.connect());
     await waitFor(() => expect(result.current.state).toBe("unreachable"));
+  });
+
+  it("on page load, only probes Anki -- no sync until the bookmarks change", async () => {
+    localStorage.setItem("word-tree:anki-enabled", "true");
+    const { result, rerender } = setup();
+    await waitFor(() => expect(result.current.state).toBe("connected"));
+    await act(() => new Promise((r) => setTimeout(r, 1200)));
+    const actions = fetchSpy.mock.calls.map(([, init]) => JSON.parse(init.body).action);
+    expect(actions).toEqual(["version"]);
+    expect(anki.state.notes.filter((n) => n.modelName === MODEL_NAME)).toHaveLength(0);
+
+    // Bookmarking a word is what sends it.
+    rerender({
+      dataset: DATASET,
+      bookmarks: [
+        { item_id: "日本語", found_from: "日本語" },
+        { item_id: "日本", found_from: "日本語" },
+        { item_id: "本当", found_from: "日本語" },
+      ],
+      userTagsFor: () => [],
+      applyStatuses: vi.fn(),
+    });
+    await waitFor(() => expect(result.current.lastSynced).not.toBeNull(), { timeout: 3000 });
+    expect(anki.state.notes.filter((n) => n.modelName === MODEL_NAME).map((n) => n.fields.Word)).toContain("日本語");
   });
 });

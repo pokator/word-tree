@@ -80,7 +80,7 @@ const STEPS = [
     touchOnly: true,
     target: ".mobile-menu__trigger",
     title: "Menu",
-    body: "Bookmarks, Review in Anki, the theme, and this tour live here.",
+    body: "Bookmarks, the theme, and this tour live here.",
     placement: "bottom",
   },
 ];

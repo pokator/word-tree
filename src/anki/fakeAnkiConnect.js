@@ -58,6 +58,11 @@ export function createFakeAnki({ models = {}, decks = [], notes = [] } = {}) {
   // Supports `A OR B OR ...` of single terms, or space-separated AND terms.
   function search(query) {
     const orParts = query.split(/\s+OR\s+/);
+    // Real Anki compiles OR-chains into nested SQL; SQLite gives up past
+    // depth 1000.
+    if (orParts.length >= 1000) {
+      throw new Error('DbError { info: "Expression tree is too large (maximum depth 1000)" }');
+    }
     return allCards().filter(({ note, card }) =>
       orParts.some((part) => {
         const unwrapped = part.trim().startsWith('"') ? [unquote(part)] : part.trim().split(/\s+(?=(?:[^"]*"[^"]*")*[^"]*$)/);

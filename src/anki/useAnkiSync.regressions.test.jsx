@@ -57,7 +57,7 @@ describe("useAnkiSync (review regressions)", () => {
       { wrapper: AuthProvider }
     );
     act(() => result.current.progress.setStatus("word", "日本語", "known"));
-    act(() => result.current.sync.connect());
+    await act(() => result.current.sync.connect());
     await waitFor(() => expect(result.current.sync.lastSynced).not.toBeNull(), { timeout: 3000 });
     expect(result.current.progress.getStatus("word", "日本語")).toBe("known");
     expect(motoWords()).toEqual([]); // no study card for a word you already know
@@ -68,7 +68,7 @@ describe("useAnkiSync (review regressions)", () => {
     const { result, rerender } = renderHook((p) => useAnkiSync(p), {
       initialProps: { dataset: DATASET, bookmarks: [{ item_id: "日本語" }], userTagsFor: () => [], graphWords: [], applyStatuses: vi.fn() },
     });
-    act(() => result.current.connect());
+    await act(() => result.current.connect());
     await waitFor(() => expect(result.current.syncing).toBe(true), { timeout: 3000 });
     rerender({
       dataset: DATASET,
@@ -85,7 +85,7 @@ describe("useAnkiSync (review regressions)", () => {
     const { result } = renderHook(() =>
       useAnkiSync({ dataset: DATASET, bookmarks: [{ item_id: "日本語" }], userTagsFor: () => [], graphWords: [], applyStatuses: vi.fn() })
     );
-    act(() => result.current.connect());
+    await act(() => result.current.connect());
     await waitFor(() => expect(result.current.syncing).toBe(true), { timeout: 3000 });
     act(() => result.current.disconnect());
     const callsAtDisconnect = actions.length;
@@ -104,7 +104,7 @@ describe("useAnkiSync (review regressions)", () => {
     const { result, rerender } = renderHook(() =>
       useAnkiSync({ dataset: DATASET, bookmarks: [{ item_id: "日本語" }], userTagsFor: () => tags, graphWords: [], applyStatuses: vi.fn() })
     );
-    act(() => result.current.connect());
+    await act(() => result.current.connect());
     await synced(result);
     tags = ["verbs"];
     rerender();
@@ -119,7 +119,7 @@ describe("useAnkiSync (review regressions)", () => {
     const { result } = renderHook(() =>
       useAnkiSync({ dataset: DATASET, bookmarks: [{ item_id: "日本語" }], userTagsFor: () => [], graphWords: [], applyStatuses: vi.fn() })
     );
-    act(() => result.current.connect());
+    await act(() => result.current.connect());
     await synced(result);
     await act(() => new Promise((r) => setTimeout(r, 1200)));
     expect(actions.filter((a) => a === "getDeckStats")).toHaveLength(1);
@@ -130,7 +130,7 @@ describe("useAnkiSync (review regressions)", () => {
     const { result } = renderHook(() =>
       useAnkiSync({ dataset: DATASET, bookmarks: [], userTagsFor: () => [], graphWords: [], applyStatuses: vi.fn() })
     );
-    act(() => result.current.connect());
+    await act(() => result.current.connect());
     await synced(result);
     await act(() => result.current.browse('"tag:moto"'));
     expect(result.current.state).toBe("connected");

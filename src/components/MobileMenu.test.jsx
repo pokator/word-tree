@@ -5,8 +5,6 @@ import MobileMenu from "./MobileMenu";
 
 function setup(overrides = {}) {
   const props = {
-    reviewCount: 3,
-    onReview: vi.fn(),
     savedCount: 2,
     onOpenSaved: vi.fn(),
     groupsCount: 0,

@@ -32,15 +32,6 @@ export function BookmarkIcon() {
   );
 }
 
-export function ReviewIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
-      <rect x="4" y="6" width="13" height="14" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.7" />
-      <path d="M8 3.5h10.5A1.5 1.5 0 0 1 20 5v12.5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-    </svg>
-  );
-}
-
 export function MenuIcon() {
   return (
     <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">

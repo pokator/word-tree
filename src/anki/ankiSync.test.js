@@ -165,6 +165,14 @@ describe("pullStatuses", () => {
     expect(cardsInfoCalls).toBe(1);
   });
 
+  it("stays under Anki's search-depth limit with many words and note types", async () => {
+    const models = Object.fromEntries(Array.from({ length: 40 }, (_, i) => [`Type${i}`, [`Field${i}`, "Back"]]));
+    install({ models, notes: [{ modelName: "Type7", deck: "D", fields: { Field7: "日本語" }, cards: [{ interval: 30, type: 2, queue: 2 }] }] });
+    const words = ["日本語", ...Array.from({ length: 60 }, (_, i) => `語${i}`)];
+    const { statuses } = await pullStatuses(words);
+    expect(statuses.get("日本語")).toBe("known");
+  });
+
   it("counts cards Anki would show today, new ones included", async () => {
     install({
       notes: [{ modelName: "Basic", deck: DECK_NAME, fields: { Front: "a" }, cards: [{ interval: 0, type: 0, queue: 0 }] }],

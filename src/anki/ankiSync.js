@@ -20,6 +20,7 @@ export const KNOWN_INTERVAL_DAYS = 21;
 // few terms per note type).
 const QUERY_CHUNK = 25;
 const NOTE_CHUNK = 200;
+const MAX_TERMS_PER_SEARCH = 100;
 
 const FIELDS = ["Word", "Reading", "Meaning", "Kanji"];
 
@@ -262,7 +263,15 @@ export async function pullStatuses(words) {
         terms.push(`${field}:${e}`, `${field}:*>${e}<*`, `${field}:${e}[*`, `${field}:${e}&nbsp;*`, `${field}:*&nbsp;${e}`);
       }
     }
-    const noteIds = await invoke("findNotes", { query: terms.map((t) => `"${t}"`).join(" OR ") });
+    // Anki turns an OR-chain into a nested SQL expression, and SQLite
+    // refuses one past ~1000 levels deep ("Expression tree is too large")
+    // -- every word adds several terms per note type, so a big collection
+    // with many note types hits that fast. Cap each search's size instead.
+    const found = new Set();
+    for (const group of chunks(terms, MAX_TERMS_PER_SEARCH)) {
+      for (const id of await invoke("findNotes", { query: group.map((t) => `"${t}"`).join(" OR ") })) found.add(id);
+    }
+    const noteIds = [...found];
     if (noteIds.length === 0) continue;
 
     const wanted = new Set(chunk);
