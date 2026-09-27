@@ -24,11 +24,18 @@ function firstGloss(node) {
   return node.senses?.[0]?.gloss?.join("; ") ?? node.meaning?.split(";")[0] ?? "";
 }
 
-function Chevron({ up }) {
+const CHEVRON_PATHS = {
+  up: "M5 12.5l5-5 5 5",
+  down: "M5 7.5l5 5 5-5",
+  right: "M7.5 5l5 5-5 5",
+  left: "M12.5 5l-5 5 5 5",
+};
+
+function Chevron({ dir }) {
   return (
     <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" className="mobile-toggle__chevron">
       <path
-        d={up ? "M5 12.5l5-5 5 5" : "M5 7.5l5 5 5-5"}
+        d={CHEVRON_PATHS[dir]}
         fill="none"
         stroke="currentColor"
         strokeWidth="1.8"
@@ -40,28 +47,35 @@ function Chevron({ up }) {
 }
 
 /**
- * The main two-pane layout, in both of its shapes:
+ * The main two-pane layout, in each of its shapes (`mode`, see
+ * lib/useLayoutMode.js):
  *
- *  - Desktop: side by side, with a drag-to-resize handle between them (like
- *    a code editor's sidebar splitter) -- hand-rolled with pointer events,
- *    the same pattern WordTreeGraph uses for node dragging. The ratio
- *    persists per `storageKey`; double-click the handle to reset it.
- *  - Phone (`mobile`): stacked, exactly one pane expanded at a time. The
- *    collapsed pane shrinks to a single bar that is also its own toggle --
- *    the definition strip (just the active word) at the bottom of its
- *    section, the Explore bar at the top of its section (pinned to the
- *    bottom of the screen) -- so there's one control on the boundary
- *    between them, not two that do the same thing.
+ *  - "desktop": side by side, with a drag-to-resize handle between them
+ *    (like a code editor's sidebar splitter) -- hand-rolled with pointer
+ *    events, the same pattern WordTreeGraph uses for node dragging. The
+ *    ratio persists per `storageKey`; double-click the handle to reset it.
+ *  - "tablet": the same splitter turned on its side -- definition on top,
+ *    graph below, both always visible, divider dragged vertically.
+ *  - "phone": stacked, exactly one pane expanded at a time. The collapsed
+ *    pane shrinks to a single bar that is also its own toggle -- the
+ *    definition strip (just the active word) at the bottom of its section,
+ *    the Explore bar at the top of its section (pinned to the bottom of the
+ *    screen) -- so there's one control on the boundary between them, not
+ *    two that do the same thing.
+ *  - "rail": short landscape screens. The definition lives in a left rail
+ *    under the header (App.css lays header + panes out as one grid), and
+ *    the graph takes the full height beside it. Same two views as the
+ *    phone, sideways: collapsed, the rail shows just the active word;
+ *    expanded, it widens to hold the full entry, graph still visible.
  *
- * One component for both, deliberately: the right pane (the graph) sits at
- * the same place in the element tree in either shape, so crossing the
- * breakpoint (resizing a window, rotating a tablet) keeps it mounted --
- * node positions, zoom, and dragged-apart links survive -- and it stays
- * mounted while collapsed on a phone (hidden, not removed) for the same
- * reason.
+ * One component for all of them, deliberately: the right pane (the graph)
+ * sits at the same place in the element tree in every shape, so switching
+ * shapes (resizing a window, rotating a device) keeps it mounted -- node
+ * positions, zoom, and dragged-apart links survive -- and it stays mounted
+ * while collapsed on a phone (hidden, not removed) for the same reason.
  */
 export default function PaneLayout({
-  mobile,
+  mode,
   view,
   onChangeView,
   node,
@@ -73,73 +87,88 @@ export default function PaneLayout({
   right,
 }) {
   const containerRef = useRef(null);
-  const [pct, setPct] = useState(() => loadPct(storageKey, defaultPct));
-  const [isDragging, setIsDragging] = useState(false);
+  const vertical = mode === "tablet";
+  const split = mode === "desktop" || vertical;
+  const toggled = mode === "phone" || mode === "rail";
   const isExplore = view === "explore";
+
+  // A comfortable width split and a comfortable height split aren't the
+  // same number, so each orientation keeps its own saved ratio.
+  const splitKey = vertical ? `${storageKey}-vertical` : storageKey;
+  const [pctByKey, setPctByKey] = useState(() => ({
+    [storageKey]: loadPct(storageKey, defaultPct),
+    [`${storageKey}-vertical`]: loadPct(`${storageKey}-vertical`, defaultPct),
+  }));
+  const pct = pctByKey[splitKey];
+  const [isDragging, setIsDragging] = useState(false);
 
   const handlePointerDown = useCallback(
     (e) => {
       e.preventDefault();
       setIsDragging(true);
+      let latest = null;
 
       function onMove(ev) {
         const rect = containerRef.current.getBoundingClientRect();
-        const nextPct = ((ev.clientX - rect.left) / rect.width) * 100;
-        setPct(Math.min(max, Math.max(min, nextPct)));
+        const raw = vertical
+          ? ((ev.clientY - rect.top) / rect.height) * 100
+          : ((ev.clientX - rect.left) / rect.width) * 100;
+        latest = Math.min(max, Math.max(min, raw));
+        setPctByKey((prev) => ({ ...prev, [splitKey]: latest }));
       }
       function onUp() {
         window.removeEventListener("pointermove", onMove);
         window.removeEventListener("pointerup", onUp);
         setIsDragging(false);
-        setPct((current) => {
-          savePct(storageKey, current);
-          return current;
-        });
+        if (latest !== null) savePct(splitKey, latest);
       }
       window.addEventListener("pointermove", onMove);
       window.addEventListener("pointerup", onUp);
     },
-    [min, max, storageKey]
+    [min, max, splitKey, vertical]
   );
 
   const handleDoubleClick = useCallback(() => {
-    setPct(defaultPct);
-    savePct(storageKey, defaultPct);
-  }, [defaultPct, storageKey]);
+    setPctByKey((prev) => ({ ...prev, [splitKey]: defaultPct }));
+    savePct(splitKey, defaultPct);
+  }, [defaultPct, splitKey]);
 
-  // On a phone, the toggle you just pressed unmounts as the view flips,
-  // which would drop keyboard/screen-reader focus to <body> -- hand it to
-  // the pane that just expanded instead. Skipped on first render and on
-  // breakpoint crossings (nothing was pressed).
+  // In the toggled shapes, the toggle you just pressed unmounts as the view
+  // flips, which would drop keyboard/screen-reader focus to <body> -- hand
+  // it to the pane that just expanded instead. Skipped on first render and
+  // on shape changes (nothing was pressed).
   const leftBodyRef = useRef(null);
   const rightBodyRef = useRef(null);
   const prevViewRef = useRef(view);
   useEffect(() => {
     if (prevViewRef.current === view) return;
     prevViewRef.current = view;
-    if (mobile) (isExplore ? rightBodyRef : leftBodyRef).current?.focus({ preventScroll: true });
-  }, [view, isExplore, mobile]);
+    if (toggled) (isExplore ? rightBodyRef : leftBodyRef).current?.focus({ preventScroll: true });
+  }, [view, isExplore, toggled]);
 
   const headword = node ? (node.type === "kanji" ? node.char : node.word) : null;
   const reading = node?.type === "word" ? node.reading : (node?.onyomi?.[0] ?? node?.kunyomi?.[0]);
   const gloss = firstGloss(node);
-  const showStrip = mobile && isExplore;
-  const showExploreBar = mobile && !isExplore;
+  const showStrip = toggled && isExplore;
+  // Only the phone hides the graph -- the rail has room for both.
+  const showExploreBar = mode === "phone" && !isExplore;
+  const prefix = mode === "rail" ? "rail-layout" : "mobile-layout";
 
-  // Every slot below renders in both shapes (null where unused) so the
+  const containerClass = split
+    ? `split-pane${vertical ? " split-pane--vertical" : ""}${isDragging ? " is-dragging" : ""}`
+    : `${prefix} ${prefix}--${view}`;
+  let leftStyle;
+  if (split) leftStyle = vertical ? { height: `${pct}%` } : { width: `${pct}%` };
+
+  // Every slot below renders in every shape (null where unused) so the
   // right pane's position in the tree never shifts -- see the doc comment.
   return (
-    <div
-      ref={containerRef}
-      className={
-        mobile ? `mobile-layout mobile-layout--${view}` : `split-pane${isDragging ? " is-dragging" : ""}`
-      }
-    >
+    <div ref={containerRef} className={containerClass}>
       <div
-        className={mobile ? "mobile-layout__definitions" : "split-pane__left"}
-        style={mobile ? undefined : { width: `${pct}%` }}
-        role={mobile ? "region" : undefined}
-        aria-label={mobile ? "Definition" : undefined}
+        className={split ? "split-pane__left" : `${prefix}__definitions`}
+        style={leftStyle}
+        role={toggled ? "region" : undefined}
+        aria-label={toggled ? "Definition" : undefined}
       >
         {showStrip ? (
           <button
@@ -154,37 +183,43 @@ export default function PaneLayout({
             {reading && <span className="mobile-strip__reading">{reading}</span>}
             {gloss && <span className="mobile-strip__gloss">{gloss}</span>}
             <span className="mobile-toggle mobile-toggle--bottom">
-              <Chevron />
+              <Chevron dir={mode === "rail" ? "right" : "down"} />
             </span>
           </button>
         ) : (
           <div
-            className={mobile ? "mobile-layout__definitions-body" : "split-pane__left-body"}
+            className={split ? "split-pane__left-body" : `${prefix}__definitions-body`}
             id="pane-definitions"
             ref={leftBodyRef}
-            tabIndex={mobile ? -1 : undefined}
+            tabIndex={toggled ? -1 : undefined}
           >
+            {mode === "rail" && (
+              <button type="button" className="rail-collapse" onClick={() => onChangeView("explore")}>
+                <Chevron dir="left" />
+                Hide details
+              </button>
+            )}
             {left}
           </div>
         )}
       </div>
 
-      {mobile ? null : (
+      {split ? (
         <div
           className="split-pane__handle"
           onPointerDown={handlePointerDown}
           onDoubleClick={handleDoubleClick}
           role="separator"
-          aria-orientation="vertical"
+          aria-orientation={vertical ? "horizontal" : "vertical"}
           aria-label="Resize panels"
           title="Drag to resize -- double-click to reset"
         />
-      )}
+      ) : null}
 
       <div
-        className={mobile ? "mobile-layout__explore" : "split-pane__right"}
-        role={mobile ? "region" : undefined}
-        aria-label={mobile ? "Explore" : undefined}
+        className={split ? "split-pane__right" : `${prefix}__explore`}
+        role={toggled ? "region" : undefined}
+        aria-label={toggled ? "Explore" : undefined}
       >
         {showExploreBar ? (
           <button
@@ -195,16 +230,16 @@ export default function PaneLayout({
             aria-controls="pane-explore"
           >
             <span className="mobile-toggle mobile-toggle--top">
-              <Chevron up />
+              <Chevron dir="up" />
             </span>
             <span className="mobile-explore-bar__label">Explore</span>
           </button>
         ) : null}
         <div
-          className={mobile ? "mobile-layout__explore-body" : "split-pane__right-body"}
+          className={split ? "split-pane__right-body" : `${prefix}__explore-body`}
           id="pane-explore"
           ref={rightBodyRef}
-          tabIndex={mobile ? -1 : undefined}
+          tabIndex={toggled ? -1 : undefined}
           hidden={showExploreBar}
         >
           {right}

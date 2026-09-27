@@ -2520,19 +2520,13 @@ button.legend__row.is-inactive:hover {
   background: var(--jlpt-unrated);
 }
 
-@media (max-width: 900px) {
-  .dictionary-panel {
-    padding: 20px 16px 28px;
-  }
-  .dictionary-panel__headword {
-    font-size: 40px;
-  }
-}
 
 /* ---------------------------------------------------------------------
-   Mobile shell (≤900px, see lib/useIsMobile.js's MOBILE_QUERY -- keep the
-   two in step). App renders a different header and main layout below this
-   breakpoint; these rules style that structure.
+   Touch layouts. App sets data-layout on .app from lib/useLayoutMode.js
+   ("phone" | "rail" | "tablet" | "desktop"), and every layout-specific rule
+   below keys off that attribute rather than its own media query -- so the
+   structure App/PaneLayout render and the styles applied to it can never
+   disagree about which layout is active.
    --------------------------------------------------------------------- */
 
 .mobile-menu {
@@ -2619,50 +2613,6 @@ button.legend__row.is-inactive:hover {
   color: var(--text);
 }
 
-@media (max-width: 900px) {
-  .app {
-    /* Shared by the header's own height and everything positioned just
-       below it (search results, the Filters sheet), instead of each
-       hard-coding the same number. */
-    --mobile-header-h: 53px;
-  }
-  .app__header {
-    flex-wrap: nowrap;
-    gap: 8px;
-    box-sizing: border-box;
-    height: var(--mobile-header-h);
-    padding: 6px 12px;
-  }
-  .app__title h1 {
-    gap: 0;
-  }
-  .app__logo {
-    height: 26px;
-    width: 26px;
-  }
-  /* The wordmark stays in the accessibility tree (the h1 is still named
-     "Moto") -- only its visual footprint goes, leaving the mark alone. */
-  .app__title-text {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-  .search-bar {
-    min-width: 0;
-  }
-  /* 16px, not the desktop 15px: iOS Safari zooms the whole page in on
-     focus for any input under 16px, which then has to be pinched back out. */
-  .search-bar input {
-    font-size: 16px;
-    padding: 8px 40px 8px 12px;
-  }
-  .app__credit {
-    display: none;
-  }
-}
 
 .mobile-menu__credit {
   margin-top: 4px;
@@ -2806,77 +2756,10 @@ button.legend__row.is-inactive:hover {
   letter-spacing: 0.04em;
 }
 
-@media (max-width: 900px) {
-  .app {
-    overflow: hidden;
-  }
-  /* Bookmarks/Groups take over the whole screen (header included -- they
-     carry their own close button) instead of docking beside a graph that
-     has no width to give up. */
-  .side-panel {
-    position: fixed;
-    inset: 0;
-    width: 100%;
-    z-index: 40;
-    border-left: none;
-    padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px)
-      env(safe-area-inset-left, 0px);
-  }
-  /* Anchored under its toolbar button, the Filters popover started ~200px
-     down and ran off the bottom of a phone screen. As a sheet under the
-     header it always fits, scrolling inside itself if it has to. */
-  .filters-panel {
-    position: fixed;
-    top: calc(var(--mobile-header-h) + env(safe-area-inset-top, 0px) + 8px);
-    left: 8px;
-    right: 8px;
-    width: auto;
-    max-height: calc(100svh - var(--mobile-header-h) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 16px);
-  }
-  .graph-panel__toolbar {
-    padding: 6px 12px;
-  }
-  .graph-panel__footer {
-    padding: 4px 12px;
-  }
-}
 
 /* Search results on a phone: a full-width sheet under the header rather
    than a dropdown the width of the (narrow) search field, with the meaning
    on its own line so long entries truncate instead of scrolling sideways. */
-@media (max-width: 900px) {
-  .search-results {
-    position: fixed;
-    top: calc(var(--mobile-header-h) + env(safe-area-inset-top, 0px) + 3px);
-    left: 8px;
-    right: 8px;
-    max-height: min(60svh, 440px);
-    overflow-x: hidden;
-    z-index: 30;
-  }
-  .search-results li {
-    flex-wrap: wrap;
-    row-gap: 2px;
-    min-height: 44px;
-    align-content: center;
-  }
-  .search-results__word,
-  .search-results__reading {
-    flex-shrink: 1;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .search-results__meaning {
-    flex-basis: 100%;
-    min-width: 0;
-    margin-left: 0;
-    text-align: left;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-}
 
 /* viewport-fit=cover (index.html) lets the page draw under a notch/home
    indicator so the Explore bar and side panel can extend there; everything
@@ -2884,15 +2767,6 @@ button.legend__row.is-inactive:hover {
 .app {
   box-sizing: border-box;
   padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) 0 env(safe-area-inset-left, 0px);
-}
-@media (max-width: 900px) {
-  .mobile-layout--explore .graph-panel__footer {
-    padding-bottom: calc(4px + env(safe-area-inset-bottom, 0px));
-  }
-  .search-results {
-    left: calc(8px + env(safe-area-inset-left, 0px));
-    right: calc(8px + env(safe-area-inset-right, 0px));
-  }
 }
 /* Focus lands here programmatically when a view flips (see MobileLayout);
    the section itself isn't a control, so it shows no ring. */
@@ -2925,4 +2799,339 @@ button.legend__row.is-inactive:hover {
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------------
+   Per-layout rules (see lib/useLayoutMode.js)
+   --------------------------------------------------------------------- */
+
+/* Every touch layout: compact header with the ☰ menu (MobileMenu), and
+   the page itself never scrolls. */
+.app:not([data-layout="desktop"]) {
+  /* Shared by the header's own height and everything positioned just
+     below it (search results, the Filters sheet). */
+  --mobile-header-h: 53px;
+  overflow: hidden;
+}
+.app:not([data-layout="desktop"]) .app__header {
+  flex-wrap: nowrap;
+  gap: 8px;
+  box-sizing: border-box;
+  height: var(--mobile-header-h);
+  padding: 6px 12px;
+}
+.app:not([data-layout="desktop"]) .search-bar {
+  min-width: 0;
+}
+/* 16px, not the desktop 15px: iOS Safari zooms the whole page in on focus
+   for any input under 16px, which then has to be pinched back out. */
+.app:not([data-layout="desktop"]) .search-bar input {
+  font-size: 16px;
+  padding: 8px 40px 8px 12px;
+}
+/* The credit lives in the ☰ menu instead of a fixed corner over the graph. */
+.app:not([data-layout="desktop"]) .app__credit {
+  display: none;
+}
+
+/* Phone + rail: the logo mark alone. The wordmark stays in the
+   accessibility tree (the h1 is still named "Moto"). */
+.app:is([data-layout="phone"], [data-layout="rail"]) .app__title h1 {
+  gap: 0;
+}
+.app:is([data-layout="phone"], [data-layout="rail"]) .app__logo {
+  height: 26px;
+  width: 26px;
+}
+.app:is([data-layout="phone"], [data-layout="rail"]) .app__title-text {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.app:is([data-layout="phone"], [data-layout="rail"]) .dictionary-panel {
+  padding: 20px 16px 28px;
+}
+.app:is([data-layout="phone"], [data-layout="rail"]) .dictionary-panel__headword {
+  font-size: 40px;
+}
+/* Bookmarks/Groups take over the whole screen (header included -- they
+   carry their own close button) instead of docking beside a graph that
+   has no room to give up. */
+.app:is([data-layout="phone"], [data-layout="rail"]) .side-panel {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  z-index: 40;
+  border-left: none;
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px)
+    env(safe-area-inset-left, 0px);
+}
+/* Search results as a sheet rather than a dropdown the width of the
+   (narrow) search field, with each meaning on its own line so long entries
+   truncate instead of scrolling sideways. */
+.app:is([data-layout="phone"], [data-layout="rail"]) .search-results {
+  position: fixed;
+  top: calc(var(--mobile-header-h) + env(safe-area-inset-top, 0px) + 3px);
+  left: calc(8px + env(safe-area-inset-left, 0px));
+  right: calc(8px + env(safe-area-inset-right, 0px));
+  max-height: min(60svh, 440px);
+  overflow-x: hidden;
+  z-index: 30;
+}
+.app:is([data-layout="phone"], [data-layout="rail"]) .search-results li {
+  flex-wrap: wrap;
+  row-gap: 2px;
+  min-height: 44px;
+  align-content: center;
+}
+.app:is([data-layout="phone"], [data-layout="rail"]) .search-results__word,
+.app:is([data-layout="phone"], [data-layout="rail"]) .search-results__reading {
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.app:is([data-layout="phone"], [data-layout="rail"]) .search-results__meaning {
+  flex-basis: 100%;
+  min-width: 0;
+  margin-left: 0;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Phone only. */
+/* Anchored under its toolbar button, the Filters popover started ~200px
+   down and ran off the bottom of the screen. As a sheet under the header
+   it always fits, scrolling inside itself if it has to. */
+.app[data-layout="phone"] .filters-panel {
+  position: fixed;
+  top: calc(var(--mobile-header-h) + env(safe-area-inset-top, 0px) + 8px);
+  left: 8px;
+  right: 8px;
+  width: auto;
+  max-height: calc(
+    100svh - var(--mobile-header-h) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 16px
+  );
+}
+.app[data-layout="phone"] .graph-panel__toolbar {
+  padding: 6px 12px;
+}
+.app[data-layout="phone"] .graph-panel__footer {
+  padding: 4px 12px;
+}
+.app[data-layout="phone"] .mobile-layout--explore .graph-panel__footer {
+  padding-bottom: calc(4px + env(safe-area-inset-bottom, 0px));
+}
+
+/* Rail (short landscape): header and definition share a left column, and
+   the graph takes the full height beside them. .app becomes the grid;
+   main and the pane container step aside (display: contents) so the
+   header and both panes are its direct grid items. */
+.app[data-layout="rail"] {
+  --rail-w: 272px;
+  display: grid;
+  grid-template-columns: var(--rail-w) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas:
+    "header graph"
+    "defs graph";
+}
+/* Expanded, the rail widens to hold the full entry; the graph stays
+   visible beside it rather than being collapsed like on a phone. */
+.app[data-layout="rail"][data-view="definitions"] {
+  --rail-w: min(50vw, 460px);
+}
+.app[data-layout="rail"] .app__header {
+  grid-area: header;
+  border-right: 1px solid var(--border);
+}
+.app[data-layout="rail"] .app__main,
+.app[data-layout="rail"] .rail-layout {
+  display: contents;
+}
+.rail-layout__definitions {
+  grid-area: defs;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.rail-layout__definitions-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.rail-layout__definitions-body:focus,
+.rail-layout__explore-body:focus {
+  outline: none;
+}
+.rail-layout__explore {
+  grid-area: graph;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+}
+.rail-layout__explore-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+}
+/* In the rail the strip is a column rather than a bar: word, reading,
+   then a few lines of gloss, the "open" chevron pointing right, toward
+   where the rail grows. */
+.app[data-layout="rail"] .mobile-strip {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  row-gap: 4px;
+  height: 100%;
+  padding: 14px 16px 36px;
+}
+.app[data-layout="rail"] .mobile-strip__word {
+  font-size: 30px;
+}
+.app[data-layout="rail"] .mobile-strip__gloss {
+  flex-basis: auto;
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+}
+.app[data-layout="rail"] .mobile-toggle--bottom {
+  left: auto;
+  right: 12px;
+  bottom: 10px;
+  transform: none;
+}
+.rail-collapse {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  min-height: 40px;
+  padding: 0 12px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: var(--code-bg);
+  color: var(--text-h);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.rail-collapse:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+/* The graph's toolbar and footer float on the canvas instead of taking
+   rows of their own -- every pixel of height goes to the graph. */
+.app[data-layout="rail"] .graph-panel {
+  position: relative;
+  border-left: none;
+}
+.app[data-layout="rail"] .graph-panel__toolbar {
+  position: absolute;
+  top: 8px;
+  right: calc(8px + env(safe-area-inset-right, 0px));
+  z-index: 6;
+  padding: 0;
+  border: none;
+  background: none;
+}
+.app[data-layout="rail"] .graph-panel__heading,
+.app[data-layout="rail"] .graph-panel__footer {
+  display: none;
+}
+/* Filters as a sheet down the right edge -- anchored under its button it
+   would run off a ~380px-tall screen. */
+.app[data-layout="rail"] .filters-panel {
+  position: fixed;
+  top: calc(8px + env(safe-area-inset-top, 0px));
+  bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  right: calc(8px + env(safe-area-inset-right, 0px));
+  width: min(300px, calc(100vw - 16px));
+  max-height: none;
+}
+/* The search field is only rail-wide; its results needn't be. */
+.app[data-layout="rail"] .search-results {
+  right: auto;
+  width: min(440px, calc(100vw - 16px));
+  max-height: calc(100svh - var(--mobile-header-h) - 16px);
+}
+
+/* Tablet: both panes stacked and visible (PaneLayout's vertical split),
+   Bookmarks/Groups as a drawer over the right edge. */
+.split-pane--vertical {
+  flex-direction: column;
+}
+.split-pane--vertical .split-pane__left {
+  flex: 0 0 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+}
+.split-pane--vertical .split-pane__right {
+  min-height: 0;
+}
+.split-pane--vertical .graph-panel {
+  border-left: none;
+}
+.split-pane--vertical .split-pane__handle {
+  flex: 0 0 20px;
+  cursor: row-resize;
+  touch-action: none;
+}
+.split-pane--vertical .split-pane__handle::after {
+  top: 9px;
+  bottom: auto;
+  left: 0;
+  right: 0;
+  width: auto;
+  height: 1px;
+}
+/* A visible grip, since there's no hover to discover the divider by. */
+.split-pane--vertical .split-pane__handle::before {
+  content: "";
+  position: absolute;
+  top: 7px;
+  left: 50%;
+  width: 40px;
+  height: 5px;
+  margin-left: -20px;
+  border-radius: 9999px;
+  background: var(--border);
+  z-index: 1;
+}
+.app[data-layout="tablet"] .side-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(400px, 90vw);
+  z-index: 40;
+  box-shadow: var(--shadow);
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) 0;
+}
+
+/* Touch screens on the desktop layout (tablets in landscape): a divider
+   wide enough to grab with a finger. */
+@media (pointer: coarse) {
+  .split-pane:not(.split-pane--vertical) .split-pane__handle {
+    flex-basis: 20px;
+    touch-action: none;
+  }
+  .split-pane:not(.split-pane--vertical) .split-pane__handle::after {
+    left: 9px;
+  }
 }

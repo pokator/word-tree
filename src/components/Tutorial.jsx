@@ -19,12 +19,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 // visibly pulse and re-render in lockstep with the glow. `__fill` has
 // fixed geometry regardless of selection, so the spotlight stays calm.
 //
-// On a phone (the `mobile` prop), a step's `mobile` fields override its
-// desktop ones: the layout is different (the tour opens on the Explore
-// view, where the dictionary is collapsed to the word strip -- see
-// PaneLayout), interactions are taps rather than clicks, and every tooltip
-// sits above/below its target since there's no room beside one. Steps
-// marked `mobileOnly` point at phone-only UI.
+// Per layout (the `layout` prop, see lib/useLayoutMode.js): on any touch
+// layout (everything but desktop) a step's `touch` fields override its
+// desktop ones -- taps rather than clicks, the ☰ menu instead of the
+// desktop toolbar (`touchOnly` steps), and every tooltip above/below its
+// target since there's no room beside one. Where the dictionary collapses
+// to the word strip (phone, rail -- the tour opens on that view, see
+// PaneLayout), `strip` fields override on top of that.
 const STEPS = [
   {
     target: ".search-bar input",
@@ -37,14 +38,14 @@ const STEPS = [
     title: "Your word",
     body: "Every search starts here, at the center. Click any node to see its full entry on the left.",
     placement: "right",
-    mobile: { body: "Every search starts here, at the center. Tap any node to select it." },
+    touch: { body: "Every search starts here, at the center. Tap any node to select it." },
   },
   {
     target: ".graph-node--kanji .graph-node__fill",
     title: "Its kanji",
     body: "Double-click a kanji node to reveal every other word built from that same kanji.",
     placement: "right",
-    mobile: {
+    touch: {
       body: "Double-tap a kanji node, or press and hold it, to reveal every other word built from that same kanji.",
     },
   },
@@ -53,10 +54,10 @@ const STEPS = [
     title: "Dictionary panel",
     body: "Definitions, readings, and JLPT level for whatever's currently selected on the graph.",
     placement: "right",
-    mobile: {
+    strip: {
       target: ".mobile-strip",
       title: "The selected word",
-      body: "Whatever you've selected shows up here. Tap it for the full entry (definitions, readings, kanji), then tap Explore at the bottom to come back.",
+      body: "Whatever you've selected shows up here. Tap it for the full entry: definitions, readings, and kanji.",
     },
   },
   {
@@ -72,7 +73,7 @@ const STEPS = [
     placement: "bottom",
   },
   {
-    mobileOnly: true,
+    touchOnly: true,
     target: ".mobile-menu__trigger",
     title: "Menu",
     body: "Review, bookmarks, groups, the theme, and this tour live here.",
@@ -80,9 +81,11 @@ const STEPS = [
   },
 ];
 
-function stepsFor(mobile) {
-  return STEPS.filter((s) => mobile || !s.mobileOnly).map((s) =>
-    mobile ? { ...s, placement: "bottom", ...s.mobile } : s
+function stepsFor(layout) {
+  const touch = layout !== "desktop";
+  const strip = layout === "phone" || layout === "rail";
+  return STEPS.filter((s) => touch || !s.touchOnly).map((s) =>
+    touch ? { ...s, placement: "bottom", ...s.touch, ...(strip ? s.strip : null) } : s
   );
 }
 
@@ -137,6 +140,13 @@ function tooltipPosition(rect, placement, tooltipHeight) {
     top = rect.bottom + GAP;
     left = rect.left + rect.width / 2 - width / 2;
     if (top + tooltipHeight > window.innerHeight - VIEWPORT_MARGIN) top = rect.top - GAP - tooltipHeight;
+    // Neither below nor above fits -- a target nearly as tall as the
+    // screen (the landscape rail's word strip). Go beside it instead.
+    if (top < VIEWPORT_MARGIN) {
+      top = rect.top + rect.height / 2 - tooltipHeight / 2;
+      left = rect.right + GAP;
+      if (left + width > window.innerWidth - VIEWPORT_MARGIN) left = rect.left - GAP - width;
+    }
   }
   top = Math.min(Math.max(top, VIEWPORT_MARGIN), window.innerHeight - tooltipHeight - VIEWPORT_MARGIN);
   left = Math.min(Math.max(left, VIEWPORT_MARGIN), window.innerWidth - width - VIEWPORT_MARGIN);
@@ -157,8 +167,8 @@ function tooltipPosition(rect, placement, tooltipHeight) {
  * is mounted, so the rest of the app is unfocusable and hidden from
  * assistive tech, not merely visually dimmed and click-blocked.
  */
-export default function Tutorial({ onClose, mobile = false }) {
-  const steps = useMemo(() => stepsFor(mobile), [mobile]);
+export default function Tutorial({ onClose, layout = "desktop" }) {
+  const steps = useMemo(() => stepsFor(layout), [layout]);
   const [stepIndex, setStepIndex] = useState(0);
   const [tooltipHeight, setTooltipHeight] = useState(160);
   const dialogRef = useRef(null);

@@ -75,7 +75,7 @@ describe("Tutorial", () => {
   });
 
   it("on a phone, speaks in taps, points at the word strip, and adds the menu step", () => {
-    render(<Tutorial mobile onClose={vi.fn()} />);
+    render(<Tutorial layout="phone" onClose={vi.fn()} />);
     const next = () => fireEvent.click(screen.getByRole("button", { name: "Next" }));
     expect(screen.getByText("1 of 7")).toBeInTheDocument();
     next();
@@ -89,6 +89,17 @@ describe("Tutorial", () => {
     next();
     expect(screen.getByRole("heading", { name: "Menu" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Done" })).toBeInTheDocument();
+  });
+
+  it("on a tablet, uses touch wording but keeps the full dictionary step", () => {
+    render(<Tutorial layout="tablet" onClose={vi.fn()} />);
+    const next = () => fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    expect(screen.getByText("1 of 7")).toBeInTheDocument();
+    next();
+    expect(screen.getByText(/Tap any node/)).toBeInTheDocument();
+    next();
+    next();
+    expect(screen.getByRole("heading", { name: "Dictionary panel" })).toBeInTheDocument();
   });
 
   it("on desktop, has no phone-only steps", () => {

@@ -17,7 +17,7 @@ import { useSavedWords } from "./progress/useSavedWords";
 import { useStreak } from "./progress/useStreak";
 import { useGroups } from "./groups/useGroups";
 import { useTheme } from "./theme/useTheme";
-import { useIsMobile } from "./lib/useIsMobile";
+import { useLayoutMode } from "./lib/useLayoutMode";
 import {
   createInitialGraph,
   expandKanji,
@@ -140,7 +140,9 @@ export default function App() {
   const { recents, addRecent } = useRecentRoots();
   const streak = useStreak();
   const { theme, toggle: toggleTheme } = useTheme();
-  const isMobile = useIsMobile();
+  // "phone" | "rail" | "tablet" | "desktop" -- see lib/useLayoutMode.js.
+  const layout = useLayoutMode();
+  const isDesktop = layout === "desktop";
   // Which half of the phone layout is expanded (see MobileLayout). Starts on
   // the graph -- exploring is the app's hook; the definition is one tap away.
   const [mobileView, setMobileView] = useState("explore"); // "explore" | "definitions"
@@ -257,15 +259,15 @@ export default function App() {
   );
 
   // On desktop the Bookmarks/Groups panel docks beside the graph, so it
-  // stays open while you jump between its words. On a phone it covers the
-  // whole screen -- picking a word has to close it, or the word you picked
-  // loads invisibly underneath.
+  // stays open while you jump between its words. Everywhere else it covers
+  // the screen (or most of it) -- picking a word has to close it, or the
+  // word you picked loads invisibly underneath.
   const handleSelectFromSidebar = useCallback(
     (word) => {
       handleSelectWord(word);
-      if (isMobile) closeSidebar();
+      if (!isDesktop) closeSidebar();
     },
-    [handleSelectWord, isMobile, closeSidebar]
+    [handleSelectWord, isDesktop, closeSidebar]
   );
 
   const handleReset = useCallback(() => {
@@ -531,12 +533,12 @@ export default function App() {
       maxWords={maxWords}
       onSetMaxWords={handleMaxWordsChange}
       hintedIds={hintedIds}
-      active={!isMobile || mobileView === "explore"}
+      active={layout !== "phone" || mobileView === "explore"}
     />
   );
 
   return (
-    <div className="app">
+    <div className="app" data-layout={layout} data-view={mobileView}>
       <header className="app__header" inert={tutorialOpen}>
         <div className="app__title">
           <h1>
@@ -545,7 +547,7 @@ export default function App() {
           </h1>
         </div>
         <SearchBar words={dataset.WORDS} onSelectWord={handleSelectWord} recents={recents} wordsByText={dataset.WORDS_BY_TEXT} />
-        {isMobile ? (
+        {!isDesktop ? (
           <MobileMenu
             reviewCount={wordStats.new + wordStats.learning}
             onReview={startGlobalReview}
@@ -608,7 +610,7 @@ export default function App() {
 
       <main className="app__main" inert={tutorialOpen}>
         <PaneLayout
-          mobile={isMobile}
+          mode={layout}
           view={mobileView}
           onChangeView={setMobileView}
           node={selectedNode}
@@ -646,7 +648,7 @@ export default function App() {
         />
       )}
 
-      {tutorialOpen && <Tutorial mobile={isMobile} onClose={() => setTutorialOpen(false)} />}
+      {tutorialOpen && <Tutorial layout={layout} onClose={() => setTutorialOpen(false)} />}
 
       <a
         className="app__credit"

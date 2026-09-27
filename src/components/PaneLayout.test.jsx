@@ -11,11 +11,11 @@ const WORD = {
   senses: [{ gloss: ["Japanese language"] }],
 };
 
-function Harness({ mobile = true, initial = "explore", right = <p>graph</p> }) {
+function Harness({ mode = "phone", initial = "explore", right = <p>graph</p> }) {
   const [view, setView] = useState(initial);
   return (
     <PaneLayout
-      mobile={mobile}
+      mode={mode}
       view={view}
       onChangeView={setView}
       node={WORD}
@@ -50,17 +50,42 @@ describe("PaneLayout (phone)", () => {
   });
 });
 
-describe("PaneLayout (desktop)", () => {
-  it("shows both panes side by side with a resize handle", () => {
-    render(<Harness mobile={false} />);
-    expect(screen.getByText("full definition")).toBeVisible();
+describe("PaneLayout (rail)", () => {
+  it("opens the full entry beside a still-visible graph, and hides it again", async () => {
+    render(<Harness mode="rail" />);
+    expect(screen.queryByText("full definition")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /Show full definition of 日本語/ }));
+    expect(screen.getByText("full definition")).toBeInTheDocument();
     expect(screen.getByText("graph")).toBeVisible();
-    expect(screen.getByRole("separator", { name: "Resize panels" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Explore$/ })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Hide details" }));
+    expect(screen.queryByText("full definition")).not.toBeInTheDocument();
+    expect(screen.getByText("graph")).toBeVisible();
   });
 });
 
-describe("PaneLayout across the breakpoint", () => {
-  it("keeps the right pane mounted when switching between desktop and phone", () => {
+describe("PaneLayout (desktop and tablet)", () => {
+  it("desktop shows both panes side by side with a vertical divider", () => {
+    render(<Harness mode="desktop" />);
+    expect(screen.getByText("full definition")).toBeVisible();
+    expect(screen.getByText("graph")).toBeVisible();
+    expect(screen.getByRole("separator", { name: "Resize panels" })).toHaveAttribute("aria-orientation", "vertical");
+  });
+
+  it("tablet stacks both panes, visible, with a horizontal divider", () => {
+    render(<Harness mode="tablet" />);
+    expect(screen.getByText("full definition")).toBeVisible();
+    expect(screen.getByText("graph")).toBeVisible();
+    expect(screen.getByRole("separator", { name: "Resize panels" })).toHaveAttribute(
+      "aria-orientation",
+      "horizontal"
+    );
+  });
+});
+
+describe("PaneLayout across shapes", () => {
+  it("keeps the right pane mounted through every layout change", () => {
     let mounts = 0;
     function Graph() {
       useEffect(() => {
@@ -68,9 +93,10 @@ describe("PaneLayout across the breakpoint", () => {
       }, []);
       return <p>graph</p>;
     }
-    const view = render(<Harness mobile={false} right={<Graph />} />);
-    view.rerender(<Harness mobile right={<Graph />} />);
-    view.rerender(<Harness mobile={false} right={<Graph />} />);
+    const view = render(<Harness mode="desktop" right={<Graph />} />);
+    for (const mode of ["phone", "rail", "tablet", "desktop", "rail", "phone"]) {
+      view.rerender(<Harness mode={mode} right={<Graph />} />);
+    }
     expect(mounts).toBe(1);
   });
 });
