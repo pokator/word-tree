@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { probeConnection, exportWords as pushToAnki } from "../anki/ankiConnect";
+import { probeConnection } from "../anki/ankiConnect";
+import { pushBookmarks, syncItemsFor } from "../anki/ankiSync";
 import { buildAnkiTsv, downloadTextFile } from "../anki/exportFile";
 import AccountSync from "./AccountSync";
 
@@ -37,9 +38,12 @@ export default function BookmarksPanel({ dataset, saved, onSelectWord, onClose }
     setMessage(null);
     try {
       if (connState === "connected") {
-        await pushToAnki(items);
+        const { added } = await pushBookmarks(syncItemsFor(dataset, saved.words));
         saved.markExported(items.map((i) => i.word));
-        setMessage({ kind: "info", text: `Sent ${items.length} card(s) to Anki.` });
+        setMessage({
+          kind: "info",
+          text: added ? `Added ${added} card(s) to Anki.` : "Anki is up to date.",
+        });
       } else {
         downloadTextFile("moto-export.tsv", buildAnkiTsv(items));
         setMessage({ kind: "info", text: "Downloaded a .tsv file — import it in Anki via File → Import." });
