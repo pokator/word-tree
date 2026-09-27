@@ -1,0 +1,38 @@
+# Remote auth settings for the hosted Supabase project, applied with
+#   npx supabase config push
+# (preview first with `npx supabase config diff`). Only what's declared here
+# is pushed -- everything else on the project is left as-is.
+project_id = "word-tree"
+
+[auth]
+# Sign-in is a 6-digit code typed into the app (see components/AuthPanel.jsx
+# and the templates below), so no email link has to land anywhere. These
+# URLs only matter for any link-based email Supabase still sends (e.g. an
+# email change); the old default Site URL, http://localhost:3000, is what
+# made sign-in links open a dead page.
+site_url = "https://moto-two-ebon.vercel.app"
+additional_redirect_urls = [
+  "https://moto-two-ebon.vercel.app",
+  "https://*-sbhou02-8530s-projects.vercel.app",
+  "http://localhost:5173",
+]
+
+[auth.email]
+otp_length = 6
+otp_expiry = 3600
+
+# Supabase only accepts custom templates once the project sends through a
+# custom SMTP provider (Authentication -> Emails -> SMTP Settings); its
+# built-in sender also only delivers to the project's own team members.
+# Without SMTP, `config push` rejects these two sections.
+#
+# A brand-new address gets the "confirm signup" email and a returning one
+# gets "magic link" -- both carry the same code, verified the same way
+# (verifyOtp type "email"), so signing up and signing in are one flow.
+[auth.email.template.confirmation]
+subject = "Your Moto code"
+content_path = "./supabase/templates/otp.html"
+
+[auth.email.template.magic_link]
+subject = "Your Moto code"
+content_path = "./supabase/templates/otp.html"
