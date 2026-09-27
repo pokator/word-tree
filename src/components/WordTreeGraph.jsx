@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { select } from "d3-selection";
 import { zoom as d3zoom, zoomIdentity } from "d3-zoom";
 import { useForceSimulation } from "../graph/useForceSimulation";
-import { nodeRadius, nodeFill, nodeOpacity, nodeDetailText, nodeDifficultyColor } from "../graph/layout";
+import { nodeRadius, nodeFill, nodeDetailText, nodeDifficultyColor } from "../graph/layout";
 import { readNodeColors } from "../graph/theme";
 import { kanjiPositionCategory } from "../graph/positionCategory";
 import { linkDistanceKey } from "../graph/linkDistanceKey";
@@ -18,7 +18,6 @@ const DOUBLE_CLICK_MS = 350;
 // click -- long enough not to fire on a slow tap, short enough not to
 // feel like waiting.
 export const LONG_PRESS_MS = 450;
-const noStatus = () => undefined;
 const noGroup = () => false;
 const noDim = () => false;
 const EMPTY_SET = new Set();
@@ -75,7 +74,6 @@ export default function WordTreeGraph({
   selectedId,
   onNodeClick,
   onNodeExpand,
-  getStatus = noStatus,
   isInGroup = noGroup,
   isDimmed = noDim,
   theme,
@@ -496,10 +494,12 @@ export default function WordTreeGraph({
               const r = nodeRadius(node);
               const selected = node.id === selectedId;
               const label = node.type === "kanji" ? node.char : node.word;
-              const itemId = node.type === "kanji" ? node.char : node.word;
-              const baseOpacity = nodeOpacity(getStatus(node.type, itemId));
+              // Study status deliberately doesn't change how a node looks --
+              // the graph is for discovery; Anki (and the dictionary
+              // panel's status chip) carry learning. Only an explicit
+              // filter dims a node.
               const dimmed = !node.isRoot && isDimmed(node);
-              const opacity = dimmed ? Math.min(baseOpacity, DIMMED_OPACITY) : baseOpacity;
+              const opacity = dimmed ? DIMMED_OPACITY : 1;
               // JLPT difficulty now fills the WHOLE node rather than just a
               // ring around it -- see DESIGN.md's Color section/Decisions
               // Log, 2026-09-12. Node size already distinguishes kanji from

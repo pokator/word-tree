@@ -494,7 +494,6 @@ export default function App() {
       selectedId={selectedId}
       onNodeClick={handleNodeSelect}
       onNodeExpand={handleNodeExpand}
-      getStatus={getStatus}
       isInGroup={isBookmarked}
       isDimmed={isNodeDimmed}
       theme={theme}

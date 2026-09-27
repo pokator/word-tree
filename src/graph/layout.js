@@ -46,11 +46,3 @@ export function nodeDetailText(node) {
   };
 }
 
-const MASTERY_OPACITY = { new: 0.45, learning: 0.75, known: 1 };
-
-// `status` is undefined until mastery tracking is wired up to a node
-// (guest/logged-out, or not yet fetched) -- render at full opacity rather
-// than assuming "new" in that case, since it isn't actually known yet.
-export function nodeOpacity(status) {
-  return status ? (MASTERY_OPACITY[status] ?? 1) : 1;
-}
