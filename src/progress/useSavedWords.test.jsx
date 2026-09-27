@@ -12,13 +12,19 @@ describe("useSavedWords (guest)", () => {
     const { result, unmount } = renderHook(() => useSavedWords(), { wrapper: AuthProvider });
     act(() => result.current.toggleSave("日本"));
     expect(result.current.isSaved("日本")).toBe(true);
-    expect(loadGuestBookmarks()).toEqual([{ item_id: "日本", exported_at: null }]);
+    expect(loadGuestBookmarks()).toEqual([{ item_id: "日本", exported_at: null, found_from: null }]);
     unmount();
 
     const reloaded = renderHook(() => useSavedWords(), { wrapper: AuthProvider });
     expect(reloaded.result.current.isSaved("日本")).toBe(true);
     act(() => reloaded.result.current.toggleSave("日本"));
     expect(loadGuestBookmarks()).toEqual([]);
+  });
+
+  it("remembers which word was being explored when it was bookmarked", () => {
+    const { result } = renderHook(() => useSavedWords(), { wrapper: AuthProvider });
+    act(() => result.current.toggleSave("本当", { foundFrom: "日本語" }));
+    expect(loadGuestBookmarks()).toEqual([{ item_id: "本当", exported_at: null, found_from: "日本語" }]);
   });
 
   it("two toggles before a re-render add the word once", () => {
@@ -31,6 +37,6 @@ describe("useSavedWords (guest)", () => {
     act(() => {
       result.current.toggleSave("本当");
     });
-    expect(loadGuestBookmarks()).toEqual([{ item_id: "本当", exported_at: null }]);
+    expect(loadGuestBookmarks()).toEqual([{ item_id: "本当", exported_at: null, found_from: null }]);
   });
 });

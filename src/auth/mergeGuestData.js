@@ -61,6 +61,7 @@ async function mergeSnapshot(client, userId, { bookmarks, progress, groups }) {
           item_type: "word",
           item_id: b.item_id,
           exported_at: b.exported_at ?? null,
+          found_from: b.found_from ?? null,
         })),
         { onConflict: "user_id,item_type,item_id", ignoreDuplicates: true }
       )

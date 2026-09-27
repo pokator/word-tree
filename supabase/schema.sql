@@ -55,6 +55,9 @@ create table if not exists public.saved_items (
   unique (user_id, item_type, item_id)
 );
 create index if not exists saved_items_user_idx on public.saved_items (user_id);
+-- The root word being explored when this was bookmarked -- drives the
+-- "found from 日本語" collection and its moto::from:: Anki tag.
+alter table public.saved_items add column if not exists found_from text;
 
 -- User-created word collections ("groups") -- e.g. "JLPT N4 review",
 -- "Kitchen vocab". A word can belong to any number of a user's groups.

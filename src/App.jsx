@@ -210,8 +210,8 @@ export default function App() {
 
   const saved = useSavedWords();
   const handleToggleSave = useCallback(() => {
-    if (selectedNode?.type === "word") saved.toggleSave(selectedNode.word);
-  }, [selectedNode, saved]);
+    if (selectedNode?.type === "word") saved.toggleSave(selectedNode.word, { foundFrom: rootWord });
+  }, [selectedNode, saved, rootWord]);
 
   const groupsApi = useGroups();
   const memberOf = selectedNode?.type === "word" ? groupsApi.groupsForWord(selectedNode.word) : [];

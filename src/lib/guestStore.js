@@ -6,7 +6,7 @@
 // and shapes means those can't drift apart.
 
 export const GUEST_PROGRESS_KEY = "word-tree:guest-progress"; // { "type:id": status }
-export const GUEST_BOOKMARKS_KEY = "word-tree:guest-bookmarks"; // [{ item_id, exported_at }]
+export const GUEST_BOOKMARKS_KEY = "word-tree:guest-bookmarks"; // [{ item_id, exported_at, found_from }]
 export const GUEST_GROUPS_KEY = "word-tree:guest-groups"; // [{ id, name, words: string[] }]
 
 function read(key, fallback) {
@@ -45,7 +45,7 @@ export function loadGuestBookmarks() {
   if (!Array.isArray(list)) return [];
   return list
     .filter((b) => b && typeof b.item_id === "string")
-    .map((b) => ({ item_id: b.item_id, exported_at: b.exported_at ?? null }));
+    .map((b) => ({ item_id: b.item_id, exported_at: b.exported_at ?? null, found_from: b.found_from ?? null }));
 }
 export function saveGuestBookmarks(list) {
   write(GUEST_BOOKMARKS_KEY, list);

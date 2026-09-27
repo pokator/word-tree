@@ -11,7 +11,8 @@ import { loadGuestBookmarks, saveGuestBookmarks } from "../lib/guestStore";
  * in, by Supabase's `saved_items` table. Signing in folds the guest list
  * into the account first (see auth/mergeGuestData.js), so nothing
  * bookmarked before signing in is lost.
- * Shape: [{ item_id, exported_at }].
+ * Shape: [{ item_id, exported_at, found_from }] -- found_from is the root
+ * word being explored when it was bookmarked (the "found from" collection).
  */
 export function useSavedWords() {
   const { user } = useAuth();
@@ -40,7 +41,7 @@ export function useSavedWords() {
     let cancelled = false;
     supabase
       .from("saved_items")
-      .select("item_id, exported_at")
+      .select("item_id, exported_at, found_from")
       .eq("user_id", user.id)
       .eq("item_type", "word")
       .then(({ data, error }) => {
@@ -66,7 +67,7 @@ export function useSavedWords() {
   const isSaved = useCallback((word) => words.some((w) => w.item_id === word), [words]);
 
   const toggleSave = useCallback(
-    (word) => {
+    (word, { foundFrom = null } = {}) => {
       const alreadySaved = wordsRef.current.some((w) => w.item_id === word);
       if (alreadySaved) {
         update((prev) => prev.filter((w) => w.item_id !== word));
@@ -82,12 +83,12 @@ export function useSavedWords() {
             });
         }
       } else {
-        update((prev) => [...prev, { item_id: word, exported_at: null }]);
+        update((prev) => [...prev, { item_id: word, exported_at: null, found_from: foundFrom }]);
         if (user) {
           supabase
             .from("saved_items")
             .upsert(
-              { user_id: user.id, item_type: "word", item_id: word },
+              { user_id: user.id, item_type: "word", item_id: word, found_from: foundFrom },
               { onConflict: "user_id,item_type,item_id" }
             )
             .then(({ error }) => {
