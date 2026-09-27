@@ -10,6 +10,7 @@ import GroupsPanel from "./components/GroupsPanel";
 import ReviewMode from "./components/ReviewMode";
 import Tutorial from "./components/Tutorial";
 import MobileMenu from "./components/MobileMenu";
+import MobileLayout from "./components/MobileLayout";
 import { BookmarkIcon, GroupsIcon, TutorialIcon } from "./components/icons";
 import { useWordData } from "./data/useWordData";
 import { useRecentRoots } from "./data/useRecentRoots";
@@ -143,6 +144,9 @@ export default function App() {
   const streak = useStreak();
   const { theme, toggle: toggleTheme } = useTheme();
   const isMobile = useIsMobile();
+  // Which half of the phone layout is expanded (see MobileLayout). Starts on
+  // the graph -- exploring is the app's hook; the definition is one tap away.
+  const [mobileView, setMobileView] = useState("explore"); // "explore" | "definitions"
 
   // A word's JLPT bucket is derived from its hardest-tagged kanji (see
   // graph/buildGraph.js) -- there's no stored per-word JLPT field.
@@ -458,6 +462,68 @@ export default function App() {
     return { words, kanji };
   }, [graph]);
 
+  const definitionsPanel = (
+    <DictionaryPanel
+      node={selectedNode}
+      loading={dataset.loading}
+      status={selectedNode && getStatus(selectedNode.type, selectedItemId)}
+      onSetStatus={handleSetStatus}
+      canSave={Boolean(user)}
+      isSaved={selectedNode?.type === "word" && saved.isSaved(selectedNode.word)}
+      onToggleSave={handleToggleSave}
+      groups={groupsApi.groups}
+      memberOf={memberOf}
+      onToggleGroup={handleToggleGroup}
+      onCreateGroup={handleCreateGroupWithWord}
+      jlptLevel={selectedJlptLevel}
+      wordStats={wordStats}
+      streak={streak}
+      onExpand={graph && selectedNode ? () => handleNodeExpand(selectedId) : undefined}
+      componentKanji={componentKanji}
+      relatedWords={relatedWords}
+      onSelectRelated={graph ? handleSelectRelated : undefined}
+      onHoverRelated={graph ? handleHoverRelated : undefined}
+      onHoverRelatedEnd={graph ? handleHoverRelatedEnd : undefined}
+    />
+  );
+
+  const explorePanel = (
+    <GraphPanel
+      graph={graph}
+      selectedId={selectedId}
+      onNodeClick={handleNodeSelect}
+      onNodeExpand={handleNodeExpand}
+      getStatus={getStatus}
+      isInGroup={isInGroup}
+      isDimmed={isNodeDimmed}
+      theme={theme}
+      onReset={handleReset}
+      stats={stats}
+      datasetSource={dataset.source}
+      datasetLoading={dataset.loading}
+      isFiltersPanelOpen={isFiltersPanelOpen}
+      onToggleFiltersPanel={() => setIsFiltersPanelOpen((v) => !v)}
+      onCloseFiltersPanel={() => setIsFiltersPanelOpen(false)}
+      filtersActive={filtersActive}
+      masteryFilter={masteryFilter}
+      onToggleMastery={handleToggleMasteryFilter}
+      jlptFilter={jlptFilter}
+      onToggleJlpt={handleToggleJlptFilter}
+      colorByDifficulty={colorByDifficulty}
+      onToggleColorByDifficulty={handleToggleColorByDifficulty}
+      linkColorMode={linkColorMode}
+      onSetLinkColorMode={handleSetLinkColorMode}
+      colorByKanjiPath={colorByKanjiPath}
+      onToggleColorByKanjiPath={handleToggleColorByKanjiPath}
+      groups={groupsApi.groups}
+      focusGroupId={focusGroupId}
+      onSetFocusGroup={setFocusGroupId}
+      maxWords={maxWords}
+      onSetMaxWords={handleMaxWordsChange}
+      hintedIds={hintedIds}
+    />
+  );
+
   return (
     <div className="app">
       <header className="app__header" inert={tutorialOpen}>
@@ -531,72 +597,17 @@ export default function App() {
       </header>
 
       <main className="app__main" inert={tutorialOpen}>
-        <SplitPane
-          storageKey="main"
-          defaultPct={40}
-          min={26}
-          max={62}
-          left={
-            <DictionaryPanel
-              node={selectedNode}
-              loading={dataset.loading}
-              status={selectedNode && getStatus(selectedNode.type, selectedItemId)}
-              onSetStatus={handleSetStatus}
-              canSave={Boolean(user)}
-              isSaved={selectedNode?.type === "word" && saved.isSaved(selectedNode.word)}
-              onToggleSave={handleToggleSave}
-              groups={groupsApi.groups}
-              memberOf={memberOf}
-              onToggleGroup={handleToggleGroup}
-              onCreateGroup={handleCreateGroupWithWord}
-              jlptLevel={selectedJlptLevel}
-              wordStats={wordStats}
-              streak={streak}
-              onExpand={graph && selectedNode ? () => handleNodeExpand(selectedId) : undefined}
-              componentKanji={componentKanji}
-              relatedWords={relatedWords}
-              onSelectRelated={graph ? handleSelectRelated : undefined}
-              onHoverRelated={graph ? handleHoverRelated : undefined}
-              onHoverRelatedEnd={graph ? handleHoverRelatedEnd : undefined}
-            />
-          }
-          right={
-            <GraphPanel
-              graph={graph}
-              selectedId={selectedId}
-              onNodeClick={handleNodeSelect}
-              onNodeExpand={handleNodeExpand}
-              getStatus={getStatus}
-              isInGroup={isInGroup}
-              isDimmed={isNodeDimmed}
-              theme={theme}
-              onReset={handleReset}
-              stats={stats}
-              datasetSource={dataset.source}
-              datasetLoading={dataset.loading}
-              isFiltersPanelOpen={isFiltersPanelOpen}
-              onToggleFiltersPanel={() => setIsFiltersPanelOpen((v) => !v)}
-              onCloseFiltersPanel={() => setIsFiltersPanelOpen(false)}
-              filtersActive={filtersActive}
-              masteryFilter={masteryFilter}
-              onToggleMastery={handleToggleMasteryFilter}
-              jlptFilter={jlptFilter}
-              onToggleJlpt={handleToggleJlptFilter}
-              colorByDifficulty={colorByDifficulty}
-              onToggleColorByDifficulty={handleToggleColorByDifficulty}
-              linkColorMode={linkColorMode}
-              onSetLinkColorMode={handleSetLinkColorMode}
-              colorByKanjiPath={colorByKanjiPath}
-              onToggleColorByKanjiPath={handleToggleColorByKanjiPath}
-              groups={groupsApi.groups}
-              focusGroupId={focusGroupId}
-              onSetFocusGroup={setFocusGroupId}
-              maxWords={maxWords}
-              onSetMaxWords={handleMaxWordsChange}
-              hintedIds={hintedIds}
-            />
-          }
-        />
+        {isMobile ? (
+          <MobileLayout
+            view={mobileView}
+            onChangeView={setMobileView}
+            node={selectedNode}
+            definitions={definitionsPanel}
+            explore={explorePanel}
+          />
+        ) : (
+          <SplitPane storageKey="main" defaultPct={40} min={26} max={62} left={definitionsPanel} right={explorePanel} />
+        )}
         {activeSidebar && (
           <aside className="side-panel" aria-label={activeSidebar === "saved" ? "Saved words" : "Groups"}>
             {activeSidebar === "saved" && (

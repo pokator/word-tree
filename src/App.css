@@ -2491,29 +2491,8 @@ button.legend__row.is-inactive:hover {
 }
 
 @media (max-width: 900px) {
-  .split-pane {
-    flex-direction: column;
-    overflow-y: auto;
-  }
-  .split-pane__left {
-    width: 100% !important;
-    min-width: 0;
-    flex: 0 0 auto;
-    overflow-y: visible;
-  }
-  .split-pane__handle {
-    display: none;
-  }
-  .split-pane__right {
-    flex: 1 1 auto;
-    min-height: 60vh;
-  }
-  .graph-panel {
-    border-left: none;
-    border-top: 1px solid var(--border);
-  }
   .dictionary-panel {
-    padding: 28px 24px;
+    padding: 20px 16px 28px;
   }
   .dictionary-panel__headword {
     font-size: 40px;
@@ -2658,4 +2637,156 @@ button.legend__row.is-inactive:hover {
 .mobile-menu__credit:hover,
 .mobile-menu__credit:focus-visible {
   color: var(--accent);
+}
+
+/* Phone layout -- see MobileLayout.jsx. Exactly one of the two sections is
+   expanded; the other collapses to a single bar that doubles as its own
+   toggle. The page itself never scrolls: the expanded definitions scroll
+   inside their own section, and the expanded graph owns every touch for
+   panning/zooming. */
+.mobile-layout {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.mobile-layout__definitions {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-bottom: 1px solid var(--border);
+}
+.mobile-layout--definitions .mobile-layout__definitions {
+  flex: 1 1 auto;
+}
+.mobile-layout__definitions-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.mobile-layout__explore {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.mobile-layout--explore .mobile-layout__explore {
+  flex: 1 1 auto;
+}
+.mobile-layout__explore-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+/* The class's display:flex would otherwise beat the UA's [hidden] rule. */
+.mobile-layout__explore-body[hidden] {
+  display: none;
+}
+.mobile-layout__explore-body .graph-panel {
+  border-left: none;
+}
+
+.mobile-strip {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 10px;
+  row-gap: 2px;
+  width: 100%;
+  padding: 10px 16px 22px;
+  border: none;
+  background: var(--bg);
+  color: var(--text-h);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.mobile-strip:focus-visible,
+.mobile-explore-bar:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.mobile-strip__word {
+  font-family: var(--heading);
+  font-weight: var(--heading-weight);
+  font-size: 26px;
+  line-height: 1.15;
+}
+.mobile-strip__reading {
+  font-size: 15px;
+  color: var(--text);
+}
+.mobile-strip__gloss {
+  flex-basis: 100%;
+  min-width: 0;
+  font-size: 14px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mobile-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 18px;
+  color: var(--text);
+}
+.mobile-toggle--bottom {
+  position: absolute;
+  left: 50%;
+  bottom: 2px;
+  transform: translateX(-50%);
+}
+
+.mobile-explore-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  width: 100%;
+  padding: 2px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+  border: none;
+  background: var(--code-bg);
+  color: var(--text-h);
+  font: inherit;
+  cursor: pointer;
+}
+.mobile-explore-bar__label {
+  font-family: var(--heading);
+  font-weight: var(--heading-weight);
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+@media (max-width: 900px) {
+  .app {
+    overflow: hidden;
+  }
+  /* Bookmarks/Groups take over the screen below the header instead of
+     docking beside a graph that has no width to give up. */
+  .side-panel {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    z-index: 40;
+    border-left: none;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .graph-panel__toolbar {
+    padding: 6px 12px;
+  }
+  .graph-panel__footer {
+    padding: 4px 12px;
+  }
 }
