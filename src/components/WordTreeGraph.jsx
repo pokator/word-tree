@@ -18,7 +18,7 @@ const DOUBLE_CLICK_MS = 350;
 // click -- long enough not to fire on a slow tap, short enough not to
 // feel like waiting.
 export const LONG_PRESS_MS = 450;
-const noGroup = () => false;
+const noBookmark = () => false;
 const noDim = () => false;
 const EMPTY_SET = new Set();
 const EMPTY_MAP = new Map();
@@ -74,7 +74,7 @@ export default function WordTreeGraph({
   selectedId,
   onNodeClick,
   onNodeExpand,
-  isInGroup = noGroup,
+  isBookmarked = noBookmark,
   isDimmed = noDim,
   theme,
   hintedIds = EMPTY_SET,
@@ -658,7 +658,7 @@ export default function WordTreeGraph({
                         )}
                       </>
                     )}
-                    {node.type === "word" && isInGroup(node.word) && (
+                    {node.type === "word" && isBookmarked(node.word) && (
                       <circle cx={displayR * 0.68} cy={-displayR * 0.68} r={4.5} className="graph-node__group-dot" />
                     )}
                   </g>

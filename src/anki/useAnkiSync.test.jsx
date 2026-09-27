@@ -55,26 +55,22 @@ describe("useAnkiSync", () => {
 
   it("on connect, pushes bookmarks as cards and pulls statuses for bookmarks and graph words", async () => {
     const { result, applyStatuses } = setup();
-    await act(() => result.current.connect());
-    await waitFor(() => expect(result.current.lastSynced).not.toBeNull());
+    act(() => result.current.connect());
+    await waitFor(() => expect(result.current.lastSynced).not.toBeNull(), { timeout: 3000 });
 
     expect(result.current.state).toBe("connected");
     const moto = anki.state.notes.filter((n) => n.modelName === MODEL_NAME);
     expect(moto.map((n) => [n.fields.Word, n.deck])).toEqual([["日本語", DECK_NAME]]);
-    // 日本語 was just added (new card); 日本 is mature in the user's own deck.
-    expect(new Map(applyStatuses.mock.calls.at(-1)[0])).toEqual(
-      new Map([
-        ["word:日本語", "new"],
-        ["word:日本", "known"],
-      ])
-    );
+    // Status is read before cards are added: 日本 is mature in the user's
+    // own deck; 日本語's brand-new card shows up on the next sync.
+    expect(new Map(applyStatuses.mock.calls.at(-1)[0])).toEqual(new Map([["word:日本", "known"]]));
     expect(localStorage.getItem("word-tree:anki-enabled")).toBe("true");
   });
 
   it("reports Anki as unreachable when it isn't running, without throwing", async () => {
     vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new TypeError("Failed to fetch"))));
     const { result } = setup();
-    await act(() => result.current.connect());
-    expect(result.current.state).toBe("unreachable");
+    act(() => result.current.connect());
+    await waitFor(() => expect(result.current.state).toBe("unreachable"));
   });
 });

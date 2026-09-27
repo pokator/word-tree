@@ -113,7 +113,7 @@ export default function GraphPanel({
   selectedId,
   onNodeClick,
   onNodeExpand,
-  isInGroup,
+  isBookmarked,
   isDimmed,
   theme,
   onReset,
@@ -278,7 +278,7 @@ export default function GraphPanel({
             selectedId={selectedId}
             onNodeClick={onNodeClick}
             onNodeExpand={onNodeExpand}
-            isInGroup={isInGroup}
+            isBookmarked={isBookmarked}
             isDimmed={combinedIsDimmed}
             theme={theme}
             hintedIds={hintedIds}

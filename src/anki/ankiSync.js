@@ -16,8 +16,10 @@ export const TAG_ROOT = "moto";
 // A card counts as known once Anki is spacing it three weeks or more apart
 // -- the same threshold Migaku uses for "known".
 export const KNOWN_INTERVAL_DAYS = 21;
-// Keeps each OR-joined search query to a sane length.
-const QUERY_CHUNK = 40;
+// Keeps each OR-joined search query to a sane length (each word adds a
+// few terms per note type).
+const QUERY_CHUNK = 25;
+const NOTE_CHUNK = 200;
 
 const FIELDS = ["Word", "Reading", "Meaning", "Kanji"];
 
@@ -35,9 +37,10 @@ const CSS = `.card { font-family: "Hiragino Sans", "Noto Sans CJK JP", "Yu Gothi
 .moto-kanji { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 16px; margin-top: 20px; font-size: 15px; opacity: 0.85; }
 .moto-kanji b { font-size: 22px; font-weight: 500; margin-right: 4px; }`;
 
-// Anki tags can't contain spaces, and "::" is its hierarchy separator.
-function tagPart(value) {
-  return String(value).trim().replace(/\s+/g, "_").replace(/:+/g, "_");
+// Anki tags can't contain spaces, and "::" is its hierarchy separator;
+// quotes, backslashes and * are search syntax, so they go too.
+export function tagPart(value) {
+  return String(value).trim().replace(/\s+/g, "_").replace(/:+/g, "_").replace(/["\\*]/g, "_");
 }
 
 /**
@@ -72,9 +75,29 @@ export function noteFields(entry, componentKanji = []) {
 }
 
 /**
- * One card's study status. Anki's `interval` is in days for review cards
- * (negative seconds while still in learning steps); `type` 0 is a new card
- * that hasn't been studied yet; `queue` -1 is suspended.
+ * Plain text of an Anki field, for matching a word however it's formatted
+ * there: HTML stripped, entities decoded (including the stray &nbsp; Anki's
+ * editor leaves behind), furigana brackets (日本語[にほんご]) and all
+ * whitespace removed. Used on both sides of every comparison -- Moto's own
+ * notes (which the user may have edited inside Anki) and other decks'.
+ */
+export function plainField(value) {
+  return String(value ?? "")
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/gi, "&")
+    .replace(/\[[^\]]*\]/g, "")
+    .replace(/\s+/g, "");
+}
+
+/**
+ * One card's study status, from AnkiConnect's cardsInfo: `interval` is the
+ * current interval in days (0 while still in learning steps), `type` 0 is
+ * a new card that hasn't been studied yet, `queue` -1 is suspended.
  */
 export function statusFromCard(card) {
   if (!card) return null;
@@ -104,6 +127,16 @@ function chunks(list, size) {
 function quoteSearch(value) {
   return `"${String(value).replace(/([\\"*_:])/g, "\\$1")}"`;
 }
+function escapeSearch(value) {
+  return quoteSearch(value).slice(1, -1);
+}
+
+/** AnkiConnect's `multi`: one request, one result per action, each either
+ * { result } or { error }. Sub-actions need their own `version`. */
+async function multi(actions) {
+  const results = await invoke("multi", { actions: actions.map((a) => ({ version: 6, ...a })) });
+  return results.map((r) => (r && typeof r === "object" && "error" in r ? r : { result: r, error: null }));
+}
 
 /** Creates the Moto note type and deck if they don't exist yet. Safe to
  * call before every sync. */
@@ -121,25 +154,39 @@ export async function ensureModelAndDeck() {
   await invoke("createDeck", { deck: DECK_NAME });
 }
 
+const isMotoTag = (t) => t.toLowerCase() === TAG_ROOT || t.toLowerCase().startsWith(`${TAG_ROOT}::`);
+
 /**
- * Makes Anki hold exactly one Moto note per bookmarked word, with current
- * tags. Adds the missing ones; retags existing ones (tags change as a word
- * joins collections). Never deletes -- un-bookmarking a word leaves its
- * Anki card and review history alone.
+ * Makes Anki hold one Moto note per bookmarked word, with current tags.
+ * Adds the missing ones; retags existing ones (tags change as a word joins
+ * collections). Never deletes -- un-bookmarking a word leaves its Anki card
+ * and review history alone. Words in `skipWords` get no new card (already
+ * studied in another deck, or marked known -- see useAnkiSync).
+ *
+ * Existing notes are matched on their Word field's plain text, so one the
+ * user reformatted inside Anki is still recognised rather than re-added.
+ * New notes are checked with canAddNotes first: addNotes fails the WHOLE
+ * batch if any one note is a duplicate, which would otherwise block every
+ * other bookmark on every sync.
  * `items`: [{ entry, componentKanji, tags }]. Returns { added, retagged }.
  */
-export async function pushBookmarks(items) {
+export async function pushBookmarks(items, { skipWords = new Set() } = {}) {
   await ensureModelAndDeck();
   const noteIds = await invoke("findNotes", { query: `note:${quoteSearch(MODEL_NAME)}` });
   const infos = noteIds.length ? await invoke("notesInfo", { notes: noteIds }) : [];
-  const existing = new Map(infos.map((n) => [n.fields.Word?.value, n]));
+  const existing = new Map();
+  for (const n of infos) {
+    const key = plainField(n.fields.Word?.value);
+    if (!existing.has(key)) existing.set(key, n);
+  }
 
-  const toAdd = [];
+  const candidates = [];
   const retag = [];
   for (const { entry, componentKanji, tags } of items) {
-    const note = existing.get(escapeHtml(entry.word));
+    const note = existing.get(plainField(entry.word));
     if (!note) {
-      toAdd.push({
+      if (skipWords.has(entry.word)) continue;
+      candidates.push({
         deckName: DECK_NAME,
         modelName: MODEL_NAME,
         fields: noteFields(entry, componentKanji),
@@ -147,79 +194,108 @@ export async function pushBookmarks(items) {
         options: { allowDuplicate: false, duplicateScope: "deck" },
       });
     } else {
-      const want = [...tags].sort().join(" ");
-      const have = [...note.tags].filter((t) => t === TAG_ROOT || t.startsWith(`${TAG_ROOT}::`)).sort().join(" ");
-      if (want !== have) retag.push({ note: note.noteId, tags });
+      // Case-insensitive: Anki keeps a tag's existing capitalisation, so a
+      // case-only difference would otherwise retag on every sync forever.
+      const want = tags.map((t) => t.toLowerCase()).sort().join(" ");
+      const have = note.tags.filter(isMotoTag).map((t) => t.toLowerCase()).sort().join(" ");
+      if (want !== have) retag.push({ note: note.noteId, tags, userTags: note.tags.filter((t) => !isMotoTag(t)) });
     }
   }
 
-  if (toAdd.length) await invoke("addNotes", { notes: toAdd });
+  let added = 0;
+  if (candidates.length) {
+    const ok = await invoke("canAddNotes", { notes: candidates });
+    const addable = candidates.filter((_, i) => ok[i]);
+    if (addable.length) {
+      const ids = await invoke("addNotes", { notes: addable });
+      added = ids.filter(Boolean).length;
+    }
+  }
   if (retag.length) {
     // Replaces only the moto:: tags -- anything the user tagged the note
     // with by hand inside Anki is kept.
-    const byId = new Map(infos.map((n) => [n.noteId, n.tags]));
-    await invoke("multi", {
-      actions: retag.map(({ note, tags }) => ({
-        action: "updateNoteTags",
-        params: {
-          note,
-          tags: [...byId.get(note).filter((t) => t !== TAG_ROOT && !t.startsWith(`${TAG_ROOT}::`)), ...tags],
-        },
-      })),
-    });
+    const results = await multi(
+      retag.map(({ note, tags, userTags }) => ({ action: "updateNoteTags", params: { note, tags: [...userTags, ...tags] } }))
+    );
+    const failed = results.filter((r) => r.error);
+    if (failed.length) console.warn("Some Anki notes couldn't be retagged:", failed.map((r) => r.error));
   }
-  return { added: toAdd.length, retagged: retag.length };
+  return { added, retagged: retag.length };
 }
 
 /**
- * Study status for each of `words`, read from Anki. Looks at Moto's own
- * notes AND the first field of every other note type -- the conventional
- * "expression" field -- so words already being studied in other decks
- * (a core deck, a mining deck) light up too, without any setup.
- * Returns Map(word -> "new" | "learning" | "known") for words Anki has.
+ * Study status for each of `words`, read from Anki -- from Moto's own notes
+ * AND the first field of every other note type (the conventional
+ * "expression" field), so words already studied in other decks (a core
+ * deck, a mining deck) light up too, without any setup.
+ *
+ * Two steps, so the expensive call only ever sees real matches: a narrow
+ * search for notes whose first field is the word -- exactly, wrapped in
+ * HTML, followed by furigana, or padded with &nbsp; -- then an exact
+ * plain-text check on those notes' fields, then card info for just the
+ * notes that passed.
+ *
+ * Returns { statuses: Map(word -> status), foreign: Set(word) } -- foreign
+ * being the words that have a card outside Moto's own note type.
  */
 export async function pullStatuses(words) {
   const unique = [...new Set(words)].filter(Boolean);
-  const result = new Map();
-  if (unique.length === 0) return result;
+  const statuses = new Map();
+  const foreign = new Set();
+  if (unique.length === 0) return { statuses, foreign };
 
   const models = await invoke("modelNames");
-  const firstFields = new Map();
-  for (const model of models) {
-    const fields = model === MODEL_NAME ? ["Word"] : await invoke("modelFieldNames", { modelName: model });
-    if (fields[0]) firstFields.set(model, fields[0]);
-  }
-  const fieldNames = [...new Set(firstFields.values())];
-  if (fieldNames.length === 0) return result;
+  const others = models.filter((m) => m !== MODEL_NAME);
+  const fieldLists = others.length ? await multi(others.map((m) => ({ action: "modelFieldNames", params: { modelName: m } }))) : [];
+  const firstFields = new Map([[MODEL_NAME, "Word"]]);
+  others.forEach((m, i) => {
+    const first = fieldLists[i]?.result?.[0];
+    if (first) firstFields.set(m, first);
+  });
+  const fieldNames = [...new Set(firstFields.values())].map((f) => f.replace(/[\s:"]/g, "_"));
 
   for (const chunk of chunks(unique, QUERY_CHUNK)) {
     const terms = [];
     for (const field of fieldNames) {
-      // Wildcards on both sides: a field often wraps the word in HTML
-      // (<b>本当</b>) or furigana markup, which an exact field match would
-      // miss. Over-matches (本当に) are dropped below by comparing the
-      // field's plain text exactly.
-      for (const w of chunk) terms.push(`${field.replace(/[\s:"]/g, "_")}:*${quoteSearch(w).slice(1, -1)}*`);
+      for (const w of chunk) {
+        const e = escapeSearch(w);
+        terms.push(`${field}:${e}`, `${field}:*>${e}<*`, `${field}:${e}[*`, `${field}:${e}&nbsp;*`, `${field}:*&nbsp;${e}`);
+      }
     }
-    const cardIds = await invoke("findCards", { query: terms.map((t) => `"${t}"`).join(" OR ") });
-    if (cardIds.length === 0) continue;
-    const cards = await invoke("cardsInfo", { cards: cardIds });
+    const noteIds = await invoke("findNotes", { query: terms.map((t) => `"${t}"`).join(" OR ") });
+    if (noteIds.length === 0) continue;
+
     const wanted = new Set(chunk);
+    const wordByNote = new Map();
+    for (const idChunk of chunks(noteIds, NOTE_CHUNK)) {
+      const infos = await invoke("notesInfo", { notes: idChunk });
+      for (const n of infos) {
+        const field = firstFields.get(n.modelName);
+        const word = field ? plainField(n.fields?.[field]?.value) : null;
+        if (!word || !wanted.has(word)) continue;
+        wordByNote.set(n.noteId, word);
+        if (n.modelName !== MODEL_NAME) foreign.add(word);
+      }
+    }
+    if (wordByNote.size === 0) continue;
+
+    const cardIds = await invoke("findCards", { query: `nid:${[...wordByNote.keys()].join(",")}` });
+    const cards = cardIds.length ? await invoke("cardsInfo", { cards: cardIds }) : [];
     for (const card of cards) {
-      const field = firstFields.get(card.modelName);
-      const raw = card.fields?.[field]?.value ?? "";
-      const word = raw.replace(/<[^>]*>/g, "").trim();
-      if (!wanted.has(word)) continue;
-      result.set(word, bestStatus(result.get(word), statusFromCard(card)));
+      const word = wordByNote.get(card.note);
+      if (word) statuses.set(word, bestStatus(statuses.get(word), statusFromCard(card)));
     }
   }
-  return result;
+  return { statuses, foreign };
 }
 
-/** How many Moto cards are due for review right now. */
+/** What Anki's deck list shows for the Moto deck: new + learning + review
+ * cards available today (within the deck's daily limits) -- so the count
+ * isn't empty right after bookmarking, when every card is still new. */
 export async function dueCount() {
-  const ids = await invoke("findCards", { query: `deck:${quoteSearch(DECK_NAME)} is:due` });
-  return ids.length;
+  const stats = await invoke("getDeckStats", { decks: [DECK_NAME] });
+  const deck = Object.values(stats ?? {}).find((d) => d.name === DECK_NAME);
+  return deck ? deck.new_count + deck.learn_count + deck.review_count : 0;
 }
 
 /** Opens Anki's reviewer on the Moto deck. */
@@ -232,8 +308,10 @@ export function openBrowser(query) {
   return invoke("guiBrowse", { query });
 }
 
+/** Browser search for one collection's tag -- quoted, since a user tag can
+ * contain characters Anki's search treats as syntax. */
 export function collectionQuery(tag) {
-  return `tag:${tag}`;
+  return `"tag:${String(tag).replace(/(["\\])/g, "\\$1")}"`;
 }
 
 /**

@@ -46,6 +46,7 @@ export function createFakeAnki({ models = {}, decks = [], notes = [] } = {}) {
     const key = term.slice(0, colon);
     const value = unquote(term.slice(colon + 1));
     if (key === "note") return note.modelName === value;
+    if (key === "nid") return value.split(",").includes(String(note.noteId));
     if (key === "deck") return note.deck === value;
     if (key === "tag") return note.tags.includes(value);
     const field = Object.keys(note.fields).find((f) => f.toLowerCase() === key.toLowerCase());
@@ -62,6 +63,16 @@ export function createFakeAnki({ models = {}, decks = [], notes = [] } = {}) {
         const unwrapped = part.trim().startsWith('"') ? [unquote(part)] : part.trim().split(/\s+(?=(?:[^"]*"[^"]*")*[^"]*$)/);
         return unwrapped.every((t) => matchesTerm(note, card, t));
       })
+    );
+  }
+
+  // Anki's duplicate rule: same note type, same first field (compared
+  // without HTML), in the same deck.
+  function isDuplicate(n) {
+    const first = state.models[n.modelName]?.[0];
+    const strip = (v) => String(v ?? "").replace(/<[^>]*>/g, "").trim();
+    return state.notes.some(
+      (x) => x.modelName === n.modelName && x.deck === n.deckName && strip(x.fields[first]) === strip(n.fields[first])
     );
   }
 
@@ -88,8 +99,11 @@ export function createFakeAnki({ models = {}, decks = [], notes = [] } = {}) {
           fields: Object.fromEntries(Object.entries(n.fields).map(([k, v], i) => [k, { value: v, order: i }])),
         };
       }),
-    addNotes: ({ notes }) =>
-      notes.map((n) => {
+    canAddNotes: ({ notes }) => notes.map((n) => !isDuplicate(n)),
+    // Like current AnkiConnect: one bad note fails the whole call.
+    addNotes: ({ notes }) => {
+      if (notes.some(isDuplicate)) throw new Error("cannot create note because it is a duplicate");
+      return notes.map((n) => {
         const noteId = nextId++;
         state.notes.push({
           noteId,
@@ -100,7 +114,23 @@ export function createFakeAnki({ models = {}, decks = [], notes = [] } = {}) {
           cards: [{ cardId: nextId++, interval: 0, type: 0, queue: 0, due: false }],
         });
         return noteId;
-      }),
+      });
+    },
+    getDeckStats: ({ decks }) =>
+      Object.fromEntries(
+        decks.map((name, i) => {
+          const cards = state.notes.filter((n) => n.deck === name).flatMap((n) => n.cards);
+          return [
+            String(i + 1),
+            {
+              name,
+              new_count: cards.filter((c) => c.type === 0).length,
+              learn_count: 0,
+              review_count: cards.filter((c) => c.type !== 0 && c.due).length,
+            },
+          ];
+        })
+      ),
     updateNoteTags: ({ note, tags }) => {
       state.notes.find((n) => n.noteId === note).tags = [...tags];
       return null;

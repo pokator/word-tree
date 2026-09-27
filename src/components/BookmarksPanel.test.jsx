@@ -68,7 +68,7 @@ describe("BookmarksPanel", () => {
     await userEvent.click(screen.getByRole("button", { name: /^N3 1$/ }));
     expect(screen.getAllByRole("listitem").map((li) => li.textContent)).toEqual([expect.stringContaining("本当")]);
     await userEvent.click(screen.getByRole("button", { name: /Open “N3” in Anki/ }));
-    expect(api.browse).toHaveBeenCalledWith("tag:moto::jlpt::n3");
+    expect(api.browse).toHaveBeenCalledWith('"tag:moto::jlpt::n3"');
     await userEvent.click(screen.getByRole("button", { name: "Review 4 due" }));
     expect(api.review).toHaveBeenCalledOnce();
   });

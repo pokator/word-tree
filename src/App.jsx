@@ -431,7 +431,8 @@ export default function App() {
     (word) => groupsApi.groupsForWord(word).map((g) => g.name),
     [groupsApi]
   );
-  const anki = useAnkiSync({ dataset, bookmarks: saved.words, userTagsFor, graphWords, applyStatuses });
+  const statusFor = useCallback((word) => getStatus("word", word), [getStatus]);
+  const anki = useAnkiSync({ dataset, bookmarks: saved.words, userTagsFor, graphWords, statusFor, applyStatuses });
   const ankiConnected = anki.state === "connected";
 
   const stats = useMemo(() => {
@@ -476,7 +477,7 @@ export default function App() {
       selectedId={selectedId}
       onNodeClick={handleNodeSelect}
       onNodeExpand={handleNodeExpand}
-      isInGroup={isBookmarked}
+      isBookmarked={isBookmarked}
       isDimmed={isNodeDimmed}
       theme={theme}
       onReset={handleReset}

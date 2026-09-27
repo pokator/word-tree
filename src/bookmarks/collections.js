@@ -1,6 +1,6 @@
 import { extractKanjiComponents } from "../graph/kanji";
 import { wordJlptBucket } from "../graph/buildGraph";
-import { TAG_ROOT } from "../anki/ankiSync";
+import { TAG_ROOT, tagPart } from "../anki/ankiSync";
 
 const JLPT_ORDER = ["n5", "n4", "n3", "n2", "n1"];
 
@@ -34,7 +34,6 @@ export function buildCollections(dataset, bookmarks, userTagsFor = () => []) {
     if (b.found_from && b.found_from !== word) add("from", b.found_from, word);
   }
 
-  const tagPart = (v) => String(v).trim().replace(/\s+/g, "_").replace(/:+/g, "_");
   const out = [];
   for (const [key, words] of [...byKind.tag].sort(([a], [b]) => a.localeCompare(b))) {
     out.push({ kind: "tag", key, label: key, words, ankiTag: `${TAG_ROOT}::tag::${tagPart(key)}` });

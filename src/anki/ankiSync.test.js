@@ -3,6 +3,7 @@ import { createFakeAnki } from "./fakeAnkiConnect";
 import { DECK_NAME } from "./ankiConnect";
 import {
   MODEL_NAME,
+  collectionQuery,
   dueCount,
   pullStatuses,
   pushBookmarks,
@@ -83,6 +84,46 @@ describe("pushBookmarks", () => {
   });
 });
 
+describe("pushBookmarks resilience", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("recognises a Moto note the user reformatted in Anki, and still adds other bookmarks", async () => {
+    install({
+      models: { [MODEL_NAME]: ["Word", "Reading", "Meaning", "Kanji"] },
+      notes: [{ modelName: MODEL_NAME, deck: DECK_NAME, fields: { Word: "<b>日本語</b>" }, tags: ["moto"] }],
+    });
+    const items = syncItemsFor(DATASET, [{ item_id: "日本語" }, { item_id: "本当" }]);
+    const result = await pushBookmarks(items);
+    expect(result.added).toBe(1);
+    expect(anki.state.notes.map((n) => n.fields.Word)).toEqual(["<b>日本語</b>", "本当"]);
+  });
+
+  it("skips words it's told to (already studied elsewhere, or marked known)", async () => {
+    install();
+    const items = syncItemsFor(DATASET, [{ item_id: "日本語" }, { item_id: "本当" }]);
+    expect(await pushBookmarks(items, { skipWords: new Set(["本当"]) })).toEqual({ added: 1, retagged: 0 });
+    expect(anki.state.notes.map((n) => n.fields.Word)).toEqual(["日本語"]);
+  });
+
+  it("doesn't retag forever over a case-only difference", async () => {
+    install({
+      models: { [MODEL_NAME]: ["Word", "Reading", "Meaning", "Kanji"] },
+      notes: [{ modelName: MODEL_NAME, deck: DECK_NAME, fields: { Word: "本当" }, tags: [] }],
+    });
+    const items = syncItemsFor(DATASET, [{ item_id: "本当" }], () => ["Verbs"]);
+    await pushBookmarks(items);
+    anki.state.notes[0].tags = anki.state.notes[0].tags.map((t) => t.replace("Verbs", "verbs"));
+    expect((await pushBookmarks(items)).retagged).toBe(0);
+  });
+});
+
+describe("collectionQuery", () => {
+  it("quotes the tag so search syntax in a user tag stays literal", () => {
+    expect(collectionQuery("moto::tag::N4_(hard)")).toBe('"tag:moto::tag::N4_(hard)"');
+    expect(tagsFor({ userTags: ['say "hi"*'] })).toContain("moto::tag::say__hi__");
+  });
+});
+
 describe("pullStatuses", () => {
   afterEach(() => vi.unstubAllGlobals());
 
@@ -98,8 +139,37 @@ describe("pullStatuses", () => {
         { modelName: "Core 2k", deck: "Core", fields: { Expression: "英語", Meaning: "日本語" }, cards: [{ interval: 90, type: 2, queue: 2 }] },
       ],
     });
-    const statuses = await pullStatuses(["日本語", "本当", "英語", "未知"]);
+    const { statuses, foreign } = await pullStatuses(["日本語", "本当", "英語", "未知"]);
     expect(Object.fromEntries(statuses)).toEqual({ 日本語: "known", 本当: "new", 英語: "known" });
+    expect(foreign).toEqual(new Set(["日本語", "本当", "英語"]));
+  });
+
+  it("matches words behind furigana and &nbsp;, and only fetches cards for real matches", async () => {
+    install({
+      models: { Sentences: ["Sentence", "Translation"], Vocab: ["Expression", "Meaning"] },
+      notes: [
+        { modelName: "Vocab", deck: "V", fields: { Expression: "日本語[にほんご]" }, cards: [{ interval: 40, type: 2, queue: 2 }] },
+        { modelName: "Vocab", deck: "V", fields: { Expression: "日本&nbsp;" }, cards: [{ interval: 30, type: 2, queue: 2 }] },
+        ...Array.from({ length: 300 }, (_, i) => ({
+          modelName: "Sentences",
+          deck: "S",
+          fields: { Sentence: `日本の${i}番目の文`, Translation: "x" },
+          cards: [{ interval: 90, type: 2, queue: 2 }],
+        })),
+      ],
+    });
+    const { statuses } = await pullStatuses(["日本語", "日本"]);
+    expect(Object.fromEntries(statuses)).toEqual({ 日本語: "known", 日本: "known" });
+    // Sentences merely containing 日本 never reach cardsInfo.
+    const cardsInfoCalls = anki.state.calls.filter((a) => a === "cardsInfo").length;
+    expect(cardsInfoCalls).toBe(1);
+  });
+
+  it("counts cards Anki would show today, new ones included", async () => {
+    install({
+      notes: [{ modelName: "Basic", deck: DECK_NAME, fields: { Front: "a" }, cards: [{ interval: 0, type: 0, queue: 0 }] }],
+    });
+    expect(await dueCount()).toBe(1);
   });
 
   it("counts due Moto cards", async () => {

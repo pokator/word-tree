@@ -53,9 +53,11 @@ export function useProgress() {
   }, [user]);
 
   const mapRef = useRef(map);
+  const loadingRef = useRef(loading);
   useEffect(() => {
     mapRef.current = map;
-  }, [map]);
+    loadingRef.current = loading;
+  }, [map, loading]);
 
   const getStatus = useCallback((type, id) => map.get(key(type, id)), [map]);
 
@@ -86,8 +88,18 @@ export function useProgress() {
   // anki/useAnkiSync.js). Writes only the ones that actually changed, in
   // one upsert, rather than a request per word. `entries`: Map or iterable
   // of [key "type:id", status].
+  //
+  // Anki's "new" (a card that exists but hasn't been studied yet) never
+  // replaces a status the word already has: it says nothing about what you
+  // know, and it would otherwise wipe out an "I already know this" the
+  // moment its bookmark's card was created. Learning/known always apply --
+  // those come from actual reviews.
   const applyStatuses = useCallback(
     (entries) => {
+      // Signed in but the account's progress hasn't loaded yet: diffing
+      // against the empty placeholder map would upsert everything and then
+      // be overwritten by the fetch. The next sync applies them instead.
+      if (loadingRef.current) return;
       // Diffed against the latest map via the ref, not inside a setMap
       // updater -- React may run updaters later, and the Supabase write
       // below needs the list of changes now.
@@ -96,6 +108,7 @@ export function useProgress() {
       let next = null;
       for (const [k, status] of entries) {
         if (prev.get(k) === status) continue;
+        if (status === "new" && prev.has(k)) continue;
         next ??= new Map(prev);
         next.set(k, status);
         changed.push([k, status]);
@@ -123,10 +136,9 @@ export function useProgress() {
     [user]
   );
 
-  // Word-only mastery counts + membership (kanji aren't part of the "words
-  // learned" story this stat is telling) -- used by the header's progress
-  // bar and the "Review" entry point (its pool is every word marked New or
-  // Learning).
+  // Word-only status counts + membership (kanji aren't part of the "words
+  // learned" story this stat is telling) -- used by the dictionary panel's
+  // progress bar.
   const wordsByStatus = useMemo(() => {
     const buckets = { new: [], learning: [], known: [] };
     for (const [k, status] of map) {

@@ -13,7 +13,7 @@ function guestId() {
  * status or the Anki save queue. Shape: [{ id, name, words: string[] }].
  * Logged in: backed by Supabase's `groups`/`group_words` tables.
  * Guest/logged-out: identical array-shaped API backed by localStorage, so
- * callers (GroupsPanel, DictionaryPanel) never need to know which is active --
+ * callers (DictionaryPanel, BookmarksPanel) never need to know which is active --
  * same pattern as progress/useProgress.js.
  */
 export function useGroups() {
@@ -68,6 +68,7 @@ export function useGroups() {
     groupsRef.current = groups;
   }, [groups]);
   const addWordToGroupRef = useRef(null);
+  const pendingCreatesRef = useRef(new Map()); // name -> Promise<group | null>
 
   const persistGuest = useCallback(
     (next) => {
@@ -104,26 +105,33 @@ export function useGroups() {
         if (word) addWordToGroupRef.current(existing.id, word);
         return;
       }
-      supabase
-        .from("groups")
-        .insert({ user_id: user.id, name: trimmed })
-        .select("id, name")
-        .single()
-        .then(({ data, error }) => {
-          if (error) {
-            console.error("Failed to create group:", error.message);
-            return;
-          }
-          setGroups((prev) => [...prev, { id: data.id, name: data.name, words: word ? [word] : [] }]);
-          if (word) {
-            supabase
-              .from("group_words")
-              .upsert({ group_id: data.id, word }, { onConflict: "group_id,word", ignoreDuplicates: true })
-              .then(({ error: wordError }) => {
-                if (wordError) console.error("Failed to add word to new group:", wordError.message);
-              });
-          }
+      // A second create for the same name while the first is still in
+      // flight (two quick tag entries) waits for that insert rather than
+      // racing it into the unique(user_id, name) constraint -- which would
+      // fail the second insert and silently drop its word.
+      let pending = pendingCreatesRef.current.get(trimmed);
+      if (!pending) {
+        pending = supabase
+          .from("groups")
+          .insert({ user_id: user.id, name: trimmed })
+          .select("id, name")
+          .single()
+          .then(({ data, error }) => {
+            pendingCreatesRef.current.delete(trimmed);
+            if (error) {
+              console.error("Failed to create group:", error.message);
+              return null;
+            }
+            setGroups((prev) => [...prev, { id: data.id, name: data.name, words: [] }]);
+            return data;
+          });
+        pendingCreatesRef.current.set(trimmed, pending);
+      }
+      if (word) {
+        pending.then((group) => {
+          if (group) addWordToGroupRef.current(group.id, word);
         });
+      }
     },
     [user, persistGuest]
   );
