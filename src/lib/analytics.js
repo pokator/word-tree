@@ -19,3 +19,8 @@ export function trackOnce(name, data) {
   sent.add(name);
   track(name, data);
 }
+
+/** Test-only: forget which trackOnce events this "page load" already sent. */
+export function resetTrackOnce() {
+  sent.clear();
+}

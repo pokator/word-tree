@@ -246,9 +246,18 @@ export default function App() {
       setRootWord(word);
       setSelectedId(wordNodeId(word));
       addRecent(word);
-      track("search");
     },
     [addRecent]
+  );
+
+  // Only the search bar counts as a search -- bookmark clicks also land in
+  // handleSelectWord, via handleSelectFromSidebar.
+  const handleSearch = useCallback(
+    (word) => {
+      track("search");
+      handleSelectWord(word);
+    },
+    [handleSelectWord]
   );
 
   // On desktop the Bookmarks/Groups panel docks beside the graph, so it
@@ -372,7 +381,10 @@ export default function App() {
   const handleNodeExpand = useCallback(
     (nodeId) => {
       setSelectedId(nodeId);
-      trackOnce("first-expand");
+      // The root starts out expanded, so double-clicking it changes nothing
+      // and isn't a first expand.
+      const target = graph?.nodes.get(nodeId);
+      if (target && !target.expanded) trackOnce("first-expand");
       setGraph((prev) => {
         const node = prev.nodes.get(nodeId);
         if (!node || node.expanded) return prev;
@@ -381,7 +393,7 @@ export default function App() {
           : expandWord(dataset, prev, node.word, { isJlptAllowed });
       });
     },
-    [dataset, maxWords, isJlptAllowed]
+    [dataset, graph, maxWords, isJlptAllowed]
   );
 
   // Clicking a card in the dictionary panel's "Kanji" (word view) or
@@ -517,7 +529,7 @@ export default function App() {
             <span className="app__title-text">Moto</span>
           </h1>
         </div>
-        <SearchBar words={dataset.WORDS} onSelectWord={handleSelectWord} recents={recents} wordsByText={dataset.WORDS_BY_TEXT} />
+        <SearchBar words={dataset.WORDS} onSelectWord={handleSearch} recents={recents} wordsByText={dataset.WORDS_BY_TEXT} />
         {!isDesktop ? (
           <MobileMenu
             savedCount={saved.words.length}
