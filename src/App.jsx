@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import SearchBar from "./components/SearchBar";
 import DictionaryPanel from "./components/DictionaryPanel";
 import GraphPanel from "./components/GraphPanel";
@@ -18,6 +18,7 @@ import { useAnkiSync } from "./anki/useAnkiSync";
 import { useTheme } from "./theme/useTheme";
 import { useLayoutMode } from "./lib/useLayoutMode";
 import { track, trackOnce } from "./lib/analytics";
+import { exploreUrl, nodeIdToToken, parseExploreUrl, replayGraph } from "./graph/exploreState";
 import {
   createInitialGraph,
   expandKanji,
@@ -117,16 +118,30 @@ function jlptBucketToLevel(bucket) {
   return Number.isFinite(n) ? n : null;
 }
 
+/** The graph a shared /explore/ link describes, read once on load. */
+function readLocation() {
+  if (typeof window === "undefined") return null;
+  return parseExploreUrl(window.location.pathname, window.location.search);
+}
+
 export default function App() {
   const dataset = useWordData();
-  const [rootWord, setRootWord] = useState(DEFAULT_ROOT);
+  const [fromUrl] = useState(readLocation);
+  const [rootWord, setRootWord] = useState(fromUrl?.root ?? DEFAULT_ROOT);
+  // What you did to the graph since its root was set (see
+  // graph/exploreState.js) -- replayable, so it's also the shareable URL.
+  const [ops, setOps] = useState(fromUrl?.ops ?? []);
+  // Bumped on back/forward, so the graph rebuilds even for the same root.
+  const [navKey, setNavKey] = useState(0);
   const [graph, setGraph] = useState(null);
   // Bumped when Reset or the tour rebuilds the graph around the same root,
   // so the graph re-frames itself even though its root didn't change.
   const [viewKey, setViewKey] = useState(0);
   const [builtFor, setBuiltFor] = useState(null);
-  const [selectedId, setSelectedId] = useState(wordNodeId(DEFAULT_ROOT));
-  const [maxWords, setMaxWords] = useState(loadMaxWords);
+  const [selectedId, setSelectedId] = useState(fromUrl?.sel ?? wordNodeId(fromUrl?.root ?? DEFAULT_ROOT));
+  // A shared link's words-per-branch applies to this visit only -- it's
+  // not saved over your own setting (that happens in handleSetMaxWords).
+  const [maxWords, setMaxWords] = useState(() => fromUrl?.maxWords ?? loadMaxWords());
   const [jlptFilter, setJlptFilter] = useState(loadJlptFilter);
   const [colorByDifficulty, setColorByDifficulty] = useState(loadColorByDifficulty);
   const [linkColorMode, setLinkColorMode] = useState(loadLinkColorMode);
@@ -159,10 +174,10 @@ export default function App() {
   // changes -- adjusting state during render (React's documented pattern
   // for "reset state when an input changes") rather than in an effect, so
   // there's no extra render with stale data in between.
-  const readyKey = dataset.loading ? null : `${dataset.source}:${rootWord}`;
+  const readyKey = dataset.loading ? null : `${dataset.source}:${rootWord}:${navKey}`;
   if (readyKey && readyKey !== builtFor) {
     setBuiltFor(readyKey);
-    setGraph(createInitialGraph(dataset, rootWord, { isJlptAllowed }));
+    setGraph(replayGraph(dataset, rootWord, ops, { maxWords, isJlptAllowed }));
   }
 
   const selectedNode = graph?.nodes.get(selectedId) ?? null;
@@ -247,6 +262,7 @@ export default function App() {
   const handleSelectWord = useCallback(
     (word) => {
       setRootWord(word);
+      setOps([]);
       setSelectedId(wordNodeId(word));
       addRecent(word);
     },
@@ -277,6 +293,7 @@ export default function App() {
 
   const handleReset = useCallback(() => {
     setGraph(createInitialGraph(dataset, rootWord, { isJlptAllowed }));
+    setOps([]);
     setSelectedId(wordNodeId(rootWord));
     setViewKey((k) => k + 1);
   }, [dataset, rootWord, isJlptAllowed]);
@@ -289,6 +306,7 @@ export default function App() {
   // searching for 日本語, so it shouldn't pollute their recent-searches list.
   const handleStartTutorial = useCallback(() => {
     setRootWord(DEFAULT_ROOT);
+    setOps([]);
     setSelectedId(wordNodeId(DEFAULT_ROOT));
     setGraph(createInitialGraph(dataset, DEFAULT_ROOT, { isJlptAllowed }));
     setViewKey((k) => k + 1);
@@ -376,6 +394,64 @@ export default function App() {
     focusGroupId !== null ||
     maxWords !== 8;
 
+  // Keep the address bar on the graph you're looking at, so copying it (or
+  // Share) gives someone else the same graph. A new root is a new history
+  // entry -- Back returns to the word you came from; expanding and
+  // selecting just update the current entry.
+  const shownRootRef = useRef(fromUrl?.root ?? null);
+  const graphUrl = exploreUrl({ root: rootWord, ops, sel: selectedId, maxWords });
+  useEffect(() => {
+    if (dataset.loading) return;
+    const here = decodeURI(window.location.pathname + window.location.search);
+    // The untouched home page stays "/".
+    if (window.location.pathname === "/" && rootWord === DEFAULT_ROOT && ops.length === 0) return;
+    if (decodeURI(graphUrl) === here) return;
+    const leavingHome = window.location.pathname === "/";
+    if (leavingHome || (shownRootRef.current !== null && shownRootRef.current !== rootWord)) {
+      window.history.pushState(null, "", graphUrl);
+    } else {
+      window.history.replaceState(null, "", graphUrl);
+    }
+    shownRootRef.current = rootWord;
+  }, [dataset.loading, graphUrl, rootWord, ops.length]);
+
+  useEffect(() => {
+    function onPopState() {
+      const state = readLocation();
+      const root = state?.root ?? DEFAULT_ROOT;
+      shownRootRef.current = root;
+      setRootWord(root);
+      setOps(state?.ops ?? []);
+      setSelectedId(state?.sel ?? wordNodeId(root));
+      setNavKey((k) => k + 1);
+    }
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
+  // A tab title per word, for history and bookmarks; home keeps its own.
+  useEffect(() => {
+    if (!fromUrl && rootWord === DEFAULT_ROOT && ops.length === 0) return;
+    document.title = `${rootWord} — explore on Moto (元)`;
+  }, [fromUrl, rootWord, ops.length]);
+
+  // An installed (home-screen) app has no address bar to copy from.
+  const handleShare = useCallback(async () => {
+    const url = window.location.origin + graphUrl;
+    track("share");
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: `${rootWord} — Moto (元)`, url });
+        return "shared";
+      }
+      await navigator.clipboard.writeText(url);
+      return "copied";
+    } catch (err) {
+      if (err?.name === "AbortError") return null; // closed the share sheet
+      return "failed";
+    }
+  }, [graphUrl, rootWord]);
+
   // A click only selects (shows its definition) -- it never expands the
   // graph on its own, so browsing what's already there never surprises you
   // with new nodes. Expanding is the separate, deliberate action below.
@@ -389,7 +465,10 @@ export default function App() {
       // The root starts out expanded, so double-clicking it changes nothing
       // and isn't a first expand.
       const target = graph?.nodes.get(nodeId);
-      if (target && !target.expanded) trackOnce("first-expand");
+      if (target && !target.expanded) {
+        trackOnce("first-expand");
+        setOps((o) => [...o, nodeIdToToken(nodeId)]); // k:学, w:学校
+      }
       setGraph((prev) => {
         const node = prev.nodes.get(nodeId);
         if (!node || node.expanded) return prev;
@@ -410,6 +489,15 @@ export default function App() {
   const handleSelectRelated = useCallback(
     (type, key) => {
       if (!selectedNode) return;
+      const link =
+        type === "kanji" && selectedNode.type === "word"
+          ? { kanjiChar: key, word: selectedNode.word }
+          : type === "word" && selectedNode.type === "kanji"
+            ? { kanjiChar: selectedNode.char, word: key }
+            : null;
+      if (link && graph && revealLink(dataset, graph, link) !== graph) {
+        setOps((o) => [...o, `l:${link.kanjiChar}/${link.word}`]);
+      }
       setGraph((prev) => {
         if (!prev) return prev;
         if (type === "kanji" && selectedNode.type === "word") {
@@ -422,7 +510,7 @@ export default function App() {
       });
       setSelectedId(type === "kanji" ? kanjiNodeId(key) : wordNodeId(key));
     },
-    [dataset, selectedNode]
+    [dataset, graph, selectedNode]
   );
 
   // Hovering one of those cards highlights where it relates to on the graph
@@ -501,6 +589,7 @@ export default function App() {
       isDimmed={isNodeDimmed}
       theme={theme}
       onReset={handleReset}
+      onShare={handleShare}
       stats={stats}
       datasetSource={dataset.source}
       datasetLoading={dataset.loading}

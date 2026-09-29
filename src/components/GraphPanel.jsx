@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import WordTreeGraph from "./WordTreeGraph";
 import FiltersPanel from "./FiltersPanel";
 import { kanjiPositionCategory } from "../graph/positionCategory";
@@ -162,6 +162,7 @@ export default function GraphPanel({
   isDimmed,
   theme,
   onReset,
+  onShare,
   stats,
   datasetSource,
   datasetLoading,
@@ -195,6 +196,12 @@ export default function GraphPanel({
   // dim it regardless of what isDimmed returns (see its `!node.isRoot &&`
   // guard), so a toggle for it would silently do nothing.
   const [legendOpen, toggleLegend] = useLegendOpen();
+  const [shareNote, setShareNote] = useState(null);
+  useEffect(() => {
+    if (!shareNote) return;
+    const t = setTimeout(() => setShareNote(null), 2200);
+    return () => clearTimeout(t);
+  }, [shareNote]);
   const [typeLegend, setTypeLegend] = useState(DEFAULT_TYPE_LEGEND);
   const [jlptLegend, setJlptLegend] = useState(DEFAULT_JLPT_LEGEND);
   const [positionLegend, setPositionLegend] = useState(DEFAULT_POSITION_LEGEND);
@@ -287,6 +294,35 @@ export default function GraphPanel({
                 />
               )}
             </div>
+            {onShare && (
+              <button
+                type="button"
+                className="icon-toolbar__btn"
+                onClick={async () => {
+                  const result = await onShare();
+                  if (result === "copied") setShareNote("Link copied");
+                  else if (result === "failed") setShareNote("Couldn't share — copy the address bar");
+                }}
+                title="Share this graph"
+                aria-label="Share this graph"
+              >
+                <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
+                  <path
+                    d="M12 15V4M8 8l4-4 4 4M6 12v6.5A1.5 1.5 0 0 0 7.5 20h9a1.5 1.5 0 0 0 1.5-1.5V12"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.7"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+            )}
+            {shareNote && (
+              <span className="graph-panel__share-note" role="status">
+                {shareNote}
+              </span>
+            )}
             <button
               type="button"
               className="icon-toolbar__btn"

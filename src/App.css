@@ -1889,6 +1889,24 @@
   box-shadow: var(--shadow);
 }
 
+/* "Link copied", under the toolbar's Share button for a moment. */
+.graph-panel__toolbar-actions .icon-toolbar {
+  position: relative;
+}
+.graph-panel__share-note {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 7;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: var(--text-h);
+  color: var(--bg);
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 /* Collapses to just its toggle -- on a phone the open legend can cover a
    good part of the graph (collapsed by default there, see GraphPanel). */
 .graph-legend.is-collapsed {

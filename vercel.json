@@ -1,6 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
+    { "source": "/explore/:path*", "destination": "/index.html" },
     { "source": "/m/s.js", "destination": "https://cloud.umami.is/script.js" },
     { "source": "/m/api/send", "destination": "https://gateway.umami.is/api/send" }
   ]
