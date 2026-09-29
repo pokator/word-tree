@@ -26,6 +26,11 @@ describe("index.html crawler/link-preview tags", () => {
     expect(meta("property", "og:image:height")).toBe("630");
   });
 
+  it("keeps social descriptions short enough not to truncate on mobile", () => {
+    expect(meta("property", "og:description").length).toBeLessThanOrEqual(125);
+    expect(meta("name", "twitter:description").length).toBeLessThanOrEqual(125);
+  });
+
   it("has Twitter card tags", () => {
     expect(meta("name", "twitter:card")).toBe("summary_large_image");
     expect(meta("name", "twitter:image")).toBe(meta("property", "og:image"));
