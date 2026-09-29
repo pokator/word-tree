@@ -7,7 +7,13 @@
 // every character that appears as a Kanji.text form in JMdict.
 export function isKanji(char) {
   const c = char.codePointAt(0);
-  return (c >= 0x3400 && c <= 0x9fff) || (c >= 0xf900 && c <= 0xfaff);
+  return (
+    (c >= 0x3400 && c <= 0x9fff) || // Extension A + Unified Ideographs
+    (c >= 0xf900 && c <= 0xfaff) || // Compatibility Ideographs
+    // Extensions B-H and Compatibility Supplement, outside the BMP -- e.g.
+    // 𠮟 (U+20B9F), on the jōyō list since 2010.
+    (c >= 0x20000 && c <= 0x323af)
+  );
 }
 
 /**
