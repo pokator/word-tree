@@ -1,2 +1,4 @@
 User-agent: *
 Allow: /
+
+Sitemap: https://moto.souravbanerjee.com/sitemap.xml

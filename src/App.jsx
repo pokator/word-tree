@@ -700,14 +700,13 @@ export default function App() {
 
       {tutorialOpen && <Tutorial layout={layout} onClose={() => setTutorialOpen(false)} />}
 
-      <a
-        className="app__credit"
-        href="https://souravbanerjee.com"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        by Sourav Banerjee
-      </a>
+      <div className="app__credit">
+        <a href="/kanji">Kanji list</a>
+        <span aria-hidden="true"> · </span>
+        <a href="https://souravbanerjee.com" target="_blank" rel="noopener noreferrer">
+          by Sourav Banerjee
+        </a>
+      </div>
     </div>
   );
 }

@@ -65,6 +65,9 @@ export default function MobileMenu({
           </button>
           {/* The desktop credit is a fixed corner link, which would sit on
               top of the graph on a phone -- it lives here instead. */}
+          <a className="mobile-menu__credit" href="/kanji">
+            Kanji list
+          </a>
           <a className="mobile-menu__credit" href="https://souravbanerjee.com" target="_blank" rel="noopener noreferrer">
             by Sourav Banerjee
           </a>

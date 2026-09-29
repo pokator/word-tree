@@ -1,7 +1,14 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "api/seo.js": { "includeFiles": "api/_lib/**" }
+  },
   "rewrites": [
     { "source": "/explore/:path*", "destination": "/index.html" },
+    { "source": "/kanji", "destination": "/api/seo?kind=kanji" },
+    { "source": "/kanji/:key", "destination": "/api/seo?kind=kanji&key=:key" },
+    { "source": "/word/:key", "destination": "/api/seo?kind=word&key=:key" },
+    { "source": "/sitemap.xml", "destination": "/api/seo?kind=sitemap" },
     { "source": "/m/s.js", "destination": "https://cloud.umami.is/script.js" },
     { "source": "/m/api/send", "destination": "https://gateway.umami.is/api/send" }
   ]

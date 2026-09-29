@@ -10,7 +10,8 @@
     "test": "vitest run",
     "preview": "vite preview",
     "generate:seed": "node scripts/generate-seed-sql.mjs",
-    "generate:offline-gz": "node scripts/compress-offline-dataset.mjs"
+    "generate:offline-gz": "node scripts/compress-offline-dataset.mjs",
+    "generate:seo-data": "node scripts/generate-seo-data.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.115.0",

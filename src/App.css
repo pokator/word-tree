@@ -684,11 +684,17 @@
   font-size: 11px;
   color: var(--text);
   opacity: 0.5;
-  text-decoration: none;
 }
 .app__credit:hover,
-.app__credit:focus-visible {
+.app__credit:focus-within {
   opacity: 0.85;
+}
+.app__credit a {
+  color: inherit;
+  text-decoration: none;
+}
+.app__credit a:hover,
+.app__credit a:focus-visible {
   text-decoration: underline;
 }
 
@@ -2185,6 +2191,11 @@ button.legend__row.is-inactive:hover {
 .mobile-menu__credit:hover,
 .mobile-menu__credit:focus-visible {
   color: var(--accent);
+}
+.mobile-menu__credit + .mobile-menu__credit {
+  margin-top: 0;
+  padding-top: 4px;
+  border-top: none;
 }
 
 /* Phone layout -- see MobileLayout.jsx. Exactly one of the two sections is
