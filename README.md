@@ -5,8 +5,10 @@ and expand outward through the components it's built from (in Japanese,
 kanji) to discover every other word in the dataset that shares a component
 with it. The point is to make the *relatedness* of vocabulary visible and
 explorable, and to turn that exploration into actual retention — bookmark
-the words you want to learn, and Moto turns them into Anki cards, then
-shows on the graph what you've learned.
+the words you want to learn, and Moto turns them into Anki cards and
+shows what Anki says you've learned.
+
+Live at [moto.souravbanerjee.com](https://moto.souravbanerjee.com).
 
 This covers Japanese only. English (prefixes/suffixes/Latin & Greek roots)
 is a natural next step but intentionally out of scope for now — see "Not in
@@ -85,7 +87,10 @@ or use the "Show related words"/"Show kanji breakdown" button that
 appears in the dictionary panel for any selected, not-yet-expanded node.
 Nodes with a dashed ring haven't been (fully) expanded yet. Drag nodes to
 rearrange, scroll/pinch to zoom, drag the background to pan. On a touch
-screen, tap to select, and double-tap or press-and-hold to expand.
+screen, tap to select, and double-tap or press-and-hold to expand. The view
+frames the whole graph once it settles — on a new word, and after each
+expand — until you pan or zoom yourself; the zoom controls' reset button
+frames it again.
 
 The layout adapts to the screen's shape, not just its width
 (`src/lib/useLayoutMode.js`): side by side on desktop; stacked with both
@@ -139,8 +144,10 @@ then on, in that browser:
 - each word's status comes back from its Anki card: Learning until Anki is
   spacing it 21+ days apart, then Known — including words already in your
   *other* decks (matched on each note type's first field), so what you
-  already know shows up on the graph without any setup. Statuses are saved
-  to your account, so phones (which can't reach Anki) see them too;
+  already know shows up in the dictionary panel without any setup. (The
+  graph is for discovery and deliberately never shows study status.)
+  Statuses are saved to your account, so phones (which can't reach Anki)
+  see them too;
 - Anki is only contacted when your bookmarks change (a word added, or a
   bookmark's tags), when you connect, or when you press sync — never while
   you explore the graph.
@@ -157,14 +164,24 @@ found them — and each one opens in Anki's browser by its tag.
 To set up AnkiConnect:
 1. In Anki desktop: Tools → Add-ons → Get Add-ons…, enter code
    `2055492159` (AnkiConnect), restart Anki.
-2. Tools → Add-ons → AnkiConnect → Config, add this app's origin (e.g.
-   `http://localhost:5173` in dev) to `webCorsOriginList`, save, restart
-   Anki.
+2. Tools → Add-ons → AnkiConnect → Config, add
+   `https://moto.souravbanerjee.com` to `webCorsOriginList` (or
+   `http://localhost:5173` when running it locally), save, restart Anki.
+   The in-app guide shows the exact line to paste.
 3. Chrome/Edge 142+ ask to let the site "access devices on your local
    network" the first time it reaches Anki — allow it. (Moto never
    contacts Anki until you press Connect, so nobody sees that prompt
-   unasked.) If it still can't connect, Bookmarks lists what to check, and
-   a `.tsv` export (Anki's File → Import) always works as a fallback.
+   unasked.) If it still can't connect, Bookmarks lists what to check.
+
+Syncing directly needs Chrome, Edge, or Firefox on the computer running
+Anki. **Safari blocks an https site from calling AnkiConnect** on
+`127.0.0.1`, and phones have no Anki desktop to call, so on those (and when
+the local-network permission was refused) Bookmarks leads with the
+fallback instead: **Download .tsv for Anki**, which is also always on the
+bookmark list for everyone, account or not. Import it in Anki via
+File → Import (AnkiMobile and AnkiDroid can import it too).
+`src/anki/reachability.js` does the detection; it's advisory, so desktop
+Safari still gets a "Try connecting anyway" button.
 
 ## Theming
 
@@ -306,20 +323,17 @@ see "Assumptions" below.
   origins) — `buildGraph.js` is kept generic enough that an
   `englishData.js` + equivalent expand functions could be added later
   without reworking the graph/rendering layer.
-- Radical-level kanji decomposition, quiz/spaced-repetition modes beyond
-  the tri-state mastery marker, OAuth sign-in.
-- Mobile/touch-optimized interaction (pointer events work on touch, but
-  nothing was tuned for it).
+- Radical-level kanji decomposition, OAuth sign-in.
+- An in-app review scheduler — Anki does the scheduling (see "Studying with
+  Anki").
 
 ## Possible next steps
 
 1. Radical-level decomposition as a deeper zoom level on a kanji node.
-2. Active-recall quiz modes launched from a node (guess the reading,
-   assemble a word from its kanji) — the mastery marker becomes a real
-   spaced-repetition signal instead of a manual toggle. Groups would be a
-   natural scope for a quiz session ("quiz me on this group").
+2. Active-recall drills launched from a node (guess the reading, assemble
+   a word from its kanji), with the results feeding Anki rather than a
+   scheduler of Moto's own. A collection would be a natural scope for one.
 3. An English dataset + a second "mode" so the same graph engine can
    explore `unhappiness` → `un-`, `happy`, `-ness`.
-4. Guest → account progress/groups migration on first sign-in.
-5. Per-group color coding on the graph (today it's just a single dot for
-   "in any group").
+4. Per-tag color coding on the graph (today it's just a single dot for
+   "bookmarked").
