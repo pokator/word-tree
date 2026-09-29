@@ -86,3 +86,11 @@ describe("PWA manifest", () => {
     }
   });
 });
+
+describe("link-preview image", () => {
+  it("exists as a 1200x630 PNG", () => {
+    const png = readFileSync(`${root}public/og-image.png`);
+    expect(png.subarray(1, 4).toString()).toBe("PNG");
+    expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([1200, 630]);
+  });
+});
