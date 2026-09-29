@@ -67,6 +67,33 @@ describe("explore URLs in the app", () => {
     await waitFor(() => expect(node("学生")).toBeTruthy());
   });
 
+  it("each expansion is a Back step; Forward redoes it; selecting isn't", async () => {
+    window.history.replaceState(null, "", "/explore/学校");
+    renderApp();
+    await waitFor(() => expect(node("学")).toBeTruthy());
+
+    doubleTap(node("学"));
+    await waitFor(() => expect(node("学生")).toBeTruthy());
+    doubleTap(node("校"));
+    await waitFor(() => expect(here()).toMatch(/expand=k:学,k:校/));
+    // A plain click just selects -- no new entry.
+    fireEvent.pointerDown(node("学生"), { pointerType: "mouse", pointerId: 1, button: 0 });
+    fireEvent.pointerUp(window, { pointerType: "mouse", pointerId: 1, button: 0 });
+
+    act(() => window.history.back());
+    await waitFor(() => expect(here()).toMatch(/^\/explore\/学校\?expand=k:学(&|$)/));
+    expect(node("学生")).toBeTruthy();
+
+    act(() => window.history.back());
+    // The entry from just before expanding 学 (the double-tap's first tap
+    // had already selected it).
+    await waitFor(() => expect(here()).toMatch(/^\/explore\/学校(\?sel=k:学)?$/));
+    await waitFor(() => expect(node("学生")).toBeFalsy());
+
+    act(() => window.history.forward());
+    await waitFor(() => expect(node("学生")).toBeTruthy());
+  });
+
   it("Share copies the graph's link where there's no share sheet", async () => {
     window.history.replaceState(null, "", "/explore/学校?expand=k:学");
     const writeText = vi.fn(async () => {});

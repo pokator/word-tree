@@ -118,6 +118,9 @@ function jlptBucketToLevel(bucket) {
   return Number.isFinite(n) ? n : null;
 }
 
+// Identifies one graph state -- one history entry (see the URL sync in App).
+const graphKey = (root, ops) => `${root}\n${ops.join(",")}`;
+
 // index.html's own title, for the untouched home page.
 const HOME_TITLE = typeof document === "undefined" ? "" : document.title;
 
@@ -404,10 +407,11 @@ export default function App() {
     maxWords !== 8;
 
   // Keep the address bar on the graph you're looking at, so copying it (or
-  // Share) gives someone else the same graph. A new root is a new history
-  // entry -- Back returns to the word you came from; expanding and
-  // selecting just update the current entry.
-  const shownRootRef = useRef(fromUrl?.root ?? null);
+  // Share) gives someone else the same graph. A new root and each change to
+  // the graph (an expansion, a revealed link, a reset) is a new history
+  // entry, so Back steps back through what you did; merely selecting a
+  // node, or a words-per-branch change, just updates the current entry.
+  const shownRef = useRef(fromUrl ? graphKey(fromUrl.root, fromUrl.ops) : null);
   const graphUrl = exploreUrl({ root: rootWord, ops, sel: selectedId, maxWords });
   useEffect(() => {
     if (dataset.loading) return;
@@ -415,20 +419,21 @@ export default function App() {
     // The untouched home page stays "/".
     if (window.location.pathname === "/" && rootWord === DEFAULT_ROOT && ops.length === 0) return;
     if (decodeURI(graphUrl) === here) return;
+    const key = graphKey(rootWord, ops);
     const leavingHome = window.location.pathname === "/";
-    if (leavingHome || (shownRootRef.current !== null && shownRootRef.current !== rootWord)) {
+    if (leavingHome || (shownRef.current !== null && shownRef.current !== key)) {
       window.history.pushState(null, "", graphUrl);
     } else {
       window.history.replaceState(null, "", graphUrl);
     }
-    shownRootRef.current = rootWord;
-  }, [dataset.loading, graphUrl, rootWord, ops.length]);
+    shownRef.current = key;
+  }, [dataset.loading, graphUrl, rootWord, ops]);
 
   useEffect(() => {
     function onPopState() {
       const state = readLocation();
       const root = state?.root ?? DEFAULT_ROOT;
-      shownRootRef.current = root;
+      shownRef.current = graphKey(root, state?.ops ?? []);
       setRootWord(root);
       setOps(state?.ops ?? []);
       setSelectedId(state?.sel ?? wordNodeId(root));
