@@ -2,8 +2,11 @@
 // with both kanji expanded, light theme, rendered at 1440x756 and scaled
 // to 1200x630. Needs Playwright + ffmpeg, which aren't project deps:
 //   npm run build && npx vite preview --port 4317 --strictPort
-//   npm i --no-save playwright && node scripts/capture-og-image.cjs public/og-image.png
-// (without ffmpeg, pass 1200 630 as extra args and skip the scale step)
+//   npm i --no-save playwright
+//   node scripts/capture-og-image.cjs og-big.png 1440 756
+//   ffmpeg -i og-big.png -vf scale=1200:630:flags=lanczos public/og-image.png
+// (without ffmpeg: node scripts/capture-og-image.cjs public/og-image.png --
+// the default 1200x630 viewport crops the graph a little)
 const { chromium } = require("playwright");
 const [,, out, w = "1200", h = "630"] = process.argv;
 (async () => {
