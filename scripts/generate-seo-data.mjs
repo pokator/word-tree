@@ -21,6 +21,7 @@ const read = (p) => JSON.parse(readFileSync(path.join(ROOT, p), "utf8"));
 const load = async (p) => (await runnerImport(p, { root: ROOT, configFile: false })).module;
 const { kanjiReadingTypes } = await load("./src/graph/readingType.js");
 const { extractKanjiComponents } = await load("./src/graph/kanji.js");
+const { DEFAULT_RANK } = await load("./src/graph/buildGraph.js");
 
 const WORDS_PER_KANJI = 60; // what a kanji page lists, most common first
 const RELATED_KANJI = 12;
@@ -33,8 +34,11 @@ const WORDS = Array.isArray(wordsRaw) ? wordsRaw : Object.values(wordsRaw);
 const dataset = { KANJI };
 
 const firstGloss = (w) => (w.senses?.[0]?.gloss ?? [w.meaning ?? ""]).slice(0, 2).join("; ");
-const byCommonness = (a, b) =>
-  (a.rank ?? Infinity) - (b.rank ?? Infinity) || a.word.length - b.word.length || a.word.localeCompare(b.word);
+// Exactly expandKanji's order (buildGraph.js): by rank, unranked last, ties
+// kept in dataset order (Array#sort is stable) -- so a page's word list and
+// graph preview show the same words, in the same order, that the explorer
+// reveals when you click "Explore".
+const byCommonness = (a, b) => (a.rank ?? DEFAULT_RANK) - (b.rank ?? DEFAULT_RANK);
 
 // Which words get their own page: the common ones (JMdict priority-tagged)
 // that are built from at least one kanji -- the graph's reason to exist.
@@ -53,7 +57,7 @@ for (const { char, grade } of joyo) {
   const all = (containing[char] ?? []).slice().sort(byCommonness);
   const words = all.slice(0, WORDS_PER_KANJI).map((w) => {
     const type = kanjiReadingTypes(dataset, w.word, w.reading)[char] ?? "unknown";
-    return [w.word, w.reading ?? "", firstGloss(w), type[0], pageWords.has(w.word) ? 1 : 0];
+    return [w.word, w.reading ?? "", firstGloss(w), type[0], pageWords.has(w.word) ? 1 : 0, w.rank ?? null];
   });
   // Kanji that most often share a word with this one.
   const co = {};

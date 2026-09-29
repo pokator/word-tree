@@ -11,16 +11,16 @@
 //   word:<word text>   e.g. "word:日本語"
 //   kanji:<char>        e.g. "kanji:語"
 
-import { extractKanjiComponents } from "./kanji";
-import { wordComponents } from "../data/deriveIndexes";
-import { kanjiReadingTypes } from "./readingType";
+import { extractKanjiComponents } from "./kanji.js";
+import { wordComponents } from "../data/deriveIndexes.js";
+import { kanjiReadingTypes } from "./readingType.js";
 
 export const wordNodeId = (word) => `word:${word}`;
 export const kanjiNodeId = (char) => `kanji:${char}`;
 
 // Words with no explicit rank (or entries synthesized for an unlisted root
 // word's kanji) sort last when a branch is capped -- see expandKanji.
-const DEFAULT_RANK = 999;
+export const DEFAULT_RANK = 999;
 const rankOf = (dataset, word) => dataset.WORDS_BY_TEXT[word]?.rank ?? DEFAULT_RANK;
 
 // A kanji's JLPT bucket is just its own tag ("n5".."n1", or "unrated" if

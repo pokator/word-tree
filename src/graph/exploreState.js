@@ -1,4 +1,4 @@
-import { createInitialGraph, expandKanji, expandWord, kanjiNodeId, revealLink, wordNodeId } from "./buildGraph";
+import { createInitialGraph, expandKanji, expandWord, kanjiNodeId, revealLink, wordNodeId } from "./buildGraph.js";
 
 // A graph you built is a root word plus the ordered list of things you did
 // to it -- expand a node, or reveal one link from the dictionary panel.

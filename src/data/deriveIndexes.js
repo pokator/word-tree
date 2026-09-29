@@ -1,4 +1,4 @@
-import { extractKanjiComponents } from "../graph/kanji";
+import { extractKanjiComponents } from "../graph/kanji.js";
 
 // Shared derivation logic so the static fallback fixture, the bundled local
 // dataset, and the Supabase-fetched dataset can never disagree on index

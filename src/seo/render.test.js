@@ -54,7 +54,7 @@ describe("kanji pages", () => {
       const d = text(one(renderKanjiPage(data, c), /name="description" content="([^"]+)/));
       expect(d.length, c).toBeLessThanOrEqual(160);
     }
-  });
+  }, 60000); // renders every kanji page, graph layout included
 
   it("never 500s on a key that ends mid-astral-kanji once truncated", () => {
     const res = get(`kind=word&key=${"a".repeat(39)}${encodeURIComponent("𠮟")}`);

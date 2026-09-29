@@ -7,6 +7,7 @@
 // Colors and type follow DESIGN.md (ink & paper light, ink-at-night dark).
 
 import { extractKanjiComponents } from "../graph/kanji.js";
+import { graphPreviewCss, renderGraphPreview } from "./graphPreview.js";
 
 export const SITE = "https://moto.souravbanerjee.com";
 
@@ -44,8 +45,8 @@ function clip(s, max) {
 // ---------------------------------------------------------------- layout
 
 const STYLE = `
-:root{--bg:#e7e2d1;--surface:#ded8c4;--border:#c9c2ac;--text:#4a4438;--text-h:#1c1a14;--accent:#c33a2e;--node-kanji:#8a8371;--node-word:#56697c;--link:#b8ad92;color-scheme:light}
-@media (prefers-color-scheme:dark){:root{--bg:#0b0c10;--surface:#16181f;--border:#2a2d38;--text:#a9afc0;--text-h:#f5f6fa;--accent:#ff6a4d;--node-kanji:#a89a7e;--node-word:#6b7182;--link:#3a3e4c;color-scheme:dark}}
+:root{--bg:#e7e2d1;--surface:#ded8c4;--border:#c9c2ac;--text:#4a4438;--text-h:#1c1a14;--accent:#c33a2e;--node-kanji:#8a8371;--node-word:#56697c;--kanji-path-1:#3a7ca5;--kanji-path-2:#a8681f;--kanji-path-3:#7a5cc9;--kanji-path-4:#2b7a52;--select-glow-opacity:.3;--select-glow-blur:15px;color-scheme:light}
+@media (prefers-color-scheme:dark){:root{--bg:#0b0c10;--surface:#16181f;--border:#2a2d38;--text:#a9afc0;--text-h:#f5f6fa;--accent:#ff6a4d;--node-kanji:#a89a7e;--node-word:#6b7182;--kanji-path-1:#5fa3d1;--kanji-path-2:#e0a563;--kanji-path-3:#a68af0;--kanji-path-4:#5fc08a;--select-glow-opacity:.22;--select-glow-blur:8px;color-scheme:dark}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font:16px/1.55 "Instrument Sans",system-ui,sans-serif}
 a{color:inherit}
@@ -70,15 +71,8 @@ main{max-width:960px;margin:0 auto;padding:24px 16px 64px}
 .facts dt{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;padding-top:3px}
 .facts dd{margin:0;color:var(--text-h)}
 .badge{display:inline-block;border:1px solid var(--border);border-radius:9999px;padding:1px 10px;font-size:13px;margin-right:6px}
-.preview{margin:32px 0 0;background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden}
-.preview svg{display:block;width:100%;height:auto}
-.preview figcaption{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 16px;border-top:1px solid var(--border);font-size:14px;flex-wrap:wrap}
-.g-link{stroke:var(--link);stroke-width:1.5}
-.g-root{fill:var(--accent)}
-.g-kanji{fill:var(--node-kanji)}
-.g-word{fill:var(--node-word)}
-.g-label{fill:#fff;font-weight:700;text-anchor:middle;dominant-baseline:central;paint-order:stroke;stroke:rgba(0,0,0,.35);stroke-width:2px}
-.preview a:hover circle{filter:brightness(1.15)}
+.preview{margin:32px 0 0;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:repeating-linear-gradient(0deg,transparent,transparent 39px,var(--border) 40px) var(--bg)}
+.preview figcaption{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 16px;border-top:1px solid var(--border);font-size:14px;flex-wrap:wrap;background:var(--surface)}
 .words{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px}
 .words li{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px}
 .words .w{font-size:20px;color:var(--text-h);text-decoration:none}
@@ -129,7 +123,8 @@ ${noindex ? '<meta name="robots" content="noindex">' : `<link rel="canonical" hr
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;600&family=Shippori+Mincho:wght@500&display=swap" rel="stylesheet">
 ${jsonLd ? `<script type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, "\\u003c")}</script>` : ""}
 <script defer src="/m/s.js" data-website-id="60fcf70a-8ca9-4bbf-80c4-7c25e47668b5" data-host-url="/m" data-domains="moto.souravbanerjee.com"></script>
-<style>${STYLE}</style>
+<style>${STYLE}
+${graphPreviewCss()}</style>
 </head>
 <body>
 <header class="top">
@@ -149,46 +144,17 @@ ${body}
 
 // ----------------------------------------------------------- graph preview
 
-/** A still of the graph: `center` in the middle, `ring` around it, and
- * optionally each ring node's own `leaves` further out. Nodes link to pages. */
-function graphSvg({ center, ring, width = 720, height = 420 }) {
-  const cx = width / 2;
-  const cy = height / 2;
-  const hasLeaves = ring.some((n) => n.leaves?.length);
-  const r1 = hasLeaves ? 95 : cy - 48;
-  const r2 = cy - 36;
-  const stretch = 1.45; // the canvas is wider than tall -- use it
-  const links = [];
-  const nodes = [];
-  const radius = (label, type) => (type === "root" ? 34 : type === "kanji" ? 24 : Math.min(18 + label.length * 4, 32));
-  const fmt = (n) => n.toFixed(1);
-
-  const node = (x, y, label, type, href) => {
-    const r = radius(label, type);
-    const size = type === "root" ? (label.length > 2 ? 16 : 22) : type === "word" && label.length > 2 ? Math.max(11, 17 - label.length) : 17;
-    const shape = `<circle cx="${fmt(x)}" cy="${fmt(y)}" r="${r}" class="g-${type}"/><text x="${fmt(x)}" y="${fmt(y)}" class="g-label" font-size="${size}" lang="ja">${esc(label)}</text>`;
-    nodes.push(href ? `<a href="${esc(href)}">${shape}</a>` : shape);
-  };
-
-  ring.forEach((n, i) => {
-    const a = (i / ring.length) * Math.PI * 2 - Math.PI / 2;
-    const x = cx + Math.cos(a) * r1 * stretch;
-    const y = cy + Math.sin(a) * r1;
-    links.push(`<line x1="${cx}" y1="${cy}" x2="${fmt(x)}" y2="${fmt(y)}" class="g-link"/>`);
-    const leaves = n.leaves ?? [];
-    const spread = Math.min(1.1, (Math.PI * 2) / ring.length);
-    leaves.forEach((leaf, j) => {
-      const b = a + (leaves.length === 1 ? 0 : (j / (leaves.length - 1) - 0.5) * spread);
-      const lx = cx + Math.cos(b) * r2 * stretch;
-      const ly = cy + Math.sin(b) * r2;
-      links.push(`<line x1="${fmt(x)}" y1="${fmt(y)}" x2="${fmt(lx)}" y2="${fmt(ly)}" class="g-link"/>`);
-      node(lx, ly, leaf.label, leaf.type, leaf.href);
-    });
-    node(x, y, n.label, n.type, n.href);
+/** The explorer's own graph for `root` with `kanji` expanded (graphPreview.js),
+ * each node linking to its page. */
+function preview(data, root, kanji) {
+  return renderGraphPreview(data, {
+    root,
+    kanji,
+    hrefFor: (node) => {
+      if (node.type === "kanji") return data.kanji[node.char] ? kanjiPath(node.char) : null;
+      return node.word !== root && data.words[node.word] ? wordPath(node.word) : null;
+    },
   });
-  node(cx, cy, center, "root", null);
-
-  return `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Word graph around ${esc(center)}">${links.join("")}${nodes.join("")}</svg>`;
 }
 
 // -------------------------------------------------------------- kanji page
@@ -221,10 +187,7 @@ export function renderKanjiPage(data, char) {
     160
   );
 
-  const preview = graphSvg({
-    center: char,
-    ring: k.words.slice(0, 12).map((w) => ({ label: w[0], type: "word", href: w[4] ? wordPath(w[0]) : null })),
-  });
+  const graph = preview(data, char, [char]);
 
   const section = (heading, list) =>
     list.length ? `<h2>${heading}</h2><ul class="words">${list.map(wordItem).join("")}</ul>` : "";
@@ -250,7 +213,7 @@ ${kun.length ? `<dt>Kun'yomi</dt><dd lang="ja">${esc(kun.join("、"))}</dd>` : "
 </div>
 </section>
 <figure class="preview">
-${preview}
+${graph}
 <figcaption><span>The most common words built from <span lang="ja">${esc(char)}</span>. In Moto, tap any of them to keep branching out.</span><a href="${explore}">Open this graph</a></figcaption>
 </figure>
 ${section(`Words that use the on'yomi${on.length ? ` <span lang="ja">(${esc(on.join("・"))})</span>` : ""}`, byType[ON])}
@@ -314,17 +277,7 @@ export function renderWordPage(data, word) {
     160
   );
 
-  const preview = graphSvg({
-    center: word,
-    ring: chars.map((c) => ({
-      label: c,
-      type: "kanji",
-      href: data.kanji[c] ? kanjiPath(c) : null,
-      leaves: siblings[c]
-        .slice(0, chars.length > 2 ? 3 : 5)
-        .map((x) => ({ label: x[0], type: "word", href: x[4] ? wordPath(x[0]) : null })),
-    })),
-  });
+  const graph = chars.length ? preview(data, word, chars.filter((c) => data.kanji[c])) : "";
 
   const kcards = chars
     .map((c) => {
@@ -350,7 +303,7 @@ export function renderWordPage(data, word) {
 </div>
 </section>
 ${chars.length ? `<figure class="preview">
-${preview}
+${graph}
 <figcaption><span><span lang="ja">${esc(word)}</span>, its kanji, and other words that share them.</span><a href="${explore}">Open this graph</a></figcaption>
 </figure>` : ""}
 ${kcards ? `<h2>Kanji in <span lang="ja">${esc(word)}</span></h2><ul class="kcards">${kcards}</ul>` : ""}

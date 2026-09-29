@@ -4,7 +4,7 @@
 // words are 1-3 kanji), and a repeated color on a 5th+ component is a
 // mild ambiguity, not a broken one, since the label glyph and its own
 // link are still colored together.
-import { extractKanjiComponents } from "./kanji";
+import { extractKanjiComponents } from "./kanji.js";
 
 /** word (string) -> Map(kanjiChar -> color string), using `colors.kanjiPath`. */
 export function kanjiPathColorMap(word, kanjiPath) {

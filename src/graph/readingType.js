@@ -13,7 +13,7 @@
 // -- but not rarer vowel-fusion shifts or irregular/jukujikun readings
 // (e.g. 今日 -> きょう), which fall back to "unknown" rather than risk a
 // wrong guess.
-import { isKanji, extractKanjiComponents } from "./kanji";
+import { isKanji, extractKanjiComponents } from "./kanji.js";
 
 const RENDAKU = {
   か: "が", き: "ぎ", く: "ぐ", け: "げ", こ: "ご",
