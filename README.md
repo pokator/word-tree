@@ -1,5 +1,13 @@
 # 元 (Moto)
 
+**Every Japanese word is a web.** Type any word and watch it branch into the
+kanji it's built from, and every kanji into the other words that share it.
+
+**[Try it at moto.souravbanerjee.com](https://moto.souravbanerjee.com)** ·
+[Browse the 2,136 jōyō kanji](https://moto.souravbanerjee.com/kanji)
+
+![Searching 学校 in Moto, then expanding 学 and 校 into the words built from them](docs/demo.gif)
+
 An interactive, exploratory dictionary: start from **any** Japanese word,
 and expand outward through the components it's built from (in Japanese,
 kanji) to discover every other word in the dataset that shares a component
@@ -92,6 +100,12 @@ frames the whole graph once it settles — on a new word, and after each
 expand — until you pan or zoom yourself; the zoom controls' reset button
 frames it again.
 
+**Share a graph.** The address bar always describes the graph on screen
+(`/explore/学校?expand=k:学,k:校&sel=w:学生`), so a copied link, or the
+Share button in the graph toolbar, opens the same graph for anyone. Each
+expansion is its own history step: Back undoes the last one, Forward
+redoes it, and a new search is a new step too.
+
 The layout adapts to the screen's shape, not just its width
 (`src/lib/useLayoutMode.js`): side by side on desktop; stacked with both
 halves visible on a portrait tablet; on a phone, one half at a time (tap the
@@ -183,6 +197,19 @@ File → Import (AnkiMobile and AnkiDroid can import it too).
 `src/anki/reachability.js` does the detection; it's advisory, so desktop
 Safari still gets a "Try connecting anyway" button.
 
+### Kanji and word pages
+
+![The 生 kanji page: readings, level, and its graph](docs/kanji-page.png)
+
+Every jōyō kanji has a page at `/kanji/<kanji>` (all 2,136, indexed at
+[/kanji](https://moto.souravbanerjee.com/kanji)) and every common word one at
+`/word/<word>` (about 25,700): meanings, on'yomi and kun'yomi, JLPT level and
+school grade, the words built from the kanji grouped by the reading they
+use, and a preview of the graph that the page's **Explore** button opens,
+drawn exactly as the explorer draws it. They're plain server-rendered HTML
+(no JavaScript), for search engines and for anyone who lands on one, and
+`/sitemap.xml` lists them all.
+
 ## Theming
 
 Light and dark are two distinct, fully-designed palettes rather than one
@@ -207,6 +234,8 @@ of sync.
   and syncing bookmarks, tags, and status — all optional, see Setup above.
 - **d3-force** drives the graph physics; positions are computed into plain
   objects and rendered as SVG by React (`src/graph/useForceSimulation.js`).
+  The forces and node placement themselves are plain functions in
+  `src/graph/forceLayout.js`, shared with the server-rendered page previews.
   **d3-zoom** handles pan/zoom; node dragging is hand-rolled with pointer
   events (`src/components/WordTreeGraph.jsx`) to cleanly distinguish
   "click to expand" from "drag to reposition".
@@ -240,6 +269,25 @@ of sync.
   `localStorage` for guests (all through `src/lib/guestStore.js`),
   Supabase when signed in. `src/auth/mergeGuestData.js` folds the guest
   data into the account on sign-in, before the account's data loads.
+- A graph's state is its root word plus the ordered list of expansions
+  (`src/graph/exploreState.js`): replaying that list rebuilds the graph,
+  which is what makes it a URL. `App.jsx` keeps the address bar and browser
+  history in step with it.
+- The kanji and word pages, index and sitemap come from one Vercel Function
+  (`api/seo.js`, routed by `vercel.json`) rendering `src/seo/render.js` from
+  a compact data file (`api/_lib/seo-data.gzjson`, rebuilt with
+  `npm run generate:seo-data`) and cached at the edge until the next deploy.
+  Rendered on request rather than written out at build time, so each deploy
+  carries one 3.5MB file instead of ~28,000 HTML pages (see
+  `data/offline-dataset/README.md` for why deployment size matters here).
+  The graph modules import with explicit `.js` extensions so that function
+  can load them in plain Node.
+- Analytics are [Umami](https://umami.is) (no cookies), served through this
+  site's own origin (`/m/*` rewrites in `vercel.json`) so blockers that
+  match Umami's domain don't hide visitors. It only loads on the production
+  domain; the custom events (search, first expand, bookmark, sign-in, Anki
+  connect/blocked, `.tsv` export, share) are in `src/lib/analytics.js`'s
+  callers.
 - `src/anki/ankiConnect.js` talks to AnkiConnect's local HTTP API;
   `src/anki/ankiSync.js` is the two-way bridge (cards out, status back),
   driven by `src/anki/useAnkiSync.js`; `src/bookmarks/collections.js` builds
