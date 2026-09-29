@@ -1,10 +1,11 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { buildAnkiTsv, downloadTextFile } from "../anki/exportFile";
 import { collectionQuery } from "../anki/ankiSync";
+import { useAnkiBlock } from "../anki/reachability";
 import { buildCollections } from "../bookmarks/collections";
 import { useAuth } from "../auth/useAuth";
 import { isSupabaseConfigured } from "../lib/supabaseClient";
-import { track } from "../lib/analytics";
+import { track, trackOnce } from "../lib/analytics";
 import AccountSync from "./AccountSync";
 import AnkiSetupHelp from "./AnkiSetupHelp";
 
@@ -53,15 +54,74 @@ function Pod({ tone = "ok", yieldSpace = false, label, title, expanded, onToggle
   );
 }
 
+// Why the .tsv file leads, per detectAnkiBlock's reason.
+const BLOCK_TEXT = {
+  mobile: (
+    <>
+      Anki sync runs on a computer: open Moto there in Chrome, Edge, or Firefox with Anki desktop running. On this
+      device, download your bookmarks as a file and import it into AnkiMobile or AnkiDroid.
+    </>
+  ),
+  safari: (
+    <>
+      Safari doesn&rsquo;t let websites talk to Anki on your computer. Download your bookmarks as a file and import it
+      in Anki (File → Import), or open Moto in Chrome, Edge, or Firefox to sync directly.
+    </>
+  ),
+  "lna-denied": (
+    <>
+      This browser is blocking Moto from reaching Anki on your computer. To sync directly, allow local network access
+      for this site (site settings, left of the address bar). Or download your bookmarks as a file and import it in
+      Anki (File → Import).
+    </>
+  ),
+};
+
 /** Anki is Moto's study engine (see anki/useAnkiSync.js). This is where you
  * connect it, see that it's working, and -- because a failed connection
- * looks the same from the page whatever the cause -- what to check. */
+ * looks the same from the page whatever the cause -- what to check. Where
+ * the browser can't reach Anki at all (see anki/reachability.js), the .tsv
+ * file leads instead, with connecting kept as a fallback. */
 function AnkiSection({ anki, hasBookmarks, onExportTsv, onHelp }) {
+  const block = useAnkiBlock();
+  const blocked = anki.state === "off" && Boolean(block);
+  useEffect(() => {
+    if (blocked) trackOnce("anki-blocked", { reason: block });
+  }, [blocked, block]);
+
   const helpLink = (
     <button type="button" className="anki-card__link" onClick={onHelp}>
       How to set up AnkiConnect
     </button>
   );
+
+  if (blocked) {
+    return (
+      <section className="anki-card" aria-labelledby="anki-title">
+        <h3 className="anki-card__title" id="anki-title">
+          Study with Anki
+        </h3>
+        <p className="anki-card__text">{BLOCK_TEXT[block]}</p>
+        <div className="anki-card__actions">
+          {hasBookmarks ? (
+            <button type="button" className="anki-card__btn" onClick={onExportTsv}>
+              Download for Anki (.tsv)
+            </button>
+          ) : (
+            <p className="anki-card__text">Bookmark a few words first, then download them here.</p>
+          )}
+        </div>
+        {block !== "mobile" && (
+          <div className="anki-card__actions">
+            <button type="button" className="anki-card__link" onClick={anki.connect}>
+              Try connecting anyway
+            </button>
+            {helpLink}
+          </div>
+        )}
+      </section>
+    );
+  }
 
   if (anki.state === "off") {
     return (
@@ -79,11 +139,6 @@ function AnkiSection({ anki, hasBookmarks, onExportTsv, onHelp }) {
           </button>
           {helpLink}
         </div>
-        {hasBookmarks && (
-          <button type="button" className="anki-card__link anki-card__export" onClick={onExportTsv}>
-            Or export a file instead
-          </button>
-        )}
       </section>
     );
   }
@@ -334,6 +389,17 @@ export default function BookmarksPanel({
             No bookmarks yet. Open a word&rsquo;s details and press &ldquo;Bookmark&rdquo; to keep it here.
           </p>
         ) : (
+          <>
+          {/* Always here, account or not, Anki or not: the file is the one
+              route to Anki that works in every browser. */}
+          <div className="saved-panel__toolbar">
+            <span className="saved-panel__count">
+              {saved.words.length} {saved.words.length === 1 ? "word" : "words"}
+            </span>
+            <button type="button" className="anki-card__link" onClick={exportTsv}>
+              Download .tsv for Anki
+            </button>
+          </div>
           <ul className="saved-panel__list">
             {items.map((w) => {
               const status = getStatus("word", w.word);
@@ -369,6 +435,7 @@ export default function BookmarksPanel({
               );
             })}
           </ul>
+          </>
         )}
       </div>
       {helpOpen && <AnkiSetupHelp onClose={closeHelp} />}
