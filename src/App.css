@@ -2663,6 +2663,22 @@ button.legend__row.is-inactive:hover {
   .split-pane:not(.split-pane--vertical) .split-pane__handle::after {
     left: 9px;
   }
+  /* Finger-sized targets (44px, Apple's HIG minimum). The menu button
+     grows outright; the search button keeps its look inside the field and
+     just gets a larger invisible hit area. Legend rows only need WCAG 2.2's
+     24px -- any taller and the legend covers more of a phone's graph. */
+  .mobile-menu__trigger {
+    width: 44px;
+    height: 44px;
+  }
+  .search-bar__submit::before {
+    content: "";
+    position: absolute;
+    inset: -6px;
+  }
+  .legend__row {
+    min-height: 24px;
+  }
 }
 
 /* The rail is never wide enough for the entry's side-by-side columns

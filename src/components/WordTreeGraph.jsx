@@ -6,6 +6,7 @@ import { nodeRadius, nodeFill, nodeDetailText, nodeDifficultyColor } from "../gr
 import { readNodeColors } from "../graph/theme";
 import { kanjiPositionCategory } from "../graph/positionCategory";
 import { linkDistanceKey } from "../graph/linkDistanceKey";
+import { fitTransform, overlayInsets } from "../graph/fitTransform";
 import { kanjiPathColorMap, charOffsetX } from "../graph/kanjiPathColors";
 
 const DRAG_CLICK_THRESHOLD_PX = 5;
@@ -105,6 +106,28 @@ export default function WordTreeGraph({
 
   const { simNodesMapRef, simulationRef, linkDistanceRef } = useForceSimulation(graph, size.width, size.height, active);
 
+  // The view frames the whole graph once its layout has mostly settled --
+  // on a new root (first load, or a search), and again after each expand,
+  // which on a phone otherwise flings half the new words off-screen. The
+  // simulation also places the first nodes before the container is
+  // measured, so without this they can start half off-screen too. Once
+  // you pan or zoom yourself it stops, until the next root, so it never
+  // yanks the view out from under you.
+  const rootId = useMemo(() => {
+    for (const n of graph.nodes.values()) if (n.isRoot) return n.id;
+    return null;
+  }, [graph]);
+  const pendingFitRef = useRef(false);
+  const userMovedRef = useRef(false);
+  useEffect(() => {
+    pendingFitRef.current = true;
+    userMovedRef.current = false;
+  }, [rootId]);
+  const nodeCount = graph.nodes.size;
+  useEffect(() => {
+    if (!userMovedRef.current) pendingFitRef.current = true;
+  }, [nodeCount]);
+
   // Track container size responsively.
   useEffect(() => {
     const el = containerRef.current;
@@ -127,6 +150,7 @@ export default function WordTreeGraph({
       .filter((event) => !event.target.closest("[data-node]"))
       .on("zoom", (event) => {
         zoomTransformRef.current = event.transform;
+        if (event.sourceEvent) userMovedRef.current = true;
         select(gEl).attr("transform", event.transform.toString());
         // Labels counter-scale against zoom (see .graph-node__label in
         // App.css) so zooming out to see more of a large graph doesn't
@@ -157,11 +181,46 @@ export default function WordTreeGraph({
     select(svgEl).transition().duration(200).call(zoomBehaviorRef.current.scaleBy, factor);
   }
 
-  function resetZoom() {
+  // Frames the whole graph in the space the overlaid controls (zoom
+  // buttons, legend, and the rail's floating toolbar) leave clear.
+  function fitToContent(duration) {
     const svgEl = svgRef.current;
     if (!svgEl || !zoomBehaviorRef.current) return;
-    select(svgEl).transition().duration(200).call(zoomBehaviorRef.current.transform, zoomIdentity);
+    const container = containerRef.current;
+    const overlays = (container?.closest(".graph-panel") ?? container)?.querySelectorAll(
+      ".graph-zoom-controls, .graph-legend, .graph-panel__toolbar"
+    );
+    const inset = overlayInsets(
+      svgEl.getBoundingClientRect(),
+      [...(overlays ?? [])].map((el) => el.getBoundingClientRect())
+    );
+    const t = fitTransform([...simNodesMapRef.current.values()], size.width, size.height, {
+      pad: {
+        left: Math.max(24, inset.left),
+        right: Math.max(24, inset.right),
+        top: Math.max(24, inset.top),
+        bottom: Math.max(24, inset.bottom),
+      },
+    });
+    const target = t ? zoomIdentity.translate(t.x, t.y).scale(t.k) : zoomIdentity;
+    select(svgEl).transition().duration(duration).call(zoomBehaviorRef.current.transform, target);
   }
+
+  function resetZoom() {
+    fitToContent(200);
+  }
+
+  useEffect(() => {
+    if (!pendingFitRef.current) return;
+    if (userMovedRef.current) {
+      pendingFitRef.current = false;
+      return;
+    }
+    const sim = simulationRef.current;
+    if (!sim || sim.alpha() > 0.08 || simNodesMapRef.current.size === 0) return;
+    pendingFitRef.current = false;
+    fitToContent(400);
+  });
 
   function handleNodePointerDown(e, node) {
     e.stopPropagation();
