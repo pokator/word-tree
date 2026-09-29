@@ -46,10 +46,13 @@ describe("index.html crawler/link-preview tags", () => {
     expect(html).toMatch(/<noscript>[\s\S]*学校[\s\S]*<\/noscript>/);
   });
 
-  it("loads Umami only on the production domain", () => {
-    const umami = doc.head.querySelector('script[src="https://cloud.umami.is/script.js"]');
-    expect(umami?.getAttribute("data-website-id")).toBeTruthy();
+  it("loads Umami only on the production domain, through the first-party proxy", () => {
+    const umami = doc.head.querySelector("script[data-website-id]");
     expect(umami?.getAttribute("data-domains")).toBe("moto.souravbanerjee.com");
+    const vercel = JSON.parse(readFileSync(`${root}vercel.json`, "utf8"));
+    const proxied = Object.fromEntries(vercel.rewrites.map((r) => [r.source, r.destination]));
+    expect(proxied[umami.getAttribute("src")]).toBe("https://cloud.umami.is/script.js");
+    expect(proxied[`${umami.getAttribute("data-host-url")}/api/send`]).toMatch(/^https:\/\/\w+\.umami\.is\/api\/send$/);
   });
 });
 

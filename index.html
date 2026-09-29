@@ -58,10 +58,13 @@
       }
     </script>
 
+    <!-- Umami, proxied through our own origin (vercel.json rewrites /m/*) so
+         blocklists that match cloud.umami.is don't hide visitors. -->
     <script
       defer
-      src="https://cloud.umami.is/script.js"
+      src="/m/s.js"
       data-website-id="60fcf70a-8ca9-4bbf-80c4-7c25e47668b5"
+      data-host-url="/m"
       data-domains="moto.souravbanerjee.com"
     ></script>
   </head>
