@@ -56,6 +56,12 @@ describe("kanji pages", () => {
     }
   });
 
+  it("never 500s on a key that ends mid-astral-kanji once truncated", () => {
+    const res = get(`kind=word&key=${"a".repeat(39)}${encodeURIComponent("𠮟")}`);
+    expect(res.statusCode).toBe(404);
+    expect(res.headers["Content-Type"]).toMatch(/text\/html/);
+  });
+
   it("404s (noindex, escaped) for kanji without a page", () => {
     const res = get(`kind=kanji&key=${encodeURIComponent("<b>x")}`);
     expect(res.statusCode).toBe(404);
@@ -83,6 +89,13 @@ describe("word pages", () => {
       const d = text(one(renderWordPage(data, words[i]), /name="description" content="([^"]+)/));
       expect(d.length, words[i]).toBeLessThanOrEqual(160);
     }
+  });
+
+  it("labels each kanji's reading even when a kanji repeats", () => {
+    // 民主主義: 主 appears twice; 義 must still read its own letter.
+    const html = get(`kind=word&key=${encodeURIComponent("民主主義")}`).body;
+    const cards = [...html.matchAll(/<span class="c" lang="ja">(.)<\/span>.*?Read with its ([^<·]+?) here/g)].map((m) => `${m[1]}:${m[2]}`);
+    expect(cards).toEqual(["民:on'yomi", "主:on'yomi", "義:on'yomi"]);
   });
 
   it("404s for an uncommon word", () => {

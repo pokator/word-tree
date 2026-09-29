@@ -6,7 +6,10 @@ import { createInitialGraph, expandKanji, expandWord, kanjiNodeId, revealLink, w
 // graph is shareable as /explore/<root>?expand=k:学,k:校&sel=w:学生.
 //
 // Op tokens:
-//   k:<kanji>          expand a kanji (again = the next batch of words)
+//   k:<kanji>[~N|~all] expand a kanji (again = the next batch of words);
+//                      ~N records a batch size other than the default, so
+//                      the link replays what you saw even if the setting
+//                      changes later
 //   w:<word>           expand a word into its kanji
 //   l:<kanji>/<word>   reveal just that one kanji<->word link
 
@@ -31,7 +34,11 @@ export function replayGraph(dataset, root, ops, { maxWords = DEFAULT_MAX_WORDS, 
   for (const op of ops) {
     const kind = op.slice(0, 2);
     const arg = op.slice(2);
-    if (kind === "k:") graph = expandKanji(dataset, graph, arg, maxWords, { isJlptAllowed });
+    if (kind === "k:") {
+      const [char, size] = arg.split("~");
+      const batch = size === undefined ? maxWords : parseBatch(size) ?? maxWords;
+      graph = expandKanji(dataset, graph, char, batch, { isJlptAllowed });
+    }
     else if (kind === "w:") graph = expandWord(dataset, graph, arg, { isJlptAllowed });
     else if (kind === "l:") {
       const slash = arg.indexOf("/");
@@ -41,13 +48,26 @@ export function replayGraph(dataset, root, ops, { maxWords = DEFAULT_MAX_WORDS, 
   return graph;
 }
 
+const formatBatch = (n) => (n === Infinity ? "all" : String(n));
+function parseBatch(s) {
+  if (s === "all") return Infinity;
+  const n = Number.parseInt(s, 10);
+  return String(n) === s && n >= 1 && n <= 100 ? n : null;
+}
+
+/** The op token for expanding `nodeId` with the current words-per-branch. */
+export function expandOp(nodeId, maxWords = DEFAULT_MAX_WORDS) {
+  const token = nodeIdToToken(nodeId);
+  return token?.startsWith("k:") && maxWords !== DEFAULT_MAX_WORDS ? `${token}~${formatBatch(maxWords)}` : token;
+}
+
 /** The app URL for a graph state; `sel` is the selected node's id. */
 export function exploreUrl({ root, ops = [], sel = null, maxWords = DEFAULT_MAX_WORDS }) {
   const params = new URLSearchParams();
   if (ops.length) params.set("expand", ops.join(","));
   const selToken = sel && sel !== wordNodeId(root) ? nodeIdToToken(sel) : null;
   if (selToken) params.set("sel", selToken);
-  if (maxWords !== DEFAULT_MAX_WORDS) params.set("n", String(maxWords));
+  if (maxWords !== DEFAULT_MAX_WORDS) params.set("n", formatBatch(maxWords));
   const query = params.toString();
   // URLSearchParams escapes ":" "," and "/" -- all legal in a query and
   // far easier to read (and share) left alone.
@@ -55,7 +75,7 @@ export function exploreUrl({ root, ops = [], sel = null, maxWords = DEFAULT_MAX_
   return `/explore/${encodeURIComponent(root)}${readable ? `?${readable}` : ""}`;
 }
 
-const OP = /^(k:.|w:.+|l:.\/.+)$/u;
+const OP = /^(k:.(~([1-9]\d{0,2}|all))?|w:.+|l:.\/.+)$/u;
 
 /** Parse an /explore/ URL back into state, or null for any other path. */
 export function parseExploreUrl(pathname, search = "") {
@@ -75,11 +95,11 @@ export function parseExploreUrl(pathname, search = "") {
     .filter((s) => OP.test(s))
     .slice(0, 200); // a sane cap on what one link can make the page do
   const sel = params.get("sel");
-  const n = Number.parseInt(params.get("n") ?? "", 10);
+  const n = parseBatch(params.get("n") ?? "");
   return {
     root,
     ops,
     sel: sel && /^(k:.|w:.+)$/u.test(sel) ? tokenToNodeId(sel) : null,
-    maxWords: Number.isFinite(n) && n >= 1 && n <= 100 ? n : null,
+    maxWords: n,
   };
 }

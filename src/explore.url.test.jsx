@@ -78,4 +78,55 @@ describe("explore URLs in the app", () => {
     expect(decodeURI(writeText.mock.calls[0][0])).toBe(`${window.location.origin}/explore/学校?expand=k:学`);
     delete navigator.clipboard;
   });
+
+  it("searching the current word again starts it fresh, graph and URL alike", async () => {
+    window.history.replaceState(null, "", "/explore/学校?expand=k:学");
+    renderApp();
+    await waitFor(() => expect(node("学生")).toBeTruthy());
+    const input = screen.getByPlaceholderText("Search...");
+    fireEvent.change(input, { target: { value: "学校" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    await waitFor(() => expect(node("学生")).toBeFalsy());
+    expect(here()).toBe("/explore/学校");
+  });
+
+  it("Back to the home page restores the home title", async () => {
+    window.history.replaceState(null, "", "/");
+    renderApp();
+    await waitFor(() => expect(node("語")).toBeTruthy());
+    const input = screen.getByPlaceholderText("Search...");
+    fireEvent.change(input, { target: { value: "学校" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    await waitFor(() => expect(document.title).toMatch(/学校/));
+    act(() => window.history.back());
+    await waitFor(() => expect(window.location.pathname).toBe("/"));
+    // Back to index.html's own title (empty under jsdom), not 学校's.
+    await waitFor(() => expect(document.title).not.toMatch(/学校/));
+  });
+
+  it("a sel= for a node the link never reveals falls back to the root", async () => {
+    window.history.replaceState(null, "", "/explore/学校?sel=k:日");
+    renderApp();
+    await waitFor(() => expect(node("学校")).toBeTruthy());
+    await waitFor(() => expect(here()).toBe("/explore/学校"));
+  });
+
+  it("Share falls back to copying when the share sheet refuses", async () => {
+    window.history.replaceState(null, "", "/explore/学校");
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    Object.defineProperty(navigator, "share", {
+      configurable: true,
+      value: async () => {
+        throw Object.assign(new Error("no"), { name: "NotAllowedError" });
+      },
+    });
+    renderApp();
+    await waitFor(() => expect(node("学校")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Share this graph" }));
+    await screen.findByText("Link copied");
+    expect(writeText).toHaveBeenCalledOnce();
+    delete navigator.clipboard;
+    delete navigator.share;
+  });
 });

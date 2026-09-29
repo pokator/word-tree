@@ -18,7 +18,7 @@ import { useAnkiSync } from "./anki/useAnkiSync";
 import { useTheme } from "./theme/useTheme";
 import { useLayoutMode } from "./lib/useLayoutMode";
 import { track, trackOnce } from "./lib/analytics";
-import { exploreUrl, nodeIdToToken, parseExploreUrl, replayGraph } from "./graph/exploreState";
+import { expandOp, exploreUrl, parseExploreUrl, replayGraph } from "./graph/exploreState";
 import {
   createInitialGraph,
   expandKanji,
@@ -118,6 +118,9 @@ function jlptBucketToLevel(bucket) {
   return Number.isFinite(n) ? n : null;
 }
 
+// index.html's own title, for the untouched home page.
+const HOME_TITLE = typeof document === "undefined" ? "" : document.title;
+
 /** The graph a shared /explore/ link describes, read once on load. */
 function readLocation() {
   if (typeof window === "undefined") return null;
@@ -177,7 +180,10 @@ export default function App() {
   const readyKey = dataset.loading ? null : `${dataset.source}:${rootWord}:${navKey}`;
   if (readyKey && readyKey !== builtFor) {
     setBuiltFor(readyKey);
-    setGraph(replayGraph(dataset, rootWord, ops, { maxWords, isJlptAllowed }));
+    const built = replayGraph(dataset, rootWord, ops, { maxWords, isJlptAllowed });
+    setGraph(built);
+    // A link's sel= can name a node its expansions never revealed.
+    if (!built.nodes.has(selectedId)) setSelectedId(wordNodeId(rootWord));
   }
 
   const selectedNode = graph?.nodes.get(selectedId) ?? null;
@@ -263,10 +269,13 @@ export default function App() {
     (word) => {
       setRootWord(word);
       setOps([]);
+      // Same word again: rebuild from scratch too, or the old expansions
+      // would stay on screen while the URL says there are none.
+      if (word === rootWord) setNavKey((k) => k + 1);
       setSelectedId(wordNodeId(word));
       addRecent(word);
     },
-    [addRecent]
+    [addRecent, rootWord]
   );
 
   // Only the search bar counts as a search -- bookmark clicks also land in
@@ -423,6 +432,8 @@ export default function App() {
       setRootWord(root);
       setOps(state?.ops ?? []);
       setSelectedId(state?.sel ?? wordNodeId(root));
+      // That entry's words-per-branch (for expanding further), or your own.
+      setMaxWords(state?.maxWords ?? loadMaxWords());
       setNavKey((k) => k + 1);
     }
     window.addEventListener("popstate", onPopState);
@@ -431,23 +442,27 @@ export default function App() {
 
   // A tab title per word, for history and bookmarks; home keeps its own.
   useEffect(() => {
-    if (!fromUrl && rootWord === DEFAULT_ROOT && ops.length === 0) return;
-    document.title = `${rootWord} — explore on Moto (元)`;
-  }, [fromUrl, rootWord, ops.length]);
+    const home = window.location.pathname === "/" && rootWord === DEFAULT_ROOT && ops.length === 0;
+    document.title = home ? HOME_TITLE : `${rootWord} — explore on Moto (元)`;
+  }, [rootWord, ops.length]);
 
   // An installed (home-screen) app has no address bar to copy from.
   const handleShare = useCallback(async () => {
     const url = window.location.origin + graphUrl;
     track("share");
-    try {
-      if (navigator.share) {
+    if (navigator.share) {
+      try {
         await navigator.share({ title: `${rootWord} — Moto (元)`, url });
         return "shared";
+      } catch (err) {
+        if (err?.name === "AbortError") return null; // closed the share sheet
+        // Refused or unavailable right now -- copy instead.
       }
+    }
+    try {
       await navigator.clipboard.writeText(url);
       return "copied";
-    } catch (err) {
-      if (err?.name === "AbortError") return null; // closed the share sheet
+    } catch {
       return "failed";
     }
   }, [graphUrl, rootWord]);
@@ -467,7 +482,7 @@ export default function App() {
       const target = graph?.nodes.get(nodeId);
       if (target && !target.expanded) {
         trackOnce("first-expand");
-        setOps((o) => [...o, nodeIdToToken(nodeId)]); // k:学, w:学校
+        setOps((o) => [...o, expandOp(nodeId, maxWords)]); // k:学, k:学~40, w:学校
       }
       setGraph((prev) => {
         const node = prev.nodes.get(nodeId);

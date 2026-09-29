@@ -6,6 +6,8 @@
 //
 // Colors and type follow DESIGN.md (ink & paper light, ink-at-night dark).
 
+import { extractKanjiComponents } from "../graph/kanji.js";
+
 export const SITE = "https://moto.souravbanerjee.com";
 
 const ON = "o";
@@ -282,10 +284,10 @@ export function renderWordPage(data, word) {
   const w = data.words[word];
   if (!w) return null;
   const known = (c) => data.kanji[c] ?? data.extraKanji[c];
-  // w.t has one reading-type letter per kanji component, in order.
-  const comps = Array.from(word).filter((c) => /\p{Script=Han}/u.test(c));
-  const typeOf = {};
-  comps.forEach((c, i) => (typeOf[c] ??= w.t[i] ?? "u"));
+  // w.t has one reading-type letter per *unique* kanji, in first-appearance
+  // order -- the generator's extractKanjiComponents, used again here.
+  const comps = extractKanjiComponents(word);
+  const typeOf = Object.fromEntries(comps.map((c, i) => [c, w.t[i] ?? "u"]));
   const chars = [...new Set(comps)].filter(known);
   const gloss = w.s.flatMap((s) => s.g).slice(0, 3).join("; ");
 

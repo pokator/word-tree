@@ -35,6 +35,18 @@ function decodeKey(raw) {
 const CACHE = "public, max-age=3600, s-maxage=31536000, stale-while-revalidate=604800";
 
 export default function handler(req, res) {
+  try {
+    serve(req, res);
+  } catch {
+    // Never a bare 500 for a strange URL -- the not-found page still helps.
+    res.statusCode = 404;
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.setHeader("Cache-Control", "public, max-age=300, s-maxage=3600");
+    res.end(renderNotFound("word", ""));
+  }
+}
+
+function serve(req, res) {
   const url = new URL(req.url, "http://localhost");
   const kind = url.searchParams.get("kind");
   const key = decodeKey(url.searchParams.get("key"));
@@ -52,7 +64,8 @@ export default function handler(req, res) {
     body = kind === "kanji" ? renderKanjiPage(d, key) : renderWordPage(d, key);
     if (!body) {
       status = 404;
-      body = renderNotFound(kind, key.slice(0, 40));
+      // By code point: slicing UTF-16 could split an astral kanji in half.
+      body = renderNotFound(kind, Array.from(key).slice(0, 40).join(""));
     }
   } else {
     status = 404;

@@ -34,7 +34,9 @@ export function extractKanjiComponents(text) {
   return out;
 }
 
-const JAPANESE_RE = /[぀-ヿ㐀-鿿豈-﫿ー]/;
+// Kana, CJK (incl. Extension A and compatibility ideographs), the long
+// vowel mark, and -- like isKanji -- the ideograph extensions past the BMP.
+const JAPANESE_RE = /[぀-ヿ㐀-鿿豈-﫿ー\u{20000}-\u{323af}]/u;
 
 /** True if the text contains at least one hiragana/katakana/kanji character. */
 export function containsJapanese(text) {

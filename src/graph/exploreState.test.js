@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import * as fixture from "../data/japaneseData";
 import { createInitialGraph, expandKanji, expandWord, revealLink } from "./buildGraph";
-import { exploreUrl, parseExploreUrl, replayGraph } from "./exploreState";
+import { expandOp, exploreUrl, parseExploreUrl, replayGraph } from "./exploreState";
 
 const dataset = fixture;
 const ids = (g) => [...g.nodes.keys()].sort();
@@ -52,5 +52,32 @@ describe("replayGraph", () => {
   it("skips ops for nodes that aren't there", () => {
     const g = replayGraph(dataset, "日本語", ["k:猫", "w:存在しない"]);
     expect(ids(g)).toEqual(ids(createInitialGraph(dataset, "日本語")));
+  });
+});
+
+describe("batch sizes", () => {
+  it("records a non-default words-per-branch on the op itself", () => {
+    expect(expandOp("kanji:日", 8)).toBe("k:日");
+    expect(expandOp("kanji:日", 3)).toBe("k:日~3");
+    expect(expandOp("kanji:日", Infinity)).toBe("k:日~all");
+    expect(expandOp("word:日本", 3)).toBe("w:日本"); // words expand fully anyway
+  });
+
+  it("replays each kanji batch at the size it was expanded with", () => {
+    const live = expandKanji(dataset, createInitialGraph(dataset, "日本語"), "日", 2);
+    // Opened by someone whose own setting is different:
+    const replayed = replayGraph(dataset, "日本語", ["k:日~2"], { maxWords: 8 });
+    expect(ids(replayed)).toEqual(ids(live));
+  });
+
+  it("round-trips 'all' words per branch", () => {
+    const url = exploreUrl({ root: "日本", ops: ["k:日~all"], maxWords: Infinity });
+    expect(decodeURI(url)).toBe("/explore/日本?expand=k:日~all&n=all");
+    const [path, query] = url.split("?");
+    expect(parseExploreUrl(path, `?${query}`)).toMatchObject({ ops: ["k:日~all"], maxWords: Infinity });
+  });
+
+  it("rejects malformed sizes", () => {
+    expect(parseExploreUrl("/explore/日本", "?expand=k:日~0,k:日~abc,k:日~1000,k:日~5").ops).toEqual(["k:日~5"]);
   });
 });
