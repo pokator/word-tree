@@ -17,6 +17,7 @@ import { useGroups } from "./groups/useGroups";
 import { useAnkiSync } from "./anki/useAnkiSync";
 import { useTheme } from "./theme/useTheme";
 import { useLayoutMode } from "./lib/useLayoutMode";
+import { track, trackOnce } from "./lib/analytics";
 import {
   createInitialGraph,
   expandKanji,
@@ -245,6 +246,7 @@ export default function App() {
       setRootWord(word);
       setSelectedId(wordNodeId(word));
       addRecent(word);
+      track("search");
     },
     [addRecent]
   );
@@ -370,6 +372,7 @@ export default function App() {
   const handleNodeExpand = useCallback(
     (nodeId) => {
       setSelectedId(nodeId);
+      trackOnce("first-expand");
       setGraph((prev) => {
         const node = prev.nodes.get(nodeId);
         if (!node || node.expanded) return prev;

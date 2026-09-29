@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../auth/useAuth";
 import { supabase, isSupabaseConfigured } from "../lib/supabaseClient";
+import { track } from "../lib/analytics";
 
 // Supabase refuses a second code for the same address within a minute
 // (auth.email.max_frequency) -- the resend button waits it out rather than
@@ -103,6 +104,7 @@ export default function AccountSync() {
       setError(friendlyError(err, "code"));
     } else {
       setVerified(true);
+      track("sign-in");
     }
   }
 

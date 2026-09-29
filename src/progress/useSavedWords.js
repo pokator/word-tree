@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "../auth/useAuth";
 import { supabase } from "../lib/supabaseClient";
 import { loadGuestBookmarks, saveGuestBookmarks } from "../lib/guestStore";
+import { track } from "../lib/analytics";
 
 /**
  * Bookmarks: the words the user wants to study (Anki export is one thing
@@ -84,6 +85,7 @@ export function useSavedWords() {
         }
       } else {
         update((prev) => [...prev, { item_id: word, exported_at: null, found_from: foundFrom }]);
+        track("bookmark", { signedIn: Boolean(user) });
         if (user) {
           supabase
             .from("saved_items")

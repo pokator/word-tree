@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { probeConnection } from "./ankiConnect";
+import { track } from "../lib/analytics";
 import { dueCount, openBrowser, openReview, pullStatuses, pushBookmarks, syncItemsFor } from "./ankiSync";
 
 const ENABLED_KEY = "word-tree:anki-enabled";
@@ -137,6 +138,7 @@ export function useAnkiSync({ dataset, bookmarks, bookmarksLoading = false, user
     const ok = await probeConnection();
     if (gen !== genRef.current) return;
     setState(ok ? "connected" : "unreachable");
+    track("anki-connect", { ok });
     if (ok) setTick((t) => t + 1); // send the bookmarks you already have
   }, []);
 

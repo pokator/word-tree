@@ -4,6 +4,7 @@ import { collectionQuery } from "../anki/ankiSync";
 import { buildCollections } from "../bookmarks/collections";
 import { useAuth } from "../auth/useAuth";
 import { isSupabaseConfigured } from "../lib/supabaseClient";
+import { track } from "../lib/analytics";
 import AccountSync from "./AccountSync";
 import AnkiSetupHelp from "./AnkiSetupHelp";
 
@@ -209,6 +210,7 @@ export default function BookmarksPanel({
   function exportTsv() {
     const all = saved.words.map((s) => dataset.WORDS_BY_TEXT[s.item_id]).filter(Boolean);
     downloadTextFile("moto-export.tsv", buildAnkiTsv(all));
+    track("tsv-export", { count: all.length });
     setMessage("Downloaded a .tsv file. Import it in Anki via File → Import.");
   }
 
