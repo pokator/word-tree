@@ -16,12 +16,17 @@ import { useEffect, useState } from "react";
  */
 export async function detectAnkiBlock(nav = globalThis.navigator) {
   if (!nav) return null;
+  return browserBlock(nav) ?? ((await localNetworkDenied(nav)) ? "lna-denied" : null);
+}
+
+/** The part of detectAnkiBlock that's known synchronously, from the user agent. */
+export function browserBlock(nav = globalThis.navigator) {
+  if (!nav) return null;
   const ua = nav.userAgent ?? "";
   // iPadOS reports itself as a Mac; a touch screen gives it away.
   const iPadOS = /Macintosh/.test(ua) && (nav.maxTouchPoints ?? 0) > 1;
   if (/iPhone|iPad|iPod|Android/.test(ua) || iPadOS) return "mobile";
   if (/Safari\//.test(ua) && !/Chrome|Chromium|CriOS|FxiOS|Firefox|Edg|OPR/.test(ua)) return "safari";
-  if (await localNetworkDenied(nav)) return "lna-denied";
   return null;
 }
 
@@ -41,18 +46,21 @@ async function localNetworkDenied(nav) {
   return false;
 }
 
-/** detectAnkiBlock as React state: null until known, then the reason or false. */
+/** detectAnkiBlock as React state: the reason, or null. The user-agent
+ * part is there on the first render, so a phone or Safari never flashes
+ * the Connect card first; a denied permission arrives a moment later. */
 export function useAnkiBlock() {
-  const [block, setBlock] = useState(null);
+  const [block, setBlock] = useState(() => browserBlock());
   useEffect(() => {
+    if (block) return;
     let live = true;
     detectAnkiBlock().then(
-      (reason) => live && setBlock(reason ?? false),
-      () => live && setBlock(false)
+      (reason) => live && reason && setBlock(reason),
+      () => {}
     );
     return () => {
       live = false;
     };
-  }, []);
+  }, [block]);
   return block;
 }

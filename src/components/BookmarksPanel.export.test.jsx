@@ -59,7 +59,8 @@ describe("BookmarksPanel .tsv export", () => {
     vi.spyOn(navigator, "userAgent", "get").mockReturnValue(SAFARI);
     const api = anki();
     renderPanel(api);
-    expect(await screen.findByText(/Safari doesn.t let websites talk to Anki/)).toBeInTheDocument();
+    // On the first render -- no flash of the Connect card while detecting.
+    expect(screen.getByText(/Safari doesn.t let websites talk to Anki/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Connect to Anki" })).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Download for Anki (.tsv)" }));

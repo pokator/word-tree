@@ -178,6 +178,7 @@ export default function WordTreeGraph({
   function stepZoom(factor) {
     const svgEl = svgRef.current;
     if (!svgEl || !zoomBehaviorRef.current) return;
+    userMovedRef.current = true; // your zoom now -- stop auto-framing
     select(svgEl).transition().duration(200).call(zoomBehaviorRef.current.scaleBy, factor);
   }
 
@@ -206,7 +207,11 @@ export default function WordTreeGraph({
     select(svgEl).transition().duration(duration).call(zoomBehaviorRef.current.transform, target);
   }
 
+  // Frames the graph now, and hands framing back to the view: later
+  // expands re-frame again until you next pan or zoom.
   function resetZoom() {
+    userMovedRef.current = false;
+    pendingFitRef.current = false;
     fitToContent(200);
   }
 
