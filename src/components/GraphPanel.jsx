@@ -110,6 +110,7 @@ function LoadingIndicator() {
  */
 export default function GraphPanel({
   graph,
+  viewKey,
   selectedId,
   onNodeClick,
   onNodeExpand,
@@ -275,6 +276,7 @@ export default function GraphPanel({
         {graph ? (
           <WordTreeGraph
             graph={graph}
+            viewKey={viewKey}
             selectedId={selectedId}
             onNodeClick={onNodeClick}
             onNodeExpand={onNodeExpand}

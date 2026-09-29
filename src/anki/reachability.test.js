@@ -65,4 +65,31 @@ describe("detectAnkiBlock", () => {
     expect(await detectAnkiBlock({ userAgent: UA.chromeMac })).toBeNull();
     expect(await detectAnkiBlock(undefined)).toBeNull();
   });
+
+  it("flags an Android tablet in Chrome's desktop mode", async () => {
+    const linux =
+      "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36";
+    // client hints still say Android
+    expect(await detectAnkiBlock({ userAgent: linux, userAgentData: { platform: "Android" } })).toBe("mobile");
+    // no client hints: a Linux touch screen with no fine pointer
+    const coarse = vi.spyOn(globalThis, "matchMedia").mockReturnValue({ matches: false });
+    expect(await detectAnkiBlock({ userAgent: linux, maxTouchPoints: 5 })).toBe("mobile");
+    coarse.mockRestore();
+  });
+
+  it("lets a Linux touch laptop (trackpad) and a Chromebook try", async () => {
+    const fine = vi.spyOn(globalThis, "matchMedia").mockReturnValue({ matches: true });
+    const linux =
+      "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36";
+    expect(await detectAnkiBlock({ userAgent: linux, maxTouchPoints: 10 })).toBeNull();
+    fine.mockRestore();
+    const cros =
+      "Mozilla/5.0 (X11; CrOS x86_64 16000.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36";
+    expect(await detectAnkiBlock({ userAgent: cros, maxTouchPoints: 10 })).toBeNull();
+  });
+
+  it("gives up on a permission query that never answers", async () => {
+    const nav = { userAgent: UA.chromeMac, permissions: { query: () => new Promise(() => {}) } };
+    expect(await detectAnkiBlock(nav, { timeoutMs: 20 })).toBeNull();
+  });
 });

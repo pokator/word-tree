@@ -123,6 +123,18 @@ function AnkiSection({ anki, hasBookmarks, onExportTsv, onHelp }) {
     );
   }
 
+  // Still asking the browser about local-network access -- a beat, not a
+  // Connect button that might vanish.
+  if (anki.state === "off" && block === undefined) {
+    return (
+      <section className="anki-card" aria-labelledby="anki-title" aria-busy="true">
+        <h3 className="anki-card__title" id="anki-title">
+          Study with Anki
+        </h3>
+      </section>
+    );
+  }
+
   if (anki.state === "off") {
     return (
       <section className="anki-card" aria-labelledby="anki-title">
@@ -257,13 +269,13 @@ export default function BookmarksPanel({
   );
   const active = collections.find((c) => `${c.kind}:${c.key}` === activeKey) ?? null;
   const shownIds = active ? new Set(active.words) : null;
-  const items = saved.words
-    .map((s) => dataset.WORDS_BY_TEXT[s.item_id])
-    .filter(Boolean)
-    .filter((w) => !shownIds || shownIds.has(w.word));
+  // Bookmarks the loaded dataset knows -- what the list shows and the .tsv
+  // holds, so counts agree with both (an account can sync in a word the
+  // fallback dataset lacks).
+  const all = saved.words.map((s) => dataset.WORDS_BY_TEXT[s.item_id]).filter(Boolean);
+  const items = all.filter((w) => !shownIds || shownIds.has(w.word));
 
   function exportTsv() {
-    const all = saved.words.map((s) => dataset.WORDS_BY_TEXT[s.item_id]).filter(Boolean);
     downloadTextFile("moto-export.tsv", buildAnkiTsv(all));
     track("tsv-export", { count: all.length });
     setMessage("Downloaded a .tsv file. Import it in Anki via File → Import.");
@@ -336,7 +348,7 @@ export default function BookmarksPanel({
         {(!connected || expanded === "anki") && (
           <AnkiSection
             anki={anki}
-            hasBookmarks={saved.words.length > 0}
+            hasBookmarks={all.length > 0}
             onExportTsv={exportTsv}
             onHelp={() => setHelpOpen(true)}
           />
@@ -352,7 +364,7 @@ export default function BookmarksPanel({
                 aria-pressed={!active}
                 onClick={() => setActiveKey(null)}
               >
-                All <span className="collections__count">{saved.words.length}</span>
+                All <span className="collections__count">{all.length}</span>
               </button>
               {collections.map((c, i) => {
                 const key = `${c.kind}:${c.key}`;
@@ -394,7 +406,7 @@ export default function BookmarksPanel({
               route to Anki that works in every browser. */}
           <div className="saved-panel__toolbar">
             <span className="saved-panel__count">
-              {saved.words.length} {saved.words.length === 1 ? "word" : "words"}
+              {all.length} {all.length === 1 ? "word" : "words"}
             </span>
             <button type="button" className="anki-card__link" onClick={exportTsv}>
               Download .tsv for Anki

@@ -83,4 +83,28 @@ describe("BookmarksPanel .tsv export", () => {
     expect(await screen.findByText(/Bookmark a few words first/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Download/ })).not.toBeInTheDocument();
   });
+
+  it("never flashes Connect when local-network access was denied", async () => {
+    // jsdom has no navigator.permissions -- add one for this test only.
+    Object.defineProperty(navigator, "permissions", {
+      configurable: true,
+      value: { query: async ({ name }) => ({ state: name === "local-network-access" ? "denied" : "prompt" }) },
+    });
+    try {
+      renderPanel(anki());
+      expect(screen.queryByRole("button", { name: "Connect to Anki" })).not.toBeInTheDocument();
+      expect(await screen.findByRole("button", { name: "Download for Anki (.tsv)" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Connect to Anki" })).not.toBeInTheDocument();
+    } finally {
+      delete navigator.permissions;
+    }
+  });
+
+  it("counts only bookmarks it can show and export", async () => {
+    renderPanel(anki(), [
+      { item_id: "日本", found_from: null },
+      { item_id: "未知語", found_from: null }, // not in this dataset
+    ]);
+    expect(screen.getByText("1 word")).toBeInTheDocument();
+  });
 });

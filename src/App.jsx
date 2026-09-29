@@ -121,6 +121,9 @@ export default function App() {
   const dataset = useWordData();
   const [rootWord, setRootWord] = useState(DEFAULT_ROOT);
   const [graph, setGraph] = useState(null);
+  // Bumped when Reset or the tour rebuilds the graph around the same root,
+  // so the graph re-frames itself even though its root didn't change.
+  const [viewKey, setViewKey] = useState(0);
   const [builtFor, setBuiltFor] = useState(null);
   const [selectedId, setSelectedId] = useState(wordNodeId(DEFAULT_ROOT));
   const [maxWords, setMaxWords] = useState(loadMaxWords);
@@ -275,6 +278,7 @@ export default function App() {
   const handleReset = useCallback(() => {
     setGraph(createInitialGraph(dataset, rootWord, { isJlptAllowed }));
     setSelectedId(wordNodeId(rootWord));
+    setViewKey((k) => k + 1);
   }, [dataset, rootWord, isJlptAllowed]);
 
   // Always forces the graph back to DEFAULT_ROOT (rather than reusing
@@ -287,6 +291,7 @@ export default function App() {
     setRootWord(DEFAULT_ROOT);
     setSelectedId(wordNodeId(DEFAULT_ROOT));
     setGraph(createInitialGraph(dataset, DEFAULT_ROOT, { isJlptAllowed }));
+    setViewKey((k) => k + 1);
     // On a phone the tour's graph steps need the graph on screen, not
     // collapsed behind the definitions.
     setMobileView("explore");
@@ -488,6 +493,7 @@ export default function App() {
   const explorePanel = (
     <GraphPanel
       graph={graph}
+      viewKey={viewKey}
       selectedId={selectedId}
       onNodeClick={handleNodeSelect}
       onNodeExpand={handleNodeExpand}

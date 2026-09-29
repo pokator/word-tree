@@ -57,7 +57,7 @@ describe("BookmarksPanel", () => {
     const api = anki();
     renderPanel(api);
     expect(api.connect).not.toHaveBeenCalled();
-    await userEvent.click(screen.getByRole("button", { name: "Connect to Anki" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Connect to Anki" }));
     expect(api.connect).toHaveBeenCalledOnce();
   });
 
@@ -96,7 +96,7 @@ describe("BookmarksPanel", () => {
 
   it("opens a setup guide with this site's exact webCorsOriginList entry", async () => {
     renderPanel(anki());
-    await userEvent.click(screen.getByRole("button", { name: "How to set up AnkiConnect" }));
+    await userEvent.click(await screen.findByRole("button", { name: "How to set up AnkiConnect" }));
     const dialog = screen.getByRole("dialog", { name: "Set up AnkiConnect" });
     expect(dialog).toHaveTextContent("2055492159");
     expect(dialog).toHaveTextContent(`"${window.location.origin}"`);

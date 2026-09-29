@@ -72,6 +72,7 @@ function truncate(str, max) {
 
 export default function WordTreeGraph({
   graph,
+  viewKey = 0,
   selectedId,
   onNodeClick,
   onNodeExpand,
@@ -111,8 +112,8 @@ export default function WordTreeGraph({
   // which on a phone otherwise flings half the new words off-screen. The
   // simulation also places the first nodes before the container is
   // measured, so without this they can start half off-screen too. Once
-  // you pan or zoom yourself it stops, until the next root, so it never
-  // yanks the view out from under you.
+  // you pan or zoom yourself it stops, until the next root or a Reset
+  // (viewKey), so it never yanks the view out from under you.
   const rootId = useMemo(() => {
     for (const n of graph.nodes.values()) if (n.isRoot) return n.id;
     return null;
@@ -122,7 +123,7 @@ export default function WordTreeGraph({
   useEffect(() => {
     pendingFitRef.current = true;
     userMovedRef.current = false;
-  }, [rootId]);
+  }, [rootId, viewKey]);
   const nodeCount = graph.nodes.size;
   useEffect(() => {
     if (!userMovedRef.current) pendingFitRef.current = true;
