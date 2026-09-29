@@ -3,6 +3,50 @@ import WordTreeGraph from "./WordTreeGraph";
 import FiltersPanel from "./FiltersPanel";
 import { kanjiPositionCategory } from "../graph/positionCategory";
 import { useClickOutside } from "../lib/useClickOutside";
+import { useLayoutMode } from "../lib/useLayoutMode";
+
+const LEGEND_KEY = "word-tree:legend-open";
+
+/** Open by default where there's room (desktop, tablet), collapsed on a
+ * phone or the landscape rail, where it can cover a good part of the graph.
+ * An explicit open/close is remembered in this browser. */
+function useLegendOpen() {
+  const layout = useLayoutMode();
+  const [choice, setChoice] = useState(() => {
+    try {
+      const saved = localStorage.getItem(LEGEND_KEY);
+      return saved === null ? null : saved === "true";
+    } catch {
+      return null;
+    }
+  });
+  const open = choice ?? (layout === "desktop" || layout === "tablet");
+  const toggle = useCallback(() => {
+    const next = !open;
+    setChoice(next);
+    try {
+      localStorage.setItem(LEGEND_KEY, String(next));
+    } catch {
+      // storage blocked -- still toggles for this visit
+    }
+  }, [open]);
+  return [open, toggle];
+}
+
+function LegendChevron({ open }) {
+  return (
+    <svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true" className="graph-legend__chevron">
+      <path
+        d={open ? "M5 8l5 5 5-5" : "M5 12l5-5 5 5"}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
 // True once at least one kanji has been expanded (its links to sibling
 // words are the only ones color-coded by position -- see
@@ -150,6 +194,7 @@ export default function GraphPanel({
   // single always-shown anchor node, and WordTreeGraph already refuses to
   // dim it regardless of what isDimmed returns (see its `!node.isRoot &&`
   // guard), so a toggle for it would silently do nothing.
+  const [legendOpen, toggleLegend] = useLegendOpen();
   const [typeLegend, setTypeLegend] = useState(DEFAULT_TYPE_LEGEND);
   const [jlptLegend, setJlptLegend] = useState(DEFAULT_JLPT_LEGEND);
   const [positionLegend, setPositionLegend] = useState(DEFAULT_POSITION_LEGEND);
@@ -296,94 +341,108 @@ export default function GraphPanel({
         )}
 
         {graph && (
-          <div className="graph-legend">
-            <div className="graph-legend__group">
-              <span className="legend__group-label">Type</span>
-              <span className="legend__row">
-                <span className="legend__swatch legend__swatch--root" /> Root
-              </span>
-              <button
-                type="button"
-                className={`legend__row${typeLegend.word ? "" : " is-inactive"}`}
-                onClick={() => toggleType("word")}
-                aria-pressed={typeLegend.word}
-                title={typeLegend.word ? "Click to dim word nodes" : "Click to un-dim word nodes"}
-              >
-                <span className="legend__swatch legend__swatch--word" /> Word
-              </button>
-              <button
-                type="button"
-                className={`legend__row${typeLegend.kanji ? "" : " is-inactive"}`}
-                onClick={() => toggleType("kanji")}
-                aria-pressed={typeLegend.kanji}
-                title={typeLegend.kanji ? "Click to dim kanji nodes" : "Click to un-dim kanji nodes"}
-              >
-                <span className="legend__swatch legend__swatch--kanji" /> Kanji
-              </button>
-            </div>
-            {showPositionLegend && (
-              <div className="graph-legend__group">
-                <span className="legend__group-label">Position</span>
-                <button
-                  type="button"
-                  className={`legend__row${positionLegend.start ? "" : " is-inactive"}`}
-                  onClick={() => togglePosition("start")}
-                  aria-pressed={positionLegend.start}
-                  title="Where the kanji sits in the word (solid line)"
-                >
-                  <span className={lineSwatchClass("start")} /> Start
-                </button>
-                <button
-                  type="button"
-                  className={`legend__row${positionLegend.middle ? "" : " is-inactive"}`}
-                  onClick={() => togglePosition("middle")}
-                  aria-pressed={positionLegend.middle}
-                  title="Where the kanji sits in the word (dashed line)"
-                >
-                  <span className={lineSwatchClass("middle")} /> Middle
-                </button>
-                <button
-                  type="button"
-                  className={`legend__row${positionLegend.end ? "" : " is-inactive"}`}
-                  onClick={() => togglePosition("end")}
-                  aria-pressed={positionLegend.end}
-                  title="Where the kanji sits in the word (dotted line)"
-                >
-                  <span className={lineSwatchClass("end")} /> End
-                </button>
-              </div>
-            )}
-            {showReadingLegend && (
-              <div className="graph-legend__group">
-                <span className="legend__group-label">Reading</span>
-                {READING_LEGEND.map(({ value, label }) => (
+          <div className={`graph-legend${legendOpen ? "" : " is-collapsed"}`}>
+            <button
+              type="button"
+              className="graph-legend__toggle"
+              onClick={toggleLegend}
+              aria-expanded={legendOpen}
+              aria-controls="graph-legend-body"
+            >
+              Legend
+              <LegendChevron open={legendOpen} />
+            </button>
+            {legendOpen && (
+              <div className="graph-legend__body" id="graph-legend-body">
+                <div className="graph-legend__group">
+                  <span className="legend__group-label">Type</span>
+                  <span className="legend__row">
+                    <span className="legend__swatch legend__swatch--root" /> Root
+                  </span>
                   <button
                     type="button"
-                    key={value}
-                    className={`legend__row${readingLegend[value] ? "" : " is-inactive"}`}
-                    onClick={() => toggleReading(value)}
-                    aria-pressed={readingLegend[value]}
-                    title="Whether the word uses this kanji's on'yomi or kun'yomi"
+                    className={`legend__row${typeLegend.word ? "" : " is-inactive"}`}
+                    onClick={() => toggleType("word")}
+                    aria-pressed={typeLegend.word}
+                    title={typeLegend.word ? "Click to dim word nodes" : "Click to un-dim word nodes"}
                   >
-                    <span className={lineSwatchClass(value)} /> {label}
+                    <span className="legend__swatch legend__swatch--word" /> Word
                   </button>
-                ))}
-              </div>
-            )}
-            {colorByDifficulty && (
-              <div className="graph-legend__group graph-legend__group--grid">
-                <span className="legend__group-label">JLPT</span>
-                {JLPT_LEGEND.map(({ value, label }) => (
                   <button
                     type="button"
-                    className={`legend__row${jlptLegend[value] ? "" : " is-inactive"}`}
-                    onClick={() => toggleJlpt(value)}
-                    aria-pressed={jlptLegend[value]}
-                    key={value}
+                    className={`legend__row${typeLegend.kanji ? "" : " is-inactive"}`}
+                    onClick={() => toggleType("kanji")}
+                    aria-pressed={typeLegend.kanji}
+                    title={typeLegend.kanji ? "Click to dim kanji nodes" : "Click to un-dim kanji nodes"}
                   >
-                    <span className={`legend__swatch legend__swatch--jlpt-${value}`} /> {label}
+                    <span className="legend__swatch legend__swatch--kanji" /> Kanji
                   </button>
-                ))}
+                </div>
+                {showPositionLegend && (
+                  <div className="graph-legend__group">
+                    <span className="legend__group-label">Position</span>
+                    <button
+                      type="button"
+                      className={`legend__row${positionLegend.start ? "" : " is-inactive"}`}
+                      onClick={() => togglePosition("start")}
+                      aria-pressed={positionLegend.start}
+                      title="Where the kanji sits in the word (solid line)"
+                    >
+                      <span className={lineSwatchClass("start")} /> Start
+                    </button>
+                    <button
+                      type="button"
+                      className={`legend__row${positionLegend.middle ? "" : " is-inactive"}`}
+                      onClick={() => togglePosition("middle")}
+                      aria-pressed={positionLegend.middle}
+                      title="Where the kanji sits in the word (dashed line)"
+                    >
+                      <span className={lineSwatchClass("middle")} /> Middle
+                    </button>
+                    <button
+                      type="button"
+                      className={`legend__row${positionLegend.end ? "" : " is-inactive"}`}
+                      onClick={() => togglePosition("end")}
+                      aria-pressed={positionLegend.end}
+                      title="Where the kanji sits in the word (dotted line)"
+                    >
+                      <span className={lineSwatchClass("end")} /> End
+                    </button>
+                  </div>
+                )}
+                {showReadingLegend && (
+                  <div className="graph-legend__group">
+                    <span className="legend__group-label">Reading</span>
+                    {READING_LEGEND.map(({ value, label }) => (
+                      <button
+                        type="button"
+                        key={value}
+                        className={`legend__row${readingLegend[value] ? "" : " is-inactive"}`}
+                        onClick={() => toggleReading(value)}
+                        aria-pressed={readingLegend[value]}
+                        title="Whether the word uses this kanji's on'yomi or kun'yomi"
+                      >
+                        <span className={lineSwatchClass(value)} /> {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {colorByDifficulty && (
+                  <div className="graph-legend__group graph-legend__group--grid">
+                    <span className="legend__group-label">JLPT</span>
+                    {JLPT_LEGEND.map(({ value, label }) => (
+                      <button
+                        type="button"
+                        className={`legend__row${jlptLegend[value] ? "" : " is-inactive"}`}
+                        onClick={() => toggleJlpt(value)}
+                        aria-pressed={jlptLegend[value]}
+                        key={value}
+                      >
+                        <span className={`legend__swatch legend__swatch--jlpt-${value}`} /> {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
