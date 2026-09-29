@@ -52,3 +52,37 @@ describe("index.html crawler/link-preview tags", () => {
     expect(umami?.getAttribute("data-domains")).toBe("moto.souravbanerjee.com");
   });
 });
+
+describe("PWA manifest", () => {
+  const manifest = JSON.parse(readFileSync(`${root}public/manifest.webmanifest`, "utf8"));
+
+  it("is linked from index.html", () => {
+    expect(doc.head.querySelector('link[rel="manifest"]')?.getAttribute("href")).toBe(
+      "/manifest.webmanifest",
+    );
+  });
+
+  it("is installable: name, standalone display, start_url, 192 + 512 + maskable icons", () => {
+    expect(manifest.name).toBeTruthy();
+    expect(manifest.short_name).toBeTruthy();
+    expect(manifest.display).toBe("standalone");
+    expect(manifest.start_url).toBe("/");
+    const sizes = manifest.icons.map((i) => `${i.sizes}:${i.purpose}`);
+    expect(sizes).toEqual(
+      expect.arrayContaining(["192x192:any", "512x512:any", "512x512:maskable"]),
+    );
+  });
+
+  it("points only at icon files that exist, as real PNGs of the declared size", () => {
+    const icons = [
+      ...manifest.icons,
+      { src: doc.head.querySelector('link[rel="apple-touch-icon"]').getAttribute("href"), sizes: "180x180" },
+    ];
+    for (const icon of icons) {
+      const png = readFileSync(`${root}public${icon.src}`);
+      expect(png.subarray(1, 4).toString(), icon.src).toBe("PNG");
+      const [w, h] = icon.sizes.split("x").map(Number);
+      expect([png.readUInt32BE(16), png.readUInt32BE(20)], icon.src).toEqual([w, h]);
+    }
+  });
+});

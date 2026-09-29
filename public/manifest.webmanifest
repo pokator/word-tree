@@ -1,0 +1,19 @@
+{
+  "name": "Moto (元) — Japanese word explorer",
+  "short_name": "Moto",
+  "description": "Explore Japanese vocabulary as a web of kanji: any word opens into its kanji, and each kanji into every word that shares it.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#e7e2d1",
+  "theme_color": "#e7e2d1",
+  "lang": "en",
+  "categories": ["education", "books", "reference"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
