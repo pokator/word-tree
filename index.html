@@ -47,14 +47,42 @@
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
-        "@type": "WebApplication",
-        "name": "Moto (元)",
-        "url": "https://moto.souravbanerjee.com/",
-        "description": "An interactive Japanese dictionary: any word expands into the kanji it's built from, and each kanji into every other word that shares it.",
-        "applicationCategory": "EducationalApplication",
-        "operatingSystem": "Any",
-        "inLanguage": ["en", "ja"],
-        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://moto.souravbanerjee.com/#website",
+            "url": "https://moto.souravbanerjee.com/",
+            "name": "Moto",
+            "alternateName": ["元", "Moto (元)"],
+            "publisher": {
+              "@type": "Person",
+              "@id": "https://www.souravbanerjee.com/#person",
+              "name": "Sourav Banerjee",
+              "url": "https://www.souravbanerjee.com"
+            },
+            "inLanguage": ["en", "ja"]
+          },
+          {
+            "@type": "WebApplication",
+            "@id": "https://moto.souravbanerjee.com/#app",
+            "name": "Moto (元)",
+            "url": "https://moto.souravbanerjee.com/",
+            "description": "An interactive Japanese dictionary: any word expands into the kanji it's built from, and each kanji into every other word that shares it.",
+            "applicationCategory": "EducationalApplication",
+            "operatingSystem": "Any",
+            "inLanguage": ["en", "ja"],
+            "isAccessibleForFree": true,
+            "image": "https://moto.souravbanerjee.com/og-image.png?v=2",
+            "author": {
+              "@type": "Person",
+              "@id": "https://www.souravbanerjee.com/#person",
+              "name": "Sourav Banerjee",
+              "url": "https://www.souravbanerjee.com"
+            },
+            "sameAs": ["https://github.com/pokator/word-tree"],
+            "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+          }
+        ]
       }
     </script>
 

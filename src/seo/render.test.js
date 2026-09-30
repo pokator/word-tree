@@ -13,6 +13,9 @@ function get(query) {
   return res;
 }
 const one = (html, re) => html.match(re)?.[1];
+const jsonLd = (html) => JSON.parse(one(html, /<script type="application\/ld\+json">([^<]+)/));
+const node = (ld, type) => ld["@graph"].find((n) => n["@type"] === type);
+const locs = (xml) => [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
 // What a browser or crawler reads out of an attribute or title.
 const text = (s) =>
   s.replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
@@ -41,7 +44,15 @@ describe("kanji pages", () => {
     expect(html).toContain('href="/word/%E5%AD%A6%E7%94%9F"'); // 学生 has a page
     expect(html).toContain('href="/explore/%E7%94%9F?expand=k%3A%E7%94%9F"');
     expect(html).toMatch(/CC BY-SA 4\.0/); // JMdict/KANJIDIC licence attribution
-    JSON.parse(one(html, /<script type="application\/ld\+json">([^<]+)/));
+    const ld = jsonLd(html);
+    expect(ld["@context"]).toBe("https://schema.org");
+    expect(node(ld, "WebSite").publisher["@id"]).toBe("https://www.souravbanerjee.com/#person");
+    expect(node(ld, "DefinedTerm").name).toBe("生");
+    expect(node(ld, "DefinedTerm")["@context"]).toBeUndefined();
+    const crumbs = node(ld, "BreadcrumbList").itemListElement;
+    expect(crumbs).toHaveLength(2);
+    expect(crumbs.map((c) => c.position)).toEqual([1, 2]);
+    expect(crumbs.at(-1).item).toBe(`${SITE}/kanji/%E7%94%9F`);
   });
 
   it("accepts a doubly-encoded or raw key", () => {
@@ -68,6 +79,7 @@ describe("kanji pages", () => {
     expect(res.body).toContain('name="robots" content="noindex"');
     expect(res.body).not.toContain("<b>x");
     expect(res.body).toContain("&lt;b&gt;x");
+    expect(res.body).not.toContain("application/ld+json");
   });
 });
 
@@ -81,6 +93,13 @@ describe("word pages", () => {
     expect(html).toContain('href="/kanji/%E6%A0%A1"');
     expect(html).toMatch(/Words that share its kanji/);
     expect(html.match(/<h1/g)).toHaveLength(1);
+  });
+
+  it("carries the visible crumb trail as a BreadcrumbList", () => {
+    const html = get(`kind=word&key=${encodeURIComponent("学生")}`).body;
+    const crumbs = node(jsonLd(html), "BreadcrumbList").itemListElement;
+    expect(crumbs.map((c) => c.name)).toEqual(["Kanji", "学", "学生"]);
+    expect(crumbs[1].item).toBe(`${SITE}/kanji/%E5%AD%A6`);
   });
 
   it("keeps descriptions short across a sample of words", () => {
@@ -109,14 +128,48 @@ describe("index and sitemap", () => {
     expect(html.match(/href="\/kanji\/%/g)).toHaveLength(2136);
   });
 
-  it("the sitemap lists home, index, every kanji and word page", () => {
+  it("the index has a DefinedTermSet and a one-crumb trail", () => {
+    const ld = jsonLd(get("kind=kanji").body);
+    expect(node(ld, "DefinedTermSet").url).toBe(`${SITE}/kanji`);
+    expect(node(ld, "BreadcrumbList").itemListElement).toHaveLength(1);
+  });
+
+  it("/sitemap.xml is an index of the kanji and word sitemaps", () => {
     const res = get("kind=sitemap");
+    expect(res.statusCode).toBe(200);
     expect(res.headers["Content-Type"]).toMatch(/application\/xml/);
-    const locs = [...res.body.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
-    expect(locs).toHaveLength(2 + 2136 + Object.keys(data.words).length);
-    expect(locs.length).toBeLessThanOrEqual(50000); // the sitemap protocol's cap
-    expect(locs.every((u) => u.startsWith(`${SITE}/`))).toBe(true);
-    expect(new Set(locs).size).toBe(locs.length);
+    expect(res.body).toContain("<sitemapindex");
+    expect(locs(res.body)).toEqual([`${SITE}/sitemap-kanji.xml`, `${SITE}/sitemap-words.xml`]);
+    expect(res.body.match(/<lastmod>\d{4}-\d{2}-\d{2}<\/lastmod>/g)).toHaveLength(2);
+  });
+
+  it("the child sitemaps list home, index, every kanji and word page, each with a lastmod", () => {
+    const kanji = get("kind=sitemap&key=kanji");
+    const words = get("kind=sitemap&key=words");
+    expect(locs(kanji.body)).toHaveLength(2 + 2136);
+    expect(locs(words.body)).toHaveLength(Object.keys(data.words).length);
+    for (const { body } of [kanji, words]) {
+      expect(body).toContain("<urlset");
+      const urls = body.match(/<url>.*?<\/url>/g);
+      expect(urls.every((u) => /<lastmod>\d{4}-\d{2}-\d{2}<\/lastmod>/.test(u))).toBe(true);
+      expect(urls.length).toBeLessThanOrEqual(50000); // the sitemap protocol's cap
+    }
+    const all = [...locs(kanji.body), ...locs(words.body)];
+    expect(all.every((u) => u.startsWith(`${SITE}/`))).toBe(true);
+    expect(new Set(all).size).toBe(all.length);
+  });
+
+  it("404s an unknown sitemap part", () => {
+    const res = get("kind=sitemap&key=bogus");
+    expect(res.statusCode).toBe(404);
+    expect(res.headers["Cache-Control"]).toBe("public, max-age=300, s-maxage=3600");
+  });
+
+  it("credits the author in every page's footer", () => {
+    const word = `kind=word&key=${encodeURIComponent("学生")}`;
+    for (const q of ["kind=kanji", "kind=kanji&key=生", word, "kind=kanji&key=x"]) {
+      expect(get(q).body, q).toContain('href="https://www.souravbanerjee.com"');
+    }
   });
 });
 

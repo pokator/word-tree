@@ -100,7 +100,7 @@ for (const w of WORDS) {
   };
 }
 
-const out = { v: 1, joyo: joyo.map((j) => j.char), kanji, extraKanji, words };
+const out = { v: 1, updated: new Date().toISOString().slice(0, 10), joyo: joyo.map((j) => j.char), kanji, extraKanji, words };
 const raw = Buffer.from(JSON.stringify(out));
 const gz = gzipSync(raw, { level: 9 });
 mkdirSync(path.join(ROOT, "api/_lib"), { recursive: true });

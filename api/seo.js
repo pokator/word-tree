@@ -1,5 +1,5 @@
-// Serves the crawlable pages -- /kanji, /kanji/<k>, /word/<w>, /sitemap.xml
-// (routed here by vercel.json rewrites). Rendered on request from one
+// Serves the crawlable pages -- /kanji, /kanji/<k>, /word/<w>, and the
+// sitemaps /sitemap.xml, /sitemap-kanji.xml, /sitemap-words.xml (routed here by vercel.json rewrites). Rendered on request from one
 // compact data file and cached at Vercel's edge until the next deploy, so
 // deployments don't carry ~28k prebuilt HTML files (see
 // scripts/generate-seo-data.mjs for why that matters).
@@ -56,8 +56,13 @@ function serve(req, res) {
   let type = "text/html; charset=utf-8";
   let body;
   if (kind === "sitemap") {
-    type = "application/xml; charset=utf-8";
-    body = renderSitemap(d);
+    body = renderSitemap(d, key || undefined);
+    if (body) {
+      type = "application/xml; charset=utf-8";
+    } else {
+      status = 404;
+      body = renderNotFound("word", "");
+    }
   } else if (kind === "kanji" && !key) {
     body = renderKanjiIndex(d);
   } else if (kind === "kanji" || kind === "word") {

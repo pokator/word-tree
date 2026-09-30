@@ -723,7 +723,7 @@ export default function App() {
       <div className="app__credit">
         <a href="/kanji">Kanji list</a>
         <span aria-hidden="true"> · </span>
-        <a href="https://souravbanerjee.com" target="_blank" rel="noopener noreferrer">
+        <a href="https://www.souravbanerjee.com" target="_blank" rel="noopener noreferrer">
           by Sourav Banerjee
         </a>
       </div>

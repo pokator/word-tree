@@ -68,7 +68,7 @@ export default function MobileMenu({
           <a className="mobile-menu__credit" href="/kanji">
             Kanji list
           </a>
-          <a className="mobile-menu__credit" href="https://souravbanerjee.com" target="_blank" rel="noopener noreferrer">
+          <a className="mobile-menu__credit" href="https://www.souravbanerjee.com" target="_blank" rel="noopener noreferrer">
             by Sourav Banerjee
           </a>
         </div>

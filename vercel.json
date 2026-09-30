@@ -9,6 +9,8 @@
     { "source": "/kanji/:key", "destination": "/api/seo?kind=kanji&key=:key" },
     { "source": "/word/:key", "destination": "/api/seo?kind=word&key=:key" },
     { "source": "/sitemap.xml", "destination": "/api/seo?kind=sitemap" },
+    { "source": "/sitemap-kanji.xml", "destination": "/api/seo?kind=sitemap&key=kanji" },
+    { "source": "/sitemap-words.xml", "destination": "/api/seo?kind=sitemap&key=words" },
     { "source": "/m/s.js", "destination": "https://cloud.umami.is/script.js" },
     { "source": "/m/api/send", "destination": "https://gateway.umami.is/api/send" }
   ]

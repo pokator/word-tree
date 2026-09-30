@@ -44,7 +44,9 @@ describe("index.html crawler/link-preview tags", () => {
 
   it("has valid JSON-LD", () => {
     const ld = JSON.parse(doc.head.querySelector('script[type="application/ld+json"]').textContent);
-    expect(ld["@type"]).toBe("WebApplication");
+    const byType = Object.fromEntries(ld["@graph"].map((n) => [n["@type"], n]));
+    expect(byType.WebSite.publisher["@id"]).toBe("https://www.souravbanerjee.com/#person");
+    expect(byType.WebApplication.author["@id"]).toBe("https://www.souravbanerjee.com/#person");
   });
 
   it("has crawler-visible content without JavaScript", () => {

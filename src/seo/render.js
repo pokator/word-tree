@@ -10,6 +10,20 @@ import { extractKanjiComponents } from "../graph/kanji.js";
 import { graphPreviewCss, renderGraphPreview } from "./graphPreview.js";
 
 export const SITE = "https://moto.souravbanerjee.com";
+export const AUTHOR_URL = "https://www.souravbanerjee.com";
+
+// The same Person entity souravbanerjee.com and Gakuji publish, so search
+// engines tie the three sites to one creator.
+const AUTHOR = { "@type": "Person", "@id": `${AUTHOR_URL}/#person`, name: "Sourav Banerjee", url: AUTHOR_URL };
+const WEBSITE = {
+  "@type": "WebSite",
+  "@id": `${SITE}/#website`,
+  url: `${SITE}/`,
+  name: "Moto",
+  alternateName: ["元", "Moto (元)"],
+  publisher: AUTHOR,
+  inLanguage: ["en", "ja"],
+};
 
 const ON = "o";
 const KUN = "k";
@@ -95,8 +109,18 @@ footer{max-width:960px;margin:0 auto;padding:24px 16px 48px;font-size:13px;borde
 @media (max-width:640px){.hero{grid-template-columns:1fr}.hero__glyph{font-size:96px}.hero h1{font-size:28px}.top nav a.hide-sm{display:none}}
 `.trim();
 
-function page({ title, description, path, body, jsonLd, noindex = false }) {
+/** [name, path] pairs -> a schema.org BreadcrumbList. */
+const breadcrumbList = (crumbs) => ({
+  "@type": "BreadcrumbList",
+  itemListElement: crumbs.map(([name, path], i) => ({ "@type": "ListItem", position: i + 1, name, item: SITE + path })),
+});
+
+function page({ title, description, path, body, jsonLd, crumbs, noindex = false }) {
   const url = SITE + path;
+  const graph =
+    !noindex && jsonLd
+      ? { "@context": "https://schema.org", "@graph": [WEBSITE, jsonLd, ...(crumbs ? [breadcrumbList(crumbs)] : [])] }
+      : null;
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -121,7 +145,7 @@ ${noindex ? '<meta name="robots" content="noindex">' : `<link rel="canonical" hr
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;600&family=Shippori+Mincho:wght@500&display=swap" rel="stylesheet">
-${jsonLd ? `<script type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, "\\u003c")}</script>` : ""}
+${graph ? `<script type="application/ld+json">${JSON.stringify(graph).replace(/</g, "\\u003c")}</script>` : ""}
 <script defer src="/m/s.js" data-website-id="60fcf70a-8ca9-4bbf-80c4-7c25e47668b5" data-host-url="/m" data-domains="moto.souravbanerjee.com"></script>
 <style>${STYLE}
 ${graphPreviewCss()}</style>
@@ -137,6 +161,7 @@ ${body}
 <footer>
 <p>Moto is a free Japanese dictionary you explore as a graph: every word opens into its kanji, and every kanji into the words that share it.</p>
 <p>Dictionary data from <a href="https://www.edrdg.org/wiki/index.php/JMdict-EDICT_Dictionary_Project">JMdict</a> and <a href="https://www.edrdg.org/wiki/index.php/KANJIDIC_Project">KANJIDIC2</a> by the <a href="https://www.edrdg.org/">Electronic Dictionary Research and Development Group</a>, used under <a href="https://www.edrdg.org/edrdg/licence.html">CC BY-SA 4.0</a>.</p>
+<p>Made by <a href="${AUTHOR_URL}">Sourav Banerjee</a>.</p>
 </footer>
 </body>
 </html>`;
@@ -228,8 +253,8 @@ ${related ? `<h2>Kanji that often appear with <span lang="ja">${esc(char)}</span
     description,
     path: kanjiPath(char),
     body,
+    crumbs: [["Kanji", "/kanji"], [char, kanjiPath(char)]],
     jsonLd: {
-      "@context": "https://schema.org",
       "@type": "DefinedTerm",
       name: char,
       description: k.m,
@@ -315,8 +340,8 @@ ${related.length ? `<h2>Words that share its kanji</h2><ul class="words">${relat
     description,
     path: wordPath(word),
     body,
+    crumbs: [["Kanji", "/kanji"], ...(first ? [[first, kanjiPath(first)]] : []), [word, wordPath(word)]],
     jsonLd: {
-      "@context": "https://schema.org",
       "@type": "DefinedTerm",
       name: word,
       alternateName: w.r,
@@ -348,6 +373,8 @@ ${Object.entries(groups)
     description: `All ${count(data.joyo.length)} jōyō kanji by school grade, each with its meanings, on'yomi and kun'yomi readings, and the common words built from it.`,
     path: "/kanji",
     body,
+    crumbs: [["Kanji", "/kanji"]],
+    jsonLd: { "@type": "DefinedTermSet", name: "Jōyō kanji", url: `${SITE}/kanji` },
   });
 }
 
@@ -361,16 +388,27 @@ export function renderNotFound(kind, key) {
 
 // ----------------------------------------------------------------- sitemap
 
-export function renderSitemap(data) {
-  const urls = [
-    `${SITE}/`,
-    `${SITE}/kanji`,
-    ...data.joyo.map((c) => SITE + kanjiPath(c)),
-    ...Object.keys(data.words).map((w) => SITE + wordPath(w)),
-  ];
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${urls.map((u) => `<url><loc>${esc(u)}</loc></url>`).join("\n")}
-</urlset>
+// The fallback is the date the current data file was built (the SEO pages
+// launched 2026-09-28); once the data is regenerated its stamped date wins.
+const lastmodOf = (data) => data.updated ?? "2026-09-28";
+
+/** No part: the sitemap index. "kanji" / "words": that child urlset. Else null. */
+export function renderSitemap(data, part) {
+  const lastmod = `<lastmod>${lastmodOf(data)}</lastmod>`;
+  const xml = (root, entries) => `<?xml version="1.0" encoding="UTF-8"?>
+<${root} xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${entries.join("\n")}
+</${root}>
 `;
+  if (part === undefined) {
+    return xml(
+      "sitemapindex",
+      ["kanji", "words"].map((p) => `<sitemap><loc>${SITE}/sitemap-${p}.xml</loc>${lastmod}</sitemap>`)
+    );
+  }
+  let urls;
+  if (part === "kanji") urls = [`${SITE}/`, `${SITE}/kanji`, ...data.joyo.map((c) => SITE + kanjiPath(c))];
+  else if (part === "words") urls = Object.keys(data.words).map((w) => SITE + wordPath(w));
+  else return null;
+  return xml("urlset", urls.map((u) => `<url><loc>${esc(u)}</loc>${lastmod}</url>`));
 }
