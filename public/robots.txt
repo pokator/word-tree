@@ -1,3 +1,8 @@
+# Meta's AI-training crawler rendered the explorer ~500 times an hour and
+# used up Vercel's 100GB/month bandwidth allowance on its own (Oct 2026).
+User-agent: meta-externalagent
+Disallow: /
+
 User-agent: *
 Allow: /
 # The explorer and its ~7MB dictionary are for people. Crawlers get the
