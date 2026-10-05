@@ -260,7 +260,10 @@ of sync.
   gzip-compressed static dataset (`public/data/{kanji,words}.gzjson` —
   see `data/offline-dataset/README.md`) via a Web Worker
   (`src/data/datasetWorker.js`) that fetches, decompresses, and indexes it
-  off the main thread, falling back to `src/data/japaneseData.js` (a tiny
+  off the main thread. Production fetches it from jsDelivr, pinned to the
+  last commit that changed `public/data` (`vite.config.js`), so ~7MB per
+  first visit doesn't count against Vercel's bandwidth quota; the same
+  files on Moto's own origin are the fallback, falling back to `src/data/japaneseData.js` (a tiny
   ~32 kanji / ~38 word fixture) only if that somehow fails. It's
   deliberately never read from Supabase, even when Supabase is
   configured — see that README for why.

@@ -15,8 +15,9 @@ every build's static output. At ~51MB uncompressed, shipping them raw meant
 every single deployment re-stored a ~52MB blob, which is what blew through
 Vercel's Deployment Storage quota. What actually ships is a gzip-compressed
 copy: run `npm run generate:offline-gz` after editing either file to
-regenerate `public/data/{words,kanji}.gzjson` (committed, ~8.5MB combined
-instead of ~52MB). `src/data/datasetWorker.js` fetches those, decompresses
+regenerate `public/data/{words,kanji}.gzjson` (committed, ~7MB combined
+instead of ~52MB). The shipped `words` drop `meaning` wherever `senses` can
+rebuild it (`src/data/datasetFormat.js`), which saves another ~20%. `src/data/datasetWorker.js` fetches those, decompresses
 them via `DecompressionStream` and builds the lookup indexes, all off the
 main thread.
 

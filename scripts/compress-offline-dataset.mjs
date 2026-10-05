@@ -8,6 +8,7 @@ import { gzipSync } from "node:zlib";
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { slimWord } from "../src/data/datasetFormat.js";
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -21,7 +22,10 @@ for (const name of ["words.json", "kanji.json"]) {
   const src = path.join(ROOT, "data/offline-dataset", name);
   const dest = path.join(ROOT, "public/data", `${name.replace(/\.json$/, "")}.gzjson`);
   const raw = readFileSync(src);
-  const gz = gzipSync(raw, { level: 9 });
+  // words.json's `meaning` is derivable from `senses`; the app rebuilds it on
+  // load (src/data/datasetFormat.js), so it isn't shipped.
+  const out = name === "words.json" ? Buffer.from(JSON.stringify(JSON.parse(raw).map(slimWord))) : raw;
+  const gz = gzipSync(out, { level: 9 });
   writeFileSync(dest, gz);
   console.log(`${name}: ${(raw.length / 1024 / 1024).toFixed(2)}MB -> ${(gz.length / 1024 / 1024).toFixed(2)}MB`);
 }

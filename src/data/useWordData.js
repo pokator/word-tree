@@ -72,10 +72,10 @@ export function useWordData() {
       finish(tinyFallbackDataset());
     });
 
-    worker.postMessage({ baseUrl: import.meta.env.BASE_URL });
+    worker.postMessage({ baseUrl: import.meta.env.BASE_URL, cdnBaseUrl: __DATA_CDN_BASE__ });
 
     // React StrictMode double-invokes effects in development; the discarded
-    // first worker has to be torn down or it keeps decompressing 8.5MB in
+    // first worker has to be torn down or it keeps decompressing ~7MB in
     // the background for nothing.
     return () => {
       if (!done) worker.terminate();

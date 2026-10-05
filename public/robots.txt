@@ -1,4 +1,9 @@
 User-agent: *
 Allow: /
+# The explorer and its ~7MB dictionary are for people. Crawlers get the
+# server-rendered /kanji and /word pages instead (see the sitemap), and
+# rendering the app would download the whole dictionary on every visit.
+Disallow: /explore/
+Disallow: /data/
 
 Sitemap: https://moto.souravbanerjee.com/sitemap.xml
