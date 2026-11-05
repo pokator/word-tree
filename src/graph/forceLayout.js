@@ -162,7 +162,11 @@ export function reconcileLayout(state, sim, graph, width, height, random = Math.
   const parentDegree = new Map();
   for (const l of graph.links) {
     const s = idOf(l.source);
-    if (graph.nodes.get(s)?.type === "kanji") parentDegree.set(s, (parentDegree.get(s) ?? 0) + 1);
+    // A kanji fans out its words; in meaning mode a word fans out its
+    // meaning neighbours the same way.
+    if (graph.nodes.get(s)?.type === "kanji" || l.kind === "semantic") {
+      parentDegree.set(s, (parentDegree.get(s) ?? 0) + 1);
+    }
   }
   state.parentDegree = parentDegree;
 

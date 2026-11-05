@@ -540,6 +540,23 @@ export default function WordTreeGraph({
                     ? s.char
                     : null;
               const pathColor = pathChar ? kanjiPathColors.get(pathChar) : null;
+              // Meaning-mode links (word -> related word) bow slightly to
+              // one side, so they read apart from straight kanji links by
+              // shape alone, without spending a hue or a dash pattern
+              // (both already mean something here).
+              if (l.kind === "semantic") {
+                const mx = (s.x + t.x) / 2 - (t.y - s.y) * 0.12;
+                const my = (s.y + t.y) / 2 + (t.x - s.x) * 0.12;
+                return (
+                  <path
+                    key={`${s.id}~>${t.id}`}
+                    d={`M${s.x},${s.y} Q${mx},${my} ${t.x},${t.y}`}
+                    fill="none"
+                    vectorEffect="non-scaling-stroke"
+                    className="graph-link graph-link--semantic"
+                  />
+                );
+              }
               return (
                 <line
                   key={`${s.id}->${t.id}`}

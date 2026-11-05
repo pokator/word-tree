@@ -152,8 +152,24 @@ function LoadingIndicator() {
  * describes what you're looking at (legend, shown-count). Kept separate
  * from WordTreeGraph itself so that component stays pure rendering logic.
  */
+const MODES = [
+  { value: "kanji", label: "Kanji", title: "Expand words into their kanji, and kanji into words that share them" },
+  { value: "meaning", label: "Meaning", title: "Expand words into words related in meaning" },
+];
+
+// True once the graph has a meaning link to explain in the legend.
+function hasSemanticLinks(graph) {
+  return Boolean(graph?.links.some((l) => l.kind === "semantic"));
+}
+
 export default function GraphPanel({
   graph,
+  mode = "kanji",
+  onSetMode,
+  modeSwitch,
+  onSetModeSwitch,
+  commonness,
+  onSetCommonness,
   viewKey,
   selectedId,
   onNodeClick,
@@ -196,6 +212,12 @@ export default function GraphPanel({
   // dim it regardless of what isDimmed returns (see its `!node.isRoot &&`
   // guard), so a toggle for it would silently do nothing.
   const [legendOpen, toggleLegend] = useLegendOpen();
+  // Kanji path and Link pattern describe kanji<->word links and aren't in
+  // meaning mode's Filters, so they're off there rather than active but
+  // impossible to turn off.
+  const meaning = mode === "meaning";
+  const effectiveLinkColorMode = meaning ? "off" : linkColorMode;
+  const effectiveKanjiPath = meaning ? false : colorByKanjiPath;
   const [shareNote, setShareNote] = useState(null);
   useEffect(() => {
     if (!shareNote) return;
@@ -217,8 +239,9 @@ export default function GraphPanel({
   // linkColorMode is "off"), so only one legend (and its dim-filtering) is
   // shown at a time, gated by the same Filters -> "Link coloring" mode
   // that switches the link coloring itself.
-  const showReadingLegend = linkColorMode === "reading" && hasPositionGroups(graph);
-  const showPositionLegend = linkColorMode === "position" && hasPositionGroups(graph);
+  const showReadingLegend = effectiveLinkColorMode === "reading" && hasPositionGroups(graph);
+  const showPositionLegend = effectiveLinkColorMode === "position" && hasPositionGroups(graph);
+  const showMeaningLegend = hasSemanticLinks(graph);
 
   const legendDimmed = useCallback(
     (node) => {
@@ -254,6 +277,23 @@ export default function GraphPanel({
     <div className="graph-panel">
       <div className="graph-panel__toolbar">
         <span className="graph-panel__heading">Explore</span>
+        {onSetMode && (
+          <div className="mode-toggle" role="radiogroup" aria-label="Exploration mode">
+            {MODES.map(({ value, label, title }) => (
+              <button
+                key={value}
+                type="button"
+                role="radio"
+                aria-checked={mode === value}
+                className={`mode-toggle__btn${mode === value ? " is-active" : ""}`}
+                onClick={() => onSetMode(value)}
+                title={title}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="graph-panel__toolbar-actions">
           <div className="icon-toolbar">
             <div className="filters-panel-wrap" ref={filtersWrapRef}>
@@ -277,6 +317,11 @@ export default function GraphPanel({
               </button>
               {isFiltersPanelOpen && (
                 <FiltersPanel
+                  mode={mode}
+                  commonness={commonness}
+                  onSetCommonness={onSetCommonness}
+                  modeSwitch={modeSwitch}
+                  onSetModeSwitch={onSetModeSwitch}
                   jlptFilter={jlptFilter}
                   onToggleJlpt={onToggleJlpt}
                   groups={groups}
@@ -366,8 +411,8 @@ export default function GraphPanel({
             theme={theme}
             hintedIds={hintedIds}
             colorByDifficulty={colorByDifficulty}
-            linkColorMode={linkColorMode}
-            colorByKanjiPath={colorByKanjiPath}
+            linkColorMode={effectiveLinkColorMode}
+            colorByKanjiPath={effectiveKanjiPath}
             active={active}
           />
         ) : (
@@ -414,6 +459,17 @@ export default function GraphPanel({
                     <span className="legend__swatch legend__swatch--kanji" /> Kanji
                   </button>
                 </div>
+                {showMeaningLegend && (
+                  <div className="graph-legend__group">
+                    <span className="legend__group-label">Links</span>
+                    <span className="legend__row" title="Word to kanji, or kanji to word">
+                      <span className="legend__swatch legend__swatch--line" /> Kanji
+                    </span>
+                    <span className="legend__row" title="Words used in similar contexts">
+                      <span className="legend__swatch legend__swatch--line legend__swatch--line--meaning" /> Meaning
+                    </span>
+                  </div>
+                )}
                 {showPositionLegend && (
                   <div className="graph-legend__group">
                     <span className="legend__group-label">Position</span>
@@ -489,6 +545,7 @@ export default function GraphPanel({
         <p className="graph-panel__stats">
           {stats.words} words &middot; {stats.kanji} kanji shown
           {datasetSource === "tiny-fallback" && !datasetLoading ? " · offline demo data" : ""}
+          {stats.semanticFailed ? " · meaning data didn't load, check your connection" : ""}
         </p>
       </div>
     </div>

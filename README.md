@@ -112,8 +112,36 @@ halves visible on a portrait tablet; on a phone, one half at a time (tap the
 word strip for the full entry, tap Explore to go back); and on a phone
 turned sideways, a side rail for the word next to a full-height graph.
 
+**Kanji and Meaning modes** (the switch beside "Explore"). Kanji mode is
+the web described above. In Meaning mode, expanding a word shows words used
+in similar contexts in real Japanese text instead of its kanji: 学校 leads to
+生徒, 教員 and 補習, and further out to 養護教諭. Meaning links are drawn
+curved, kanji links straight. The neighbours come from chiVe word vectors,
+computed offline (`scripts/semantic/`), and load lazily: frequencies
+(~0.7MB) the first time you use Meaning mode or move the Commonness dial,
+then one ~55KB file per expanded word. Kanji-mode visitors who never touch
+either download nothing extra. What switching does to the graph is an
+experiment, picked in Filters → **Switching modes**:
+- **Separate graphs** (default): each mode keeps its own graph for the
+  current word. Switching swaps between them, and each graph stays until
+  you search for another word or reset that graph.
+- **One graph**: switching keeps the graph on screen, and the mode only
+  decides what the next word expansion shows, so kanji and meaning
+  branches mix.
+
 **Filters** (graph panel toolbar) — ways to control what the graph
-shows:
+shows. Each mode has its own set: Link pattern and the Kanji path
+highlight only describe kanji links, so Meaning mode drops them (and
+turns them off while you're in it).
+- **Commonness** (both modes) — a dial from Familiar to Adventurous that
+  decides which words a reveal picks first. In Kanji mode, Familiar is the
+  original most-common-first order, and moving the dial aims at rarer words
+  containing that kanji (学 → 学級, 奨学金 in the middle; 考証学, 測地学 at
+  the far end). In Meaning mode the middle is "most related", and either
+  end trades some closeness in meaning for everyday or rarer words. The
+  signal is chiVe's corpus frequency, which covers ~82k words, not only the
+  ~13% JMdict ranks. Each mode keeps its own setting, and an expansion
+  records its dial position in the shared link (`k:学@60`, `s:学校@90`).
 - **JLPT level** — hide/dim by a word's hardest-tagged kanji (N5 easiest —
   N1 hardest, plus "Other" for untagged). Unlike the tag filter,
   this one also limits what *future* kanji/word reveals show up, not just
@@ -357,8 +385,11 @@ see "Assumptions" below.
   not further decomposed into 言+吾). Matches the original 漢字 → 漢, 字
   example. Radical-level decomposition is a natural "zoom in" feature for
   later, not replaced by this.
-- **Kanji ⇄ word is the only relationship type shown** — no "synonym" or
-  "same reading" edges yet.
+- **Two relationship types**: kanji ⇄ word, and (Meaning mode) word ⇄
+  word by meaning. Meaning neighbours are statistical (words that appear in
+  similar contexts), so they are related but not always synonyms, and some
+  noise gets through (侍 → ジャパン, from the "Samurai Japan" baseball
+  team). No "same reading" edges yet.
 - **The graph only grows, never auto-prunes** within one exploration;
   "Reset" collapses back to the root, searching a new word starts fresh.
 - **Anki sync needs Anki desktop.** AnkiConnect only runs on desktop

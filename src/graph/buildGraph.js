@@ -10,10 +10,17 @@
 // Node ids are namespaced so a word and a kanji can never collide:
 //   word:<word text>   e.g. "word:日本語"
 //   kanji:<char>        e.g. "kanji:語"
+//
+// Links are { source, target } between a word and a kanji, or, in meaning
+// mode, { source, target, kind: "semantic" } between two words (see
+// expandSemantic). A word node tracks the two kinds of expansion
+// separately: `expanded` (its kanji are shown) and `semanticExpanded`
+// (every meaning neighbour it has is shown).
 
 import { extractKanjiComponents } from "./kanji.js";
 import { wordComponents } from "../data/deriveIndexes.js";
 import { kanjiReadingTypes } from "./readingType.js";
+import { rankKanjiWords, rankNeighbours } from "./commonness.js";
 
 export const wordNodeId = (word) => `word:${word}`;
 export const kanjiNodeId = (char) => `kanji:${char}`;
@@ -43,6 +50,7 @@ export function wordJlptBucket(dataset, word) {
 }
 
 const alwaysAllowed = () => true;
+const noFrequency = () => undefined;
 
 function kanjiNode(dataset, char) {
   const entry = dataset.KANJI[char];
@@ -110,7 +118,7 @@ function wordNode(dataset, word, { isRoot = false, expanded = false } = {}) {
  * thing you just searched for -- but its kanji components are still
  * subject to it, same as any other reveal.
  */
-export function createInitialGraph(dataset, rootWord, { isJlptAllowed = alwaysAllowed } = {}) {
+export function createInitialGraph(dataset, rootWord, { isJlptAllowed = alwaysAllowed, withKanji = true } = {}) {
   const wordEntry = dataset.WORDS_BY_TEXT[rootWord];
   const components = wordEntry ? wordComponents(wordEntry) : extractKanjiComponents(rootWord);
 
@@ -118,7 +126,11 @@ export function createInitialGraph(dataset, rootWord, { isJlptAllowed = alwaysAl
   const links = [];
 
   const rootId = wordNodeId(rootWord);
-  nodes.set(rootId, wordNode(dataset, rootWord, { isRoot: true, expanded: true }));
+  // A meaning-mode graph (withKanji: false) starts from the word alone;
+  // its kanji are still one kanji-mode expansion away.
+  const expanded = withKanji || components.length === 0;
+  nodes.set(rootId, wordNode(dataset, rootWord, { isRoot: true, expanded }));
+  if (!withKanji) return { nodes, links };
 
   for (const char of components) {
     if (!isJlptAllowed("kanji", char)) continue;
@@ -142,7 +154,13 @@ export function createInitialGraph(dataset, rootWord, { isJlptAllowed = alwaysAl
  * remain" and won't reappear unless the filter changes, matching "limit
  * what shows up" rather than just capping a batch of it.
  */
-export function expandKanji(dataset, graph, char, maxWords = Infinity, { isJlptAllowed = alwaysAllowed } = {}) {
+export function expandKanji(
+  dataset,
+  graph,
+  char,
+  maxWords = Infinity,
+  { isJlptAllowed = alwaysAllowed, commonness = 0, freqOf = noFrequency } = {}
+) {
   const kId = kanjiNodeId(char);
   const existing = graph.nodes.get(kId);
   if (!existing || existing.expanded) return graph;
@@ -162,7 +180,9 @@ export function expandKanji(dataset, graph, char, maxWords = Infinity, { isJlptA
   const notYetLinked = relatedWords.filter(
     (word) => !alreadyLinked.has(wordNodeId(word)) && isJlptAllowed("word", word)
   );
-  const sorted = notYetLinked.slice().sort((a, b) => rankOf(dataset, a) - rankOf(dataset, b));
+  // Most common first by default; the Commonness dial can aim elsewhere
+  // (see graph/commonness.js).
+  const sorted = rankKanjiWords(notYetLinked, commonness, (w) => rankOf(dataset, w), freqOf);
   const toReveal = sorted.slice(0, maxWords);
 
   nodes.set(kId, { ...existing, expanded: toReveal.length === notYetLinked.length });
@@ -173,6 +193,51 @@ export function expandKanji(dataset, graph, char, maxWords = Infinity, { isJlptA
     links.push({ source: kId, target: wId });
   }
 
+  return { nodes, links };
+}
+
+/**
+ * Meaning mode: return a NEW graph with up to `maxWords` more of `word`'s
+ * semantic neighbours (words used in similar contexts -- see
+ * scripts/semantic/build_neighbours.py) linked to it, picked by the
+ * Commonness dial. Batched like expandKanji: the word stays
+ * `semanticExpanded: false` (dashed ring in meaning mode) while more
+ * remain. `semantic` is the store from data/semantic.js; its shard for
+ * `word` must already be loaded, or this is a no-op.
+ */
+export function expandSemantic(
+  dataset,
+  graph,
+  word,
+  maxWords = Infinity,
+  { isJlptAllowed = alwaysAllowed, commonness = 0, semantic } = {}
+) {
+  const wId = wordNodeId(word);
+  const existing = graph.nodes.get(wId);
+  const neighbours = semantic?.neighboursOf(word);
+  if (!existing || existing.semanticExpanded || !neighbours) return graph;
+
+  const linked = new Set();
+  for (const l of graph.links) {
+    if (l.kind !== "semantic") continue;
+    const s = typeof l.source === "object" ? l.source.id : l.source;
+    const t = typeof l.target === "object" ? l.target.id : l.target;
+    if (s === wId) linked.add(t);
+    else if (t === wId) linked.add(s);
+  }
+  const candidates = neighbours.filter(
+    ([w]) => w !== word && !linked.has(wordNodeId(w)) && isJlptAllowed("word", w)
+  );
+  const toReveal = rankNeighbours(candidates, commonness, semantic.freqOf).slice(0, maxWords);
+
+  const nodes = new Map(graph.nodes);
+  const links = [...graph.links];
+  nodes.set(wId, { ...existing, semanticExpanded: toReveal.length === candidates.length });
+  for (const w of toReveal) {
+    const nId = wordNodeId(w);
+    if (!nodes.has(nId)) nodes.set(nId, wordNode(dataset, w));
+    links.push({ source: wId, target: nId, kind: "semantic" });
+  }
   return { nodes, links };
 }
 

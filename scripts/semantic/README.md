@@ -14,23 +14,26 @@ and finds, for each ranked JMdict word, its nearest neighbours by cosine
 similarity.
 
 - **Coverage:** chiVe knows 82,145 of the 228k JMdict headwords, including
-  26,844 of the 30,389 ranked (common) words. Those 26,844 are the roots, and
-  any of the 82k can show up as a neighbour.
+  26,844 of the 30,389 ranked (common) words. Every one of those that is
+  ranked or among chiVe's 60k most frequent words gets a neighbour list
+  (43,785 roots), and any of the 82k can show up as a neighbour.
 - **Commonness:** chiVe's vocabulary is in corpus-frequency order, so a
   word's line number shows how common it is, for every word and not only the
-  ~13% JMdict ranks. The script keeps up to 8 neighbours in each of three
-  frequency bands (index < 15k common, < 60k everyday, beyond that rare), so
-  a familiar to adventurous dial always has something to show. The client
-  re-scores with `similarity − 0.8·|log-frequency − target|`, where the dial
-  sets the target.
+  ~13% JMdict ranks. The script keeps up to 6 / 8 / 10 neighbours in three
+  frequency bands (index < 15k common, < 60k everyday, beyond that rare),
+  weighted toward the rare end so the Adventurous end of the dial has plenty
+  to pick from. The app re-scores with
+  `similarity + 2·(2·dial − 1)·log-frequency` (`src/graph/commonness.js`):
+  the middle of the dial is pure similarity, and the ends pull hard toward
+  everyday or rare words.
 - **Variety:** within a band, picks are diversified (maximal marginal
   relevance, λ = 0.75). Other spellings of the root, pieces of the root, and
   more than 2 words per band that share the root's kanji are dropped, since
   kanji mode already covers those.
 
-Runtime: about 2.5 minutes on 4 CPUs with numpy only.
-
 ## Sample output
+
+From the first prototype run, which kept 8 neighbours per band:
 
 ```
 
@@ -68,14 +71,25 @@ Runtime: about 2.5 minutes on 4 CPUs with numpy only.
 Known noise: proper-noun contexts leak in, for example 侍 → ジャパン and ナイン
 from "Samurai Japan", the baseball team.
 
-## Size
+## Output and size
 
-| Neighbours per band | Neighbour lists (gz) | Word list + frequency (gz) |
-|---|---|---|
-| 8 | 2.16 MB | 0.52 MB |
-| 6 | 1.65 MB | 0.52 MB |
-| 4 | 1.13 MB | 0.52 MB |
+The script writes straight into `public/data/`:
 
-That's too large to load up front. The proposed shape is 64 shards keyed by a
-hash of the root, about 26–42 KB each, fetched only when someone expands a
-word in meaning mode. First visits stay the same size.
+- `frequency.gzjson`: chiVe frequency index for all 82k words (0.7 MB gz).
+  The Commonness dial in both modes uses it.
+- `semantic/000.gzjson` to `127.gzjson`: neighbour lists, sharded by
+  `shardOf()` (FNV-1a over code points, in both the script and
+  `src/data/semantic.js`, and tested to agree). About 55–65 KB each, 7.4 MB
+  in all.
+
+The app fetches the frequency file the first time someone uses Meaning mode
+or moves the dial, and a shard only when a word in it is expanded in Meaning
+mode. A first visit downloads none of this.
+
+Regenerate with:
+
+```
+python3 scripts/semantic/build_neighbours.py path/to/chive-1.3-mc90.txt
+```
+
+It takes about 5 minutes on 4 CPUs and needs only numpy.

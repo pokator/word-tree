@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import * as fixture from "../data/japaneseData";
 import { createInitialGraph, expandKanji, expandWord, revealLink } from "./buildGraph";
-import { expandOp, exploreUrl, parseExploreUrl, replayGraph } from "./exploreState";
+import { expandOp, exploreUrl, opsNeedFrequency, parseExploreUrl, replayGraph, semanticOpWords } from "./exploreState";
 
 const dataset = fixture;
 const ids = (g) => [...g.nodes.keys()].sort();
@@ -79,5 +79,55 @@ describe("batch sizes", () => {
 
   it("rejects malformed sizes", () => {
     expect(parseExploreUrl("/explore/日本", "?expand=k:日~0,k:日~abc,k:日~1000,k:日~5").ops).toEqual(["k:日~5"]);
+  });
+});
+
+describe("meaning mode", () => {
+  // A stand-in for data/semantic.js's store, already loaded.
+  const NEIGHBOURS = { 学校: [["先生", 70], ["学生", 66], ["小学校", 60]], 先生: [["学生", 72], ["学校", 70]] };
+  const semantic = {
+    freqOf: (w) => ({ 先生: 400, 学生: 500, 小学校: 3000 })[w],
+    neighboursOf: (w) => NEIGHBOURS[w] ?? [],
+  };
+  const semanticLinks = (g) =>
+    g.links.filter((l) => l.kind === "semantic").map((l) => `${l.source}-${l.target}`).sort();
+
+  it("records meaning expansions, batch size and a non-default dial", () => {
+    expect(expandOp("word:学校", 8, { mode: "meaning" })).toBe("s:学校");
+    expect(expandOp("word:学校", 3, { mode: "meaning", commonness: 90 })).toBe("s:学校~3@90");
+    expect(expandOp("word:学校", 8, { mode: "kanji", commonness: 90 })).toBe("w:学校");
+    expect(expandOp("kanji:学", 8, { mode: "kanji", commonness: 60 })).toBe("k:学@60");
+    expect(expandOp("kanji:学", 8, { mode: "meaning", commonness: 0 })).toBe("k:学");
+  });
+
+  it("round-trips mode, start and meaning ops through the URL", () => {
+    const state = { root: "学校", ops: ["s:学校~2@90", "k:学@60"], sel: null, maxWords: null, mode: "meaning", start: "word" };
+    const url = exploreUrl({ ...state, maxWords: 8 });
+    expect(decodeURI(url)).toBe("/explore/学校?mode=meaning&start=word&expand=s:学校~2@90,k:学@60");
+    const [path, query] = url.split("?");
+    expect(parseExploreUrl(path, `?${query}`)).toEqual(state);
+  });
+
+  it("starts a meaning graph from the word alone and replays its expansions", () => {
+    const g = replayGraph(dataset, "学校", ["s:学校~2", "s:先生"], { semantic, start: "word" });
+    expect(ids(g)).toEqual(["word:先生", "word:学校", "word:学生"]);
+    expect(semanticLinks(g)).toEqual(["word:先生-word:学生", "word:学校-word:先生", "word:学校-word:学生"]);
+    // 学校 has one neighbour left to show; 先生 has none (学校 is already linked).
+    expect(g.nodes.get("word:学校").semanticExpanded).toBe(false);
+    expect(g.nodes.get("word:先生").semanticExpanded).toBe(true);
+  });
+
+  it("mixes with kanji expansions in one graph", () => {
+    const g = replayGraph(dataset, "学校", ["s:学校~1", "w:先生"], { semantic });
+    expect(g.nodes.has("kanji:学")).toBe(true); // the root's kanji
+    expect(g.nodes.has("kanji:先")).toBe(true); // 先生 expanded into its kanji
+    expect(semanticLinks(g)).toEqual(["word:学校-word:先生"]);
+  });
+
+  it("lists what a replay needs loaded", () => {
+    expect(semanticOpWords(["k:学", "s:学校~3@90", "s:先生"])).toEqual(["学校", "先生"]);
+    expect(opsNeedFrequency(["k:学", "w:学校"])).toBe(false);
+    expect(opsNeedFrequency(["k:学@60"])).toBe(true);
+    expect(opsNeedFrequency(["s:学校"])).toBe(true);
   });
 });
