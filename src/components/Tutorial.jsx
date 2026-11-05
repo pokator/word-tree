@@ -2,10 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 // Anchored by selector, not ref, so this stays decoupled from every
 // component it points at -- most of these are already-stable, semantic
-// classes (search input, the dictionary panel, the Filters button); only
-// the graph Reset button needed a dedicated data-tutorial hook (see
-// GraphPanel.jsx), since "reset-btn" alone is shared with two other
-// buttons. ".graph-node--kanji" matches whichever kanji happens to be
+// classes (search input, the dictionary panel, the Filters button, the
+// mode switch); the graph Reset button and the desktop Bookmarks button
+// needed dedicated data-tutorial hooks (see GraphPanel.jsx and App.jsx),
+// since their icon-toolbar classes are shared with other buttons. ".graph-node--kanji" matches whichever kanji happens to be
 // first in the DOM -- fine, since the point is just "a kanji node", not a
 // specific one.
 //
@@ -22,7 +22,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 // Per layout (the `layout` prop, see lib/useLayoutMode.js): on any touch
 // layout (everything but desktop) a step's `touch` fields override its
 // desktop ones -- taps rather than clicks, the ☰ menu instead of the
-// desktop toolbar (`touchOnly` steps), and every tooltip above/below its
+// desktop toolbar (`touchOnly` steps, with `desktopOnly` steps for the
+// desktop toolbar dropped), and every tooltip above/below its
 // target since there's no room beside one. Where the dictionary collapses
 // to the word strip (phone, rail -- the tour opens on that view, see
 // PaneLayout), `strip` fields override on top of that.
@@ -36,23 +37,23 @@ const STEPS = [
   {
     target: ".graph-node.is-root .graph-node__fill",
     title: "Your word",
-    body: "Every search starts here, at the center. Click any node to see its full entry on the left.",
+    body: "Every search starts here, at the center. Click any node to see its full entry on the left. Clicking never changes the graph.",
     placement: "right",
-    touch: { body: "Every search starts here, at the center. Tap any node to select it." },
+    touch: { body: "Every search starts here, at the center. Tap any node to select it. Tapping never changes the graph." },
   },
   {
     target: ".graph-node--kanji .graph-node__fill",
-    title: "Its kanji",
-    body: "Double-click a kanji node to reveal every other word built from that same kanji.",
+    title: "Expand",
+    body: "Double-click a kanji to reveal other words built from it, or a word to break it into its kanji. A dashed ring means there's more to reveal.",
     placement: "right",
     touch: {
-      body: "Double-tap a kanji node, or press and hold it, to reveal every other word built from that same kanji.",
+      body: "Double-tap or press and hold a kanji to reveal other words built from it, or a word to break it into its kanji. A dashed ring means there's more to reveal.",
     },
   },
   {
     target: ".dictionary-panel",
     title: "Dictionary panel",
-    body: "Definitions, readings, and JLPT level for whatever's currently selected on the graph.",
+    body: "Definitions, readings, and JLPT level for whatever's selected, with buttons to expand it on the graph or bookmark it.",
     placement: "right",
     // The stacked tablet split scrolls the dictionary inside its pane --
     // spotlight the pane (what's actually on screen), not the whole
@@ -61,26 +62,39 @@ const STEPS = [
     strip: {
       target: ".mobile-strip",
       title: "The selected word",
-      body: "Whatever you've selected shows up here. Tap it for the full entry: definitions, readings, and kanji.",
+      body: "Whatever you've selected shows up here. Tap it for the full entry, where you can also bookmark it.",
     },
+  },
+  {
+    target: ".mode-toggle",
+    title: "Kanji or Meaning",
+    body: "Kanji mode branches through shared kanji. Meaning mode branches into words used in similar contexts: 学校 leads to 生徒, 教員, 補習.",
+    placement: "bottom",
   },
   {
     target: ".filters-btn",
     title: "Filters",
-    body: "Narrow what's shown by JLPT level or tag, or turn on extra graph coloring.",
+    body: "Slide Commonness from Familiar to Adventurous to see rarer words. You can also filter by JLPT level or tag and add graph coloring. Each mode has its own set.",
     placement: "bottom",
   },
   {
     target: "[data-tutorial='graph-reset-btn']",
-    title: "Reset",
-    body: "Collapses the graph back down to just your starting word.",
+    title: "Reset and share",
+    body: "Reset collapses the graph back to your starting word. The share button beside it copies a link to this exact graph.",
+    placement: "bottom",
+  },
+  {
+    desktopOnly: true,
+    target: "[data-tutorial='bookmarks-btn']",
+    title: "Bookmarks",
+    body: "Your study list. Connect Anki here to turn bookmarks into flashcards and see which words you've learned.",
     placement: "bottom",
   },
   {
     touchOnly: true,
     target: ".mobile-menu__trigger",
     title: "Menu",
-    body: "Bookmarks, the theme, and this tour live here.",
+    body: "Bookmarks (your study list, which can become Anki flashcards), the theme, and this tour live here.",
     placement: "bottom",
   },
 ];
@@ -88,7 +102,7 @@ const STEPS = [
 function stepsFor(layout) {
   const touch = layout !== "desktop";
   const strip = layout === "phone" || layout === "rail";
-  return STEPS.filter((s) => touch || !s.touchOnly).map((s) =>
+  return STEPS.filter((s) => (touch ? !s.desktopOnly : !s.touchOnly)).map((s) =>
     touch
       ? { ...s, placement: "bottom", ...s.touch, ...(strip ? s.strip : null), ...(layout === "tablet" ? s.tablet : null) }
       : s

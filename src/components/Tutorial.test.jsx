@@ -11,16 +11,16 @@ describe("Tutorial", () => {
   it("opens on the first step and shows a live step counter", () => {
     render(<Tutorial onClose={() => {}} />);
     expect(screen.getByRole("dialog")).toBeInTheDocument();
-    expect(screen.getByText("1 of 6")).toBeInTheDocument();
+    expect(screen.getByText("1 of 8")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Search" })).toBeInTheDocument();
   });
 
   it("advances through steps with Next and back up with Back", () => {
     render(<Tutorial onClose={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
-    expect(screen.getByText("2 of 6")).toBeInTheDocument();
+    expect(screen.getByText("2 of 8")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
-    expect(screen.getByText("1 of 6")).toBeInTheDocument();
+    expect(screen.getByText("1 of 8")).toBeInTheDocument();
   });
 
   it("closes via Skip", () => {
@@ -40,8 +40,8 @@ describe("Tutorial", () => {
   it("shows Done instead of Next on the last step, and closes on click", () => {
     const onClose = vi.fn();
     render(<Tutorial onClose={onClose} />);
-    for (let i = 0; i < 5; i++) fireEvent.click(screen.getByRole("button", { name: "Next" }));
-    expect(screen.getByText("6 of 6")).toBeInTheDocument();
+    for (let i = 0; i < 7; i++) fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    expect(screen.getByText("8 of 8")).toBeInTheDocument();
     const done = screen.getByRole("button", { name: "Done" });
     fireEvent.click(done);
     expect(onClose).toHaveBeenCalledOnce();
@@ -61,7 +61,7 @@ describe("Tutorial", () => {
   // the raw DOM clicks inside one shared `act()` block instead defers every
   // resulting state update to a single flush at the end, exactly like a
   // real burst of native events arriving before a render -- STEPS has only
-  // 6 entries, so 10 clicks in that one flush is guaranteed to overrun it.
+  // 8 entries, so 10 clicks in that one flush is guaranteed to overrun it.
   it("survives more Next clicks than there are steps, fired in one burst, without crashing", () => {
     const onClose = vi.fn();
     render(<Tutorial onClose={onClose} />);
@@ -77,7 +77,7 @@ describe("Tutorial", () => {
   it("on a phone, speaks in taps, points at the word strip, and adds the menu step", () => {
     render(<Tutorial layout="phone" onClose={vi.fn()} />);
     const next = () => fireEvent.click(screen.getByRole("button", { name: "Next" }));
-    expect(screen.getByText("1 of 7")).toBeInTheDocument();
+    expect(screen.getByText("1 of 8")).toBeInTheDocument();
     next();
     expect(screen.getByText(/Tap any node/)).toBeInTheDocument();
     next();
@@ -85,16 +85,19 @@ describe("Tutorial", () => {
     next();
     expect(screen.getByRole("heading", { name: "The selected word" })).toBeInTheDocument();
     next();
+    expect(screen.getByRole("heading", { name: "Kanji or Meaning" })).toBeInTheDocument();
+    next();
     next();
     next();
     expect(screen.getByRole("heading", { name: "Menu" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Bookmarks" })).toBeNull();
     expect(screen.getByRole("button", { name: "Done" })).toBeInTheDocument();
   });
 
   it("on a tablet, uses touch wording but keeps the full dictionary step", () => {
     render(<Tutorial layout="tablet" onClose={vi.fn()} />);
     const next = () => fireEvent.click(screen.getByRole("button", { name: "Next" }));
-    expect(screen.getByText("1 of 7")).toBeInTheDocument();
+    expect(screen.getByText("1 of 8")).toBeInTheDocument();
     next();
     expect(screen.getByText(/Tap any node/)).toBeInTheDocument();
     next();
@@ -102,8 +105,19 @@ describe("Tutorial", () => {
     expect(screen.getByRole("heading", { name: "Dictionary panel" })).toBeInTheDocument();
   });
 
-  it("on desktop, has no phone-only steps", () => {
+  it("on desktop, has no phone-only steps and ends on Bookmarks", () => {
     render(<Tutorial onClose={vi.fn()} />);
-    expect(screen.getByText("1 of 6")).toBeInTheDocument();
+    for (let i = 0; i < 7; i++) fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    expect(screen.getByRole("heading", { name: "Bookmarks" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Menu" })).toBeNull();
+  });
+
+  it("introduces both exploration modes and the Commonness dial", () => {
+    render(<Tutorial onClose={vi.fn()} />);
+    const next = () => fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    for (let i = 0; i < 4; i++) next();
+    expect(screen.getByRole("heading", { name: "Kanji or Meaning" })).toBeInTheDocument();
+    next();
+    expect(screen.getByText(/Commonness/)).toBeInTheDocument();
   });
 });

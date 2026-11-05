@@ -857,6 +857,7 @@ export default function App() {
                 type="button"
                 className={`icon-toolbar__btn${activeSidebar === "saved" ? " is-active" : ""}`}
                 onClick={() => toggleSidebar("saved")}
+                data-tutorial="bookmarks-btn"
                 aria-pressed={activeSidebar === "saved"}
                 aria-label={`Bookmarks (${saved.words.length})`}
                 title="Bookmarks"
