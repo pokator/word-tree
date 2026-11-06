@@ -383,7 +383,7 @@ export default function GraphPanel({
               type="button"
               className="icon-toolbar__btn"
               onClick={onReset}
-              title="Collapse back to just the root word"
+              title={meaning ? "Back to this word and its first related words" : "Back to this word and its kanji"}
               aria-label="Reset graph"
               data-tutorial="graph-reset-btn"
             >

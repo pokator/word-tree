@@ -31,7 +31,7 @@ import { DEFAULT_COMMONNESS } from "./commonness.js";
 //   mode=meaning  the explorer was in meaning mode (expanding a word shows
 //                 words related in meaning, not its kanji)
 //   start=word    the graph started from the root alone, without its kanji
-//                 (a meaning-mode graph kept separate from the kanji one)
+//                 (where a new meaning-mode graph starts)
 
 export const DEFAULT_MAX_WORDS = 8;
 

@@ -44,10 +44,10 @@ const STEPS = [
   {
     target: ".graph-node--kanji .graph-node__fill",
     title: "Expand",
-    body: "Double-click a kanji to reveal other words built from it, or a word to break it into its kanji. A dashed ring means there's more to reveal.",
+    body: "Double-click a kanji to reveal other words built from it. A word breaks into its kanji in Kanji mode, or branches into related words in Meaning mode. A dashed ring means there's more to reveal.",
     placement: "right",
     touch: {
-      body: "Double-tap or press and hold a kanji to reveal other words built from it, or a word to break it into its kanji. A dashed ring means there's more to reveal.",
+      body: "Double-tap or press and hold a kanji to reveal other words built from it. A word breaks into its kanji in Kanji mode, or branches into related words in Meaning mode. A dashed ring means there's more to reveal.",
     },
   },
   {
@@ -68,7 +68,7 @@ const STEPS = [
   {
     target: ".mode-toggle",
     title: "Kanji or Meaning",
-    body: "Kanji mode branches through shared kanji. Meaning mode branches into words used in similar contexts: 学校 leads to 生徒, 教員, 補習.",
+    body: "Kanji mode branches through shared kanji. Meaning mode branches into words used in similar contexts: 学校 leads to 生徒, 教員, 補習. Filters sets whether each mode keeps its own graph or they share one.",
     placement: "bottom",
   },
   {
@@ -80,7 +80,7 @@ const STEPS = [
   {
     target: "[data-tutorial='graph-reset-btn']",
     title: "Reset and share",
-    body: "Reset collapses the graph back to your starting word. The share button beside it copies a link to this exact graph.",
+    body: "Reset takes the graph back to where the current mode starts. The share button beside it copies a link to this exact graph.",
     placement: "bottom",
   },
   {

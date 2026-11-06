@@ -47,3 +47,15 @@ describe("GraphPanel with one graph", () => {
     expect(canvas()).not.toHaveAttribute("data-fade-links");
   });
 });
+
+describe("GraphPanel Reset", () => {
+  const reset = () => screen.getByRole("button", { name: "Reset graph" });
+
+  it("says where it goes in each mode", () => {
+    const { unmount } = panel({ mode: "kanji" });
+    expect(reset()).toHaveAttribute("title", "Back to this word and its kanji");
+    unmount();
+    panel({ mode: "meaning" });
+    expect(reset()).toHaveAttribute("title", "Back to this word and its first related words");
+  });
+});
