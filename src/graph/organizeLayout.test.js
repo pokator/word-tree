@@ -197,6 +197,11 @@ describe("organizeLayout", () => {
     expect(spread("y")).toBeLessThan(900);
   });
 
+  it("stays finite with no viewport to fit", () => {
+    const positions = organizeLayout(SHAPES["three full hubs"](), { width: 0, height: 0 });
+    for (const p of positions.values()) expect(Number.isFinite(p.x) && Number.isFinite(p.y)).toBe(true);
+  });
+
   it("copes with an empty graph", () => {
     expect(organizeLayout({ nodes: new Map(), links: [] }).size).toBe(0);
   });

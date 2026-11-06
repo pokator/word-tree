@@ -246,6 +246,8 @@ export default function WordTreeGraph({
   // Finishes an Organize still animating, so nothing fights over a node.
   const finishOrganizeRef = useRef(null);
   useEffect(() => () => finishOrganizeRef.current?.(), [layoutSlot, viewKey]);
+  // Finishing reheats the simulation, which shouldn't outlive the graph.
+  useEffect(() => () => simulationRef.current?.stop(), [simulationRef]);
 
   // Moves every node to a freshly worked-out layout (see graph/organizeLayout)
   // and gives it a home there: a spring, not a pin, so the graph stays alive
@@ -255,6 +257,9 @@ export default function WordTreeGraph({
   function organize() {
     const sim = simulationRef.current;
     if (!sim || simNodesMapRef.current.size === 0) return;
+    // Mid-drag (a keyboard press, a second input), the drag ends here: its
+    // release would otherwise save positions this is about to change.
+    abortGestureRef.current?.();
     finishOrganizeRef.current?.();
     track("organize");
 

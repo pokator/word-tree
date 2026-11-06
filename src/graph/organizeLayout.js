@@ -594,7 +594,7 @@ function boundsOf(positions) {
 }
 
 function squeezeToViewport(positions, graph, width, height) {
-  if (graph.nodes.size < ASPECT_MIN_NODES) return;
+  if (graph.nodes.size < ASPECT_MIN_NODES || width <= 0 || height <= 0) return;
   const { w, h } = boundsOf(positions);
   if (w === 0 || h === 0) return;
   const wanted = width / height;
@@ -724,7 +724,7 @@ function moveOffLines(graph, rootId, positions, foot) {
   }
 }
 
-function arrange(graph, labelScale, width, height, { gap, minLink }) {
+function arrange(graph, labelScale, width, height, { gap, minLink }, searchOrder = true) {
   const feet = new Map();
   for (const [id, node] of graph.nodes) feet.set(id, footprint(node, labelScale, gap));
   const foot = (id) => feet.get(id);
@@ -736,7 +736,7 @@ function arrange(graph, labelScale, width, height, { gap, minLink }) {
   for (let pass = 0; pass < ORDER_PASSES; pass++) {
     orderByConnections(children, adj, shared, buildPositions(rootId, children, shared, adj, foot, minLink));
   }
-  if (effort.swaps > 0) improveBySwaps(graph, rootId, children, shared, adj, foot, minLink, effort.swaps);
+  if (searchOrder && effort.swaps > 0) improveBySwaps(graph, rootId, children, shared, adj, foot, minLink, effort.swaps);
 
   const positions = placeTree(rootId, children, shared, adj, foot, minLink);
   turnFansApart(rootId, children, shared, adj, positions);
@@ -760,21 +760,22 @@ export function organizeLayout(graph, { width = 800, height = 600 } = {}) {
   };
   // A big graph will be zoomed out, where its labels take up more room
   // relative to their bubbles, so it's arranged allowing for that.
-  const arrangeAt = (tightness) => {
+  const arrangeAt = (tightness, searchOrder) => {
     const spacing = spacingFor(width, height, tightness);
-    if (graph.nodes.size > ALWAYS_ZOOMED_NODES) return arrange(graph, 1 / MIN_PLANNED_ZOOM, width, height, spacing);
-    const first = arrange(graph, 1, width, height, spacing);
+    if (graph.nodes.size > ALWAYS_ZOOMED_NODES) {
+      return arrange(graph, 1 / MIN_PLANNED_ZOOM, width, height, spacing, searchOrder);
+    }
+    const first = arrange(graph, 1, width, height, spacing, searchOrder);
     const zoom = zoomFor(first);
-    return zoom < 1 ? arrange(graph, 1 / Math.max(MIN_PLANNED_ZOOM, zoom), width, height, spacing) : first;
+    return zoom < 1 ? arrange(graph, 1 / Math.max(MIN_PLANNED_ZOOM, zoom), width, height, spacing, searchOrder) : first;
   };
   // As much room as the graph can have while still fitting at a readable size.
   // Past the sizes where work is being cut back, go straight to the tightest.
   const steps = effortFor(graph.nodes.size).swaps === MAX_ORDER_TRIES ? TIGHTNESS_STEPS : [0];
-  let positions;
-  for (const tightness of steps) {
-    positions = arrangeAt(tightness);
-    if (zoomFor(positions) >= COMFORTABLE_ZOOM) break;
-  }
+  // The search for the best order is the slow part, and hardly changes the size,
+  // so it only runs once the room is settled.
+  const tightness = steps.find((step) => zoomFor(arrangeAt(step, false)) >= COMFORTABLE_ZOOM) ?? steps.at(-1);
+  const positions = arrangeAt(tightness, true);
 
   const box = boundsOf(positions);
   const dx = width / 2 - (box.x0 + box.w / 2);

@@ -154,6 +154,24 @@ describe("WordTreeGraph Organize", () => {
     expect(flows()[0].classList.contains("graph-link-flow--reverse")).toBe(true);
   });
 
+  it("ends a drag still going on, so its release can't save bad positions", async () => {
+    const graph = makeGraph();
+    render(<WordTreeGraph {...props} graph={graph} />);
+    await waitFor(() => expect(nodeEl("毎日")).toBeTruthy());
+
+    const pointer = { pointerType: "mouse", pointerId: 1, button: 0 };
+    fireEvent.pointerDown(nodeEl("日"), { ...pointer, clientX: 300, clientY: 300 });
+    fireEvent.pointerMove(window, { ...pointer, clientX: 340, clientY: 340 });
+    organize();
+    fireEvent.pointerUp(window, { ...pointer, clientX: 340, clientY: 340 });
+
+    const targets = organizeLayout(graph, { width: 800, height: 600 });
+    await sleep(1200);
+    expectAt("日本語", targets.get("word:日本語"));
+    expectAt("日", targets.get("kanji:日"));
+    expectAt("毎日", targets.get("word:毎日"));
+  });
+
   it("marks the selected node's own lines", async () => {
     const { rerender } = render(<WordTreeGraph {...props} graph={makeGraph()} selectedId="kanji:日" />);
     await waitFor(() => expect(nodeEl("毎日")).toBeTruthy());
