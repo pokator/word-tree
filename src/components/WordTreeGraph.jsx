@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { select } from "d3-selection";
 import { zoom as d3zoom, zoomIdentity } from "d3-zoom";
+import { refreshForces } from "../graph/forceLayout";
 import { useForceSimulation } from "../graph/useForceSimulation";
 import { nodeRadius, nodeFill, nodeDetailText, nodeDifficultyColor } from "../graph/layout";
 import { readNodeColors } from "../graph/theme";
@@ -35,6 +36,8 @@ const ZOOM_STEP = 1.3;
 // link force that's about to take back over once the drag ends.
 const NEIGHBOR_FOLLOW = 0.55;
 const ORGANIZE_MS = 450;
+// A soft reheat once organized, so the layout eases into its springs.
+const ORGANIZE_SETTLE_ALPHA = 0.2;
 const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 // Zoom-based level of detail: past DETAIL_ZOOM_ENTER, nodes grow a reading +
 // short definition stacked inside the bubble, below the label; below
@@ -245,9 +248,10 @@ export default function WordTreeGraph({
   useEffect(() => () => finishOrganizeRef.current?.(), [layoutSlot, viewKey]);
 
   // Moves every node to a freshly worked-out layout (see graph/organizeLayout)
-  // and holds them there, since the physics would otherwise pull it apart. A
-  // held node can still be dragged, and stays where it's dropped; new nodes
-  // from later expansions stay free. See useForceSimulation for what lets go.
+  // and gives it a home there: a spring, not a pin, so the graph stays alive
+  // (see createSimulation). A dragged node makes where it's dropped its home;
+  // new nodes from later expansions have none. See useForceSimulation for what
+  // ends it.
   function organize() {
     const sim = simulationRef.current;
     if (!sim || simNodesMapRef.current.size === 0) return;
@@ -269,12 +273,14 @@ export default function WordTreeGraph({
     for (const [id, to] of targets) {
       const n = simNodesMapRef.current.get(id);
       if (!n) continue;
-      n.pinned = true;
+      n.homeX = to.x;
+      n.homeY = to.y;
       moves.push({ n, from: { x: n.x, y: n.y }, to });
     }
+    refreshForces(sim);
     const moveTo = (t) => {
       for (const { n, from, to } of moves) {
-        if (!n.pinned) continue; // let go mid-animation (see useForceSimulation)
+        if (n.homeX == null) continue; // freed mid-animation (see useForceSimulation)
         n.fx = n.x = from.x + (to.x - from.x) * t;
         n.fy = n.y = from.y + (to.y - from.y) * t;
         n.vx = 0;
@@ -282,6 +288,15 @@ export default function WordTreeGraph({
       }
       // Ticks are what re-render the graph, so keep them coming.
       sim.alpha(Math.max(sim.alpha(), 0.05)).restart();
+    };
+    const arrive = () => {
+      moveTo(1);
+      for (const { n } of moves) {
+        n.fx = null;
+        n.fy = null;
+      }
+      sim.alpha(ORGANIZE_SETTLE_ALPHA).restart();
+      finishOrganizeRef.current = null;
     };
 
     // The view goes to the new layout at the same pace as the nodes, and
@@ -294,21 +309,23 @@ export default function WordTreeGraph({
       [...targets].map(([id, to]) => ({ ...graph.nodes.get(id), ...to }))
     );
     if (reduceMotion) {
-      moveTo(1);
+      arrive();
       return;
     }
 
     const startedAt = performance.now();
     let frame = requestAnimationFrame(function step(now) {
       const t = Math.min(1, (now - startedAt) / ORGANIZE_MS);
-      moveTo(easeInOut(Math.max(0, t)));
-      if (t < 1) frame = requestAnimationFrame(step);
-      else finishOrganizeRef.current = null;
+      if (t < 1) {
+        moveTo(easeInOut(Math.max(0, t)));
+        frame = requestAnimationFrame(step);
+      } else {
+        arrive();
+      }
     });
     finishOrganizeRef.current = () => {
       cancelAnimationFrame(frame);
-      moveTo(1);
-      finishOrganizeRef.current = null;
+      arrive();
     };
   }
 
@@ -407,6 +424,7 @@ export default function WordTreeGraph({
       const sim = simulationRef.current;
       const linkForce = sim?.force("link");
       if (linkForce) linkForce.links(linkForce.links());
+      if (sim) refreshForces(sim);
     }
 
     function toLocal(clientX, clientY) {
@@ -460,18 +478,23 @@ export default function WordTreeGraph({
       const finalY = node.fy;
       const childFinals = children.map(({ n }) => ({ n, x: n.fx, y: n.fy }));
       const parentFinals = parents.map((n) => ({ n, x: n.x, y: n.y }));
-      // Anything organized stays held, where this gesture left it.
-      node.fx = node.pinned ? finalX : null;
-      node.fy = node.pinned ? finalY : null;
-      for (const { n, x, y } of childFinals) {
-        n.fx = n.pinned ? x : null;
-        n.fy = n.pinned ? y : null;
+      node.fx = null;
+      node.fy = null;
+      for (const { n } of children) {
+        n.fx = null;
+        n.fy = null;
       }
       // The browser took the gesture over (e.g. the start of a pinch) --
       // release the pins above, but it wasn't a tap. A long press already
       // acted; only a drag that followed it still needs saving below.
       if (ev.type === "pointercancel" || (longPressed && !moved)) return;
       if (moved) {
+        // Organized nodes make where they were dropped their new home.
+        for (const { n, x, y } of [{ n: node, x: finalX, y: finalY }, ...childFinals]) {
+          if (n.homeX == null) continue;
+          n.homeX = x;
+          n.homeY = y;
+        }
         // Persist the distance this drag left between the node and each of
         // its parents and children as that link's new target -- without
         // this, the link force pulls everything straight back to the
@@ -500,12 +523,9 @@ export default function WordTreeGraph({
 
     const abort = () => {
       detach();
-      if (!node.pinned) {
-        node.fx = null;
-        node.fy = null;
-      }
+      node.fx = null;
+      node.fy = null;
       for (const { n } of children) {
-        if (n.pinned) continue;
         n.fx = null;
         n.fy = null;
       }

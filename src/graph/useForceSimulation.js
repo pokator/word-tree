@@ -3,7 +3,7 @@ import {
   createLayoutState,
   createSimulation,
   reconcileLayout,
-  releaseLayoutPins,
+  releaseLayoutHomes,
   setSimulationSize,
   switchLayoutSlot,
 } from "./forceLayout";
@@ -74,7 +74,7 @@ export function useForceSimulation(graph, width, height, active = true, layoutSl
     // An organized layout holds while the graph only grows. Once nodes go (a
     // Reset, a new search, Back, or a word searched for again from scratch) it
     // no longer describes this graph.
-    if ([...state.nodes.keys()].some((id) => !graph.nodes.has(id))) releaseLayoutPins(state);
+    if ([...state.nodes.keys()].some((id) => !graph.nodes.has(id))) releaseLayoutHomes(state);
     const settled = restored && [...graph.nodes.keys()].every((id) => state.nodes.has(id));
     reconcileLayout(state, sim, graph, width, height);
     // A restored layout has already settled, so it just breathes; any new

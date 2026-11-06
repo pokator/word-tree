@@ -33,15 +33,17 @@ const where = (label) => {
   const m = /translate\(([-\d.e]+)[ ,]+([-\d.e]+)\)/.exec(nodeEl(label).getAttribute("transform"));
   return { x: Number(m[1]), y: Number(m[2]) };
 };
-const expectAt = (label, p) => {
+// A spring holds it near there, not exactly on it.
+const NEAR_HOME = 25;
+const distanceFrom = (label, p) => {
   const at = where(label);
-  expect(at.x).toBeCloseTo(p.x, 3);
-  expect(at.y).toBeCloseTo(p.y, 3);
+  return Math.hypot(at.x - p.x, at.y - p.y);
 };
+const expectAt = (label, p) => expect(distanceFrom(label, p)).toBeLessThan(NEAR_HOME);
 const organize = () => fireEvent.click(screen.getByRole("button", { name: "Organize graph" }));
 
 describe("WordTreeGraph Organize", () => {
-  it("moves every node to the organized layout and holds it there", async () => {
+  it("moves every node to the organized layout, and it rests there", async () => {
     const graph = makeGraph();
     render(<WordTreeGraph {...props} graph={graph} />);
     await waitFor(() => expect(nodeEl("毎日")).toBeTruthy());
@@ -50,7 +52,7 @@ describe("WordTreeGraph Organize", () => {
     const targets = organizeLayout(graph, { width: 800, height: 600 });
     await waitFor(() => expectAt("毎日", targets.get("word:毎日")));
 
-    await sleep(400); // the physics would have moved them by now
+    await sleep(1200); // long enough for forces with nothing holding them to pull it apart
     expectAt("日", targets.get("kanji:日"));
     expectAt("毎日", targets.get("word:毎日"));
   });
@@ -114,6 +116,29 @@ describe("WordTreeGraph Organize", () => {
     fireEvent.pointerUp(window, { ...pointer, clientX: 301, clientY: 300 });
     await sleep(200);
     expectAt("毎日", target);
+  });
+
+  it("stays alive: a drag tugs the neighbours, which settle back, and the node stays where it's dropped", async () => {
+    const graph = makeGraph();
+    render(<WordTreeGraph {...props} graph={graph} />);
+    await waitFor(() => expect(nodeEl("毎日")).toBeTruthy());
+    organize();
+    const targets = organizeLayout(graph, { width: 800, height: 600 });
+    await waitFor(() => expectAt("日", targets.get("kanji:日")));
+    await sleep(600);
+
+    const root = targets.get("word:日本語");
+    const pointer = { pointerType: "mouse", pointerId: 1, button: 0 };
+    fireEvent.pointerDown(nodeEl("日"), { ...pointer, clientX: 300, clientY: 300 });
+    fireEvent.pointerMove(window, { ...pointer, clientX: 500, clientY: 400 });
+    await sleep(300);
+    expect(distanceFrom("日本語", root)).toBeGreaterThan(3);
+    const dropped = where("日");
+
+    fireEvent.pointerUp(window, { ...pointer, clientX: 500, clientY: 400 });
+    await sleep(1500);
+    expect(distanceFrom("日", dropped)).toBeLessThan(NEAR_HOME);
+    expect(distanceFrom("日本語", root)).toBeLessThan(NEAR_HOME);
   });
 
   it("marks the selected node's own lines", async () => {
