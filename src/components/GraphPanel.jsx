@@ -223,6 +223,10 @@ export default function GraphPanel({
   // meaning mode's Filters, so they're off there rather than active but
   // impossible to turn off.
   const meaning = mode === "meaning";
+  // With one graph the mode switch changes nothing on screen by itself, so
+  // the links that the next word expansion won't add fall back, and the
+  // footer says what it will do.
+  const oneGraph = modeSwitch === "mixed";
   const effectiveLinkColorMode = meaning ? "off" : linkColorMode;
   const effectiveKanjiPath = meaning ? false : colorByKanjiPath;
   const [shareNote, setShareNote] = useState(null);
@@ -405,7 +409,7 @@ export default function GraphPanel({
         </div>
       </div>
 
-      <div className="graph-canvas">
+      <div className="graph-canvas" data-fade-links={oneGraph ? (meaning ? "kanji" : "meaning") : undefined}>
         {deadEndWord && (
           <div className="graph-note" role="status">
             No related words for {deadEndWord}.
@@ -563,6 +567,11 @@ export default function GraphPanel({
       </div>
 
       <div className="graph-panel__footer">
+        {oneGraph && (
+          <p className="graph-panel__mode-hint">
+            {meaning ? "Words expand into related words" : "Words expand into their kanji"}
+          </p>
+        )}
         <p className="graph-panel__stats">
           {stats.words} words &middot; {stats.kanji} kanji shown
           {datasetSource === "tiny-fallback" && !datasetLoading ? " · offline demo data" : ""}
