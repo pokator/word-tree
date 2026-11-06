@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import { AuthProvider } from "./auth/AuthContext";
 
@@ -37,17 +37,8 @@ const release = async () => {
   });
 };
 
-// jsdom has no SVG geometry; d3-zoom reads the svg's width/height baseVal
-// to find its viewport, so give it one.
-const baseVal = (v) => ({ get: () => ({ baseVal: { value: v } }), configurable: true });
 beforeAll(() => {
-  Object.defineProperty(SVGSVGElement.prototype, "width", baseVal(800));
-  Object.defineProperty(SVGSVGElement.prototype, "height", baseVal(600));
   vi.spyOn(console, "error").mockImplementation(() => {});
-});
-afterAll(() => {
-  delete SVGSVGElement.prototype.width;
-  delete SVGSVGElement.prototype.height;
 });
 
 const labels = () => [...document.querySelectorAll("[data-node] .graph-node__label")].map((n) => n.textContent).sort();

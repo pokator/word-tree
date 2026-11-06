@@ -3,18 +3,11 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { organizeLayout } from "../graph/organizeLayout";
 import WordTreeGraph from "./WordTreeGraph";
 
-// jsdom has no SVG geometry; d3-zoom reads the svg's width/height baseVal
-// to find its viewport, so give it one.
-const baseVal = (v) => ({ get: () => ({ baseVal: { value: v } }), configurable: true });
 beforeAll(() => {
-  Object.defineProperty(SVGSVGElement.prototype, "width", baseVal(800));
-  Object.defineProperty(SVGSVGElement.prototype, "height", baseVal(600));
   // No animation to wait out.
   vi.stubGlobal("matchMedia", () => ({ matches: true }));
 });
 afterAll(() => {
-  delete SVGSVGElement.prototype.width;
-  delete SVGSVGElement.prototype.height;
   vi.unstubAllGlobals();
 });
 

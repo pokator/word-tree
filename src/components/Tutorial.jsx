@@ -44,10 +44,10 @@ const STEPS = [
   {
     target: ".graph-node--kanji .graph-node__fill",
     title: "Expand",
-    body: "Double-click a kanji to reveal other words built from it. A word breaks into its kanji in Kanji mode, or branches into related words in Meaning mode. A dashed ring means there's more to reveal.",
+    body: "Double-click a kanji to reveal other words built from it. A word breaks into its kanji in Kanji mode, or branches into related words in Meaning mode. A dashed ring means there's more to reveal, and the Organize button by the zoom controls tidies up a crowded graph.",
     placement: "right",
     touch: {
-      body: "Double-tap or press and hold a kanji to reveal other words built from it. A word breaks into its kanji in Kanji mode, or branches into related words in Meaning mode. A dashed ring means there's more to reveal.",
+      body: "Double-tap or press and hold a kanji to reveal other words built from it. A word breaks into its kanji in Kanji mode, or branches into related words in Meaning mode. A dashed ring means there's more to reveal, and the Organize button by the zoom controls tidies up a crowded graph.",
     },
   },
   {

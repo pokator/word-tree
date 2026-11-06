@@ -132,6 +132,16 @@ experiment, picked in Filters → **Switching modes**:
 Either way, Reset goes back to where the current mode starts, and a selected
 word's entry offers the way across to the other mode.
 
+**Organize** (the button above the zoom controls) tidies a crowded graph. The
+physics fans out each expansion well, but it only has the room earlier ones
+left, so clusters sink into each other as a graph grows. Organize works out a
+whole new layout from the graph's shape (`src/graph/organizeLayout.js`): each
+cluster gets space of its own, big fans spread over staggered rings, words
+shared between nodes go between them, and everything allows for labels, which
+keep their size as you zoom out. Nodes then hold where they are: dragging still
+works, and later expansions fan out around them until you organize again. The
+selected node's own lines also stand out, to follow one through a busy graph.
+
 **Filters** (graph panel toolbar) — ways to control what the graph
 shows. Each mode has its own set: Link pattern and the Kanji path
 highlight only describe kanji links, so Meaning mode drops them (and
@@ -319,7 +329,7 @@ of sync.
 - Analytics are [Umami](https://umami.is) (no cookies), served through this
   site's own origin (`/m/*` rewrites in `vercel.json`) so blockers that
   match Umami's domain don't hide visitors. It only loads on the production
-  domain; the custom events (search, first expand, bookmark, sign-in, Anki
+  domain; the custom events (search, first expand, organize, bookmark, sign-in, Anki
   connect/blocked, `.tsv` export, share) are in `src/lib/analytics.js`'s
   callers.
 - `src/anki/ankiConnect.js` talks to AnkiConnect's local HTTP API;
