@@ -49,6 +49,20 @@ const SHAPES = {
       nodes: [word("根", { isRoot: true }), word("甲"), word("乙")],
       links: [link("word:根", "word:甲"), link("word:根", "word:乙"), link("word:甲", "word:乙")],
     }),
+  // 新郎 and 新婦 are linked, and their neighbour lists overlap by this much.
+  "linked words sharing many others": () => {
+    const others = Array.from({ length: 16 }, (_, i) => `他${i}`);
+    const nodes = [word("新郎", { isRoot: true }), word("新婦"), word("末", {}), ...others.map((w) => word(w))];
+    const links = [link("word:新郎", "word:新婦"), link("word:新婦", "word:末")];
+    for (const w of others) links.push(link("word:新郎", `word:${w}`), link("word:新婦", `word:${w}`));
+    return graphOf({ nodes, links });
+  },
+  "a word with a pipe in it": () => {
+    const g = star("日|語", ["日", "語"], 3);
+    g.nodes.push(word("日語"));
+    g.links.push(link("kanji:日", "word:日語"), link("kanji:語", "word:日語"));
+    return graphOf(g);
+  },
   "a long chain": () => {
     const chain = ["一", "二", "三", "四", "五", "六"];
     const nodes = [word("根", { isRoot: true }), ...chain.map((w) => word(w))];

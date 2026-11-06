@@ -57,6 +57,15 @@ const ALWAYS_ZOOMED_NODES = 60;
 // Too small to need fitting to the viewport.
 const ASPECT_MIN_NODES = 10;
 
+// This all runs in the click, and its cost climbs steeply with size, so very big
+// graphs (only reachable with a high words-per-branch) get less polish, not a
+// frozen page. By size rather than a time budget, to stay deterministic.
+function effortFor(nodeCount) {
+  if (nodeCount <= 150) return { swaps: MAX_ORDER_TRIES, compact: COMPACT_PASSES, relax: RELAX_PASSES };
+  if (nodeCount <= 400) return { swaps: 10, compact: 1, relax: 30 };
+  return { swaps: 0, compact: 0, relax: 8 };
+}
+
 const idOf = (endpoint) => (typeof endpoint === "object" ? endpoint.id : endpoint);
 
 function labelWidth(node) {
@@ -207,12 +216,13 @@ function pointSegmentDistance(p, a, b) {
 function placeSharedWords(shared, adj, positions, foot) {
   const groups = new Map();
   for (const id of shared) {
-    const key = [...adj.get(id)].filter((n) => positions.has(n)).sort().join("|") || [...positions.keys()][0];
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(id);
+    const names = [...adj.get(id)].filter((n) => positions.has(n)).sort();
+    const key = JSON.stringify(names);
+    if (!groups.has(key)) groups.set(key, { names, ids: [] });
+    groups.get(key).ids.push(id);
   }
-  for (const [key, ids] of groups) {
-    const anchors = key.split("|").map((n) => positions.get(n));
+  for (const { names, ids } of groups.values()) {
+    const anchors = names.map((n) => positions.get(n));
     const cx = anchors.reduce((sum, p) => sum + p.x, 0) / anchors.length;
     const cy = anchors.reduce((sum, p) => sum + p.y, 0) / anchors.length;
     const a = anchors[0];
@@ -224,7 +234,6 @@ function placeSharedWords(shared, adj, positions, foot) {
     // there's room, and otherwise as near the middle as there is. If that line
     // is a real link, the stack can't sit on it.
     const step = Math.max(...ids.map(foot));
-    const names = key.split("|");
     const linked = names.length === 2 && adj.get(names[0]).has(names[1]);
     const middle = (ids.length - 1) / 2;
     const isClear = (nudge) =>
@@ -235,8 +244,9 @@ function placeSharedWords(shared, adj, positions, foot) {
         return [...positions].every(([other, p]) => Math.hypot(p.x - x, p.y - y) >= (foot(id) + foot(other)) / 2);
       });
     const onLine = (nudge) => linked && ids.some((_, i) => Math.abs(i - middle + nudge) < 0.75);
+    // Far enough out that even the longest stack can clear the line entirely.
     const nudges = [];
-    for (let distance = 0; distance <= MAX_STACK_NUDGE; distance += 0.5) nudges.push(distance, -distance);
+    for (let distance = 0; distance <= MAX_STACK_NUDGE + middle + 1; distance += 0.5) nudges.push(distance, -distance);
     const nudge = nudges.find((n) => !onLine(n) && isClear(n)) ?? nudges.find((n) => !onLine(n));
     ids.forEach((id, i) => {
       const offset = step * (i - middle + nudge);
@@ -280,7 +290,7 @@ export function layoutUntidiness(graph, positions) {
  * Pulls each branch towards its parent, deepest first, stopping before it would
  * come too close to anything else, or add a crossing or a line behind a node.
  */
-function compact(graph, rootId, children, shared, adj, positions, foot) {
+function compact(graph, rootId, children, shared, adj, positions, foot, passes) {
   const parentOf = new Map();
   const deepestFirst = [];
   const visit = (id) => {
@@ -320,7 +330,7 @@ function compact(graph, rootId, children, shared, adj, positions, foot) {
     if (positions.has(s) && positions.has(t)) links.push([s, t]);
   }
 
-  for (let pass = 0; pass < COMPACT_PASSES; pass++) {
+  for (let pass = 0; pass < passes; pass++) {
     for (const id of deepestFirst) {
       const branch = subtreeOf(id, children);
       const outside = placed.filter((other) => !branch.has(other));
@@ -515,7 +525,7 @@ function buildPositions(rootId, children, shared, adj, foot) {
 }
 
 /** Tries swapping siblings, keeping any swap that leaves the graph tidier. */
-function improveBySwaps(graph, rootId, children, shared, adj, foot) {
+function improveBySwaps(graph, rootId, children, shared, adj, foot, maxTries) {
   const score = () => layoutUntidiness(graph, buildPositions(rootId, children, shared, adj, foot));
   let best = score();
   let tries = 0;
@@ -523,7 +533,7 @@ function improveBySwaps(graph, rootId, children, shared, adj, foot) {
     const count = children.get(id).length;
     for (let i = 0; i < count; i++) {
       for (let j = i + 1; j < count; j++) {
-        if (best === 0 || tries >= MAX_ORDER_TRIES) return;
+        if (best === 0 || tries >= maxTries) return;
         const kids = children.get(id);
         // Childless siblings with no other links are interchangeable.
         const matters = (kid) => children.get(kid).length > 0 || adj.get(kid).size > 1;
@@ -570,7 +580,7 @@ function squeezeToViewport(positions, graph, width, height) {
 }
 
 /** Separates nodes that are too close and moves them off lines that aren't theirs. The root stays put. */
-function relax(graph, rootId, positions, foot) {
+function relax(graph, rootId, positions, foot, passes) {
   const ids = [...graph.nodes.keys()];
   const links = [];
   for (const l of graph.links) {
@@ -578,7 +588,7 @@ function relax(graph, rootId, positions, foot) {
     const t = idOf(l.target);
     if (positions.has(s) && positions.has(t)) links.push([s, t]);
   }
-  for (let pass = 0; pass < RELAX_PASSES; pass++) {
+  for (let pass = 0; pass < passes; pass++) {
     let moved = false;
     for (const [s, t] of links) {
       const a = positions.get(s);
@@ -692,18 +702,19 @@ function arrange(graph, labelScale, width, height) {
   const adj = adjacencyOf(graph);
   const { rootId, children } = spanningTree(graph, adj);
   const shared = liftSharedWords(rootId, children, adj);
+  const effort = effortFor(graph.nodes.size);
 
   for (let pass = 0; pass < ORDER_PASSES; pass++) {
     orderByConnections(children, adj, shared, buildPositions(rootId, children, shared, adj, foot));
   }
-  improveBySwaps(graph, rootId, children, shared, adj, foot);
+  if (effort.swaps > 0) improveBySwaps(graph, rootId, children, shared, adj, foot, effort.swaps);
 
   const positions = placeTree(rootId, children, shared, adj, foot);
   turnFansApart(rootId, children, shared, adj, positions);
-  compact(graph, rootId, children, shared, adj, positions, foot);
+  compact(graph, rootId, children, shared, adj, positions, foot, effort.compact);
   placeSharedWords(shared, adj, positions, foot);
   squeezeToViewport(positions, graph, width, height);
-  relax(graph, rootId, positions, foot);
+  relax(graph, rootId, positions, foot, effort.relax);
   moveOffLines(graph, rootId, positions, foot);
   return positions;
 }

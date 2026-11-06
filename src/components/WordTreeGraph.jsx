@@ -257,7 +257,11 @@ export default function WordTreeGraph({
     const targets = organizeLayout(graph, size);
     // Lengths left by old drags and bridge words would only matter once nodes
     // are let go, by which time they'd describe a layout long gone.
-    linkDistanceRef.current.clear();
+    for (const l of graph.links) {
+      const s = typeof l.source === "object" ? l.source.id : l.source;
+      const t = typeof l.target === "object" ? l.target.id : l.target;
+      linkDistanceRef.current.delete(linkDistanceKey(s, t));
+    }
     const linkForce = sim.force("link");
     linkForce?.links(linkForce.links());
 
@@ -270,6 +274,7 @@ export default function WordTreeGraph({
     }
     const moveTo = (t) => {
       for (const { n, from, to } of moves) {
+        if (!n.pinned) continue; // let go mid-animation (see useForceSimulation)
         n.fx = n.x = from.x + (to.x - from.x) * t;
         n.fy = n.y = from.y + (to.y - from.y) * t;
         n.vx = 0;
@@ -419,6 +424,8 @@ export default function WordTreeGraph({
         moved = true;
         clearTimeout(longPressTimer);
       }
+      // A tap can wobble a pixel or two; a held node would keep the difference.
+      if (!moved) return;
       const [lx, ly] = toLocal(ev.clientX, ev.clientY);
       node.fx = lx;
       node.fy = ly;

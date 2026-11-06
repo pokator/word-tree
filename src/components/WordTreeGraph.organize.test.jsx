@@ -84,6 +84,38 @@ describe("WordTreeGraph Organize", () => {
     expect(where("毎日")).not.toEqual(targets.get("word:毎日"));
   });
 
+  it("lets go on returning to a graph that has lost nodes since", async () => {
+    const graph = makeGraph();
+    const { rerender } = render(<WordTreeGraph {...props} graph={graph} layoutSlot="a" />);
+    await waitFor(() => expect(nodeEl("毎日")).toBeTruthy());
+    organize();
+    const targets = organizeLayout(graph, { width: 800, height: 600 });
+    await waitFor(() => expectAt("毎日", targets.get("word:毎日")));
+
+    rerender(<WordTreeGraph {...props} graph={makeGraph(["他"])} layoutSlot="b" />);
+    await waitFor(() => expect(nodeEl("他")).toBeTruthy());
+    rerender(<WordTreeGraph {...props} graph={makeGraph(["毎日"])} layoutSlot="a" />);
+    await waitFor(() => expect(nodeEl("毎日")).toBeTruthy());
+    await sleep(300);
+    expect(where("毎日")).not.toEqual(targets.get("word:毎日"));
+  });
+
+  it("isn't moved by a tap that wobbles a little", async () => {
+    const graph = makeGraph();
+    render(<WordTreeGraph {...props} graph={graph} />);
+    await waitFor(() => expect(nodeEl("毎日")).toBeTruthy());
+    organize();
+    const target = organizeLayout(graph, { width: 800, height: 600 }).get("word:毎日");
+    await waitFor(() => expectAt("毎日", target));
+
+    const pointer = { pointerType: "mouse", pointerId: 1, button: 0 };
+    fireEvent.pointerDown(nodeEl("毎日"), { ...pointer, clientX: 300, clientY: 300 });
+    fireEvent.pointerMove(window, { ...pointer, clientX: 301, clientY: 300 });
+    fireEvent.pointerUp(window, { ...pointer, clientX: 301, clientY: 300 });
+    await sleep(200);
+    expectAt("毎日", target);
+  });
+
   it("marks the selected node's own lines", async () => {
     const { rerender } = render(<WordTreeGraph {...props} graph={makeGraph()} selectedId="kanji:日" />);
     await waitFor(() => expect(nodeEl("毎日")).toBeTruthy());
