@@ -1,8 +1,7 @@
-# Semantic neighbours (prototype)
+# Semantic neighbours
 
-An offline experiment for a separate "meaning mode" in Moto, where a word
-branches into words that are related in meaning instead of words that share
-its kanji. Nothing in the app uses this yet.
+The offline build behind Moto's Meaning mode, where a word branches into words
+that are related in meaning instead of words that share its kanji.
 
 ## How it works
 
@@ -92,4 +91,6 @@ Regenerate with:
 python3 scripts/semantic/build_neighbours.py path/to/chive-1.3-mc90.txt
 ```
 
-It takes about 5 minutes on 4 CPUs and needs only numpy.
+It takes about 5 minutes on 4 CPUs and needs only numpy. Commit the result, then
+move the `meaning` pin in `src/data/dataPins.json` to that commit, or production
+keeps loading the old data.
