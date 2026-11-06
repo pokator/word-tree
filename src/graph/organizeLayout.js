@@ -22,7 +22,18 @@ import { CENTER_Y_BIAS } from "./forceLayout.js";
 import { nodeRadius } from "./layout.js";
 
 const EXPAND_RING = 5;
-const NODE_GAP = 12;
+// Room between nodes and the length of a link, on a typical desktop graph panel.
+// A bigger screen gets more of both and a smaller one less, and a graph that
+// would have to zoom out too far to fit gets tightened, down to the minimums.
+const ROOM_GAP = 38;
+const ROOM_LINK = 136;
+const MIN_GAP = 12;
+const MIN_LINK_LENGTH = 96;
+const REFERENCE_VIEW_AREA = 500_000;
+const MIN_VIEW_SCALE = 0.7;
+const MAX_VIEW_SCALE = 1.5;
+const TIGHTNESS_STEPS = [1, 0.65, 0.35, 0];
+const COMFORTABLE_ZOOM = 0.5;
 const LABEL_PX_PER_CHAR = 13;
 const KANJI_LABEL_PX = 17;
 const LABEL_PAD = 8;
@@ -31,7 +42,6 @@ const LABEL_PAD = 8;
 const MIN_PLANNED_ZOOM = 0.6;
 const VIEW_PAD = 80;
 
-const MIN_LINK_LENGTH = 96;
 const FAN_SPAN = (230 * Math.PI) / 180;
 const FULL_CIRCLE = Math.PI * 2;
 const FAN_TWO_RINGS = 12;
@@ -78,9 +88,16 @@ function labelWidth(node) {
 }
 
 /** The width a node needs to itself: its bubble, or its label if that's wider. */
-function footprint(node, labelScale) {
+function footprint(node, labelScale, gap) {
   const bubble = 2 * (nodeRadius(node) + EXPAND_RING);
-  return Math.max(bubble, (labelWidth(node) + LABEL_PAD) * labelScale) + NODE_GAP;
+  return Math.max(bubble, (labelWidth(node) + LABEL_PAD) * labelScale) + gap;
+}
+
+/** How much room to give at a viewport size, from 1 (all it deserves) down to 0 (the minimums). */
+function spacingFor(width, height, tightness) {
+  const scale = Math.min(MAX_VIEW_SCALE, Math.max(MIN_VIEW_SCALE, Math.sqrt((width * height) / REFERENCE_VIEW_AREA)));
+  const between = (least, most) => least + (most * scale - least) * tightness;
+  return { gap: between(MIN_GAP, ROOM_GAP), minLink: between(MIN_LINK_LENGTH, ROOM_LINK) };
 }
 
 function adjacencyOf(graph) {
@@ -159,9 +176,9 @@ const ringShare = (rings) => (rings === 1 ? 1 : rings * RING_SHARE);
  * fan's leaves take turns between rings, each giving the next ring's line room
  * to pass, so they need that much less of the circle.
  */
-function measure(id, rootId, rootSpan, children, foot, sizes) {
+function measure(id, rootId, rootSpan, children, foot, minLink, sizes) {
   const kids = children.get(id);
-  for (const kid of kids) measure(kid, rootId, rootSpan, children, foot, sizes);
+  for (const kid of kids) measure(kid, rootId, rootSpan, children, foot, minLink, sizes);
   const own = foot(id) / 2;
   if (kids.length === 0) {
     sizes.set(id, { radius: own, dist: 0 });
@@ -172,7 +189,7 @@ function measure(id, rootId, rootSpan, children, foot, sizes) {
   const radii = kids.map((kid) => sizes.get(kid).radius / (isLeaf(kid, children) ? ringShare(rings) : 1));
   const largest = Math.max(...kids.map((kid) => sizes.get(kid).radius));
   const fits = (d) => radii.reduce((sum, r) => sum + 2 * Math.asin(Math.min(1, r / d)), 0) <= span;
-  let low = Math.max(MIN_LINK_LENGTH, own + largest);
+  let low = Math.max(minLink, own + largest);
   let high = low;
   while (!fits(high)) high *= 1.5;
   if (!fits(low)) {
@@ -296,7 +313,7 @@ export function layoutUntidiness(graph, positions) {
  * Pulls each branch towards its parent, deepest first, stopping before it would
  * come too close to anything else, or add a crossing or a line behind a node.
  */
-function compact(graph, rootId, children, shared, adj, positions, foot, passes) {
+function compact(graph, rootId, children, shared, adj, positions, foot, minLink, passes) {
   const parentOf = new Map();
   const deepestFirst = [];
   const visit = (id) => {
@@ -397,7 +414,7 @@ function compact(graph, rootId, children, shared, adj, positions, foot, passes) 
 
       const parent = positions.get(parentOf.get(id));
       const self = positions.get(id);
-      const shortest = Math.max(MIN_LINK_LENGTH, (foot(id) + foot(parentOf.get(id))) / 2);
+      const shortest = Math.max(minLink, (foot(id) + foot(parentOf.get(id))) / 2);
       const allowed = trouble();
       for (;;) {
         const dx = self.x - parent.x;
@@ -475,10 +492,10 @@ function rootSpanFor(rootId, children, shared, adj) {
   return bridged ? BRIDGED_ROOT_SPAN : FULL_CIRCLE;
 }
 
-function placeTree(rootId, children, shared, adj, foot) {
+function placeTree(rootId, children, shared, adj, foot, minLink) {
   const rootSpan = rootSpanFor(rootId, children, shared, adj);
   const sizes = new Map();
-  measure(rootId, rootId, rootSpan, children, foot, sizes);
+  measure(rootId, rootId, rootSpan, children, foot, minLink, sizes);
   const positions = new Map();
   place(rootId, 0, 0, -Math.PI / 2, rootId, rootSpan, children, sizes, positions);
   return positions;
@@ -529,16 +546,16 @@ function turnFansApart(rootId, children, shared, adj, positions) {
   }
 }
 
-function buildPositions(rootId, children, shared, adj, foot) {
-  const positions = placeTree(rootId, children, shared, adj, foot);
+function buildPositions(rootId, children, shared, adj, foot, minLink) {
+  const positions = placeTree(rootId, children, shared, adj, foot, minLink);
   turnFansApart(rootId, children, shared, adj, positions);
   placeSharedWords(shared, adj, positions, foot);
   return positions;
 }
 
 /** Tries swapping siblings, keeping any swap that leaves the graph tidier. */
-function improveBySwaps(graph, rootId, children, shared, adj, foot, maxTries) {
-  const score = () => layoutUntidiness(graph, buildPositions(rootId, children, shared, adj, foot));
+function improveBySwaps(graph, rootId, children, shared, adj, foot, minLink, maxTries) {
+  const score = () => layoutUntidiness(graph, buildPositions(rootId, children, shared, adj, foot, minLink));
   let best = score();
   let tries = 0;
   for (const id of [...children.keys()]) {
@@ -707,9 +724,9 @@ function moveOffLines(graph, rootId, positions, foot) {
   }
 }
 
-function arrange(graph, labelScale, width, height) {
+function arrange(graph, labelScale, width, height, { gap, minLink }) {
   const feet = new Map();
-  for (const [id, node] of graph.nodes) feet.set(id, footprint(node, labelScale));
+  for (const [id, node] of graph.nodes) feet.set(id, footprint(node, labelScale, gap));
   const foot = (id) => feet.get(id);
   const adj = adjacencyOf(graph);
   const { rootId, children } = spanningTree(graph, adj);
@@ -717,13 +734,13 @@ function arrange(graph, labelScale, width, height) {
   const effort = effortFor(graph.nodes.size);
 
   for (let pass = 0; pass < ORDER_PASSES; pass++) {
-    orderByConnections(children, adj, shared, buildPositions(rootId, children, shared, adj, foot));
+    orderByConnections(children, adj, shared, buildPositions(rootId, children, shared, adj, foot, minLink));
   }
-  if (effort.swaps > 0) improveBySwaps(graph, rootId, children, shared, adj, foot, effort.swaps);
+  if (effort.swaps > 0) improveBySwaps(graph, rootId, children, shared, adj, foot, minLink, effort.swaps);
 
-  const positions = placeTree(rootId, children, shared, adj, foot);
+  const positions = placeTree(rootId, children, shared, adj, foot, minLink);
   turnFansApart(rootId, children, shared, adj, positions);
-  compact(graph, rootId, children, shared, adj, positions, foot, effort.compact);
+  compact(graph, rootId, children, shared, adj, positions, foot, minLink, effort.compact);
   placeSharedWords(shared, adj, positions, foot);
   squeezeToViewport(positions, graph, width, height);
   relax(graph, rootId, positions, foot, effort.relax);
@@ -737,16 +754,26 @@ function arrange(graph, labelScale, width, height) {
  */
 export function organizeLayout(graph, { width = 800, height = 600 } = {}) {
   if (graph.nodes.size === 0) return new Map();
+  const zoomFor = (layout) => {
+    const { w, h } = boundsOf(layout);
+    return Math.min(1, (width - VIEW_PAD) / (w + VIEW_PAD), (height - VIEW_PAD) / (h + VIEW_PAD));
+  };
   // A big graph will be zoomed out, where its labels take up more room
   // relative to their bubbles, so it's arranged allowing for that.
+  const arrangeAt = (tightness) => {
+    const spacing = spacingFor(width, height, tightness);
+    if (graph.nodes.size > ALWAYS_ZOOMED_NODES) return arrange(graph, 1 / MIN_PLANNED_ZOOM, width, height, spacing);
+    const first = arrange(graph, 1, width, height, spacing);
+    const zoom = zoomFor(first);
+    return zoom < 1 ? arrange(graph, 1 / Math.max(MIN_PLANNED_ZOOM, zoom), width, height, spacing) : first;
+  };
+  // As much room as the graph can have while still fitting at a readable size.
+  // Past the sizes where work is being cut back, go straight to the tightest.
+  const steps = effortFor(graph.nodes.size).swaps === MAX_ORDER_TRIES ? TIGHTNESS_STEPS : [0];
   let positions;
-  if (graph.nodes.size > ALWAYS_ZOOMED_NODES) {
-    positions = arrange(graph, 1 / MIN_PLANNED_ZOOM, width, height);
-  } else {
-    positions = arrange(graph, 1, width, height);
-    const { w, h } = boundsOf(positions);
-    const zoom = Math.min(1, (width - VIEW_PAD) / (w + VIEW_PAD), (height - VIEW_PAD) / (h + VIEW_PAD));
-    if (zoom < 1) positions = arrange(graph, 1 / Math.max(MIN_PLANNED_ZOOM, zoom), width, height);
+  for (const tightness of steps) {
+    positions = arrangeAt(tightness);
+    if (zoomFor(positions) >= COMFORTABLE_ZOOM) break;
   }
 
   const box = boundsOf(positions);
