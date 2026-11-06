@@ -90,6 +90,8 @@ export function computeSiblingAngles(siblingIds, parentData, graphNodes, { baseA
  *    one-time nudge, so it doesn't keep fighting a later drag
  *  - originParent: nodeId -> the node that first revealed it, a stable
  *    "which way is outward" reference for its own future children
+ *  - slots: a saved copy of `nodes` and `originParent` per graph you've left
+ *    (see switchLayoutSlot)
  */
 export function createLayoutState() {
   return {
@@ -98,7 +100,34 @@ export function createLayoutState() {
     linkDistance: new Map(),
     bridgedWords: new Set(),
     originParent: new Map(),
+    slots: new Map(),
   };
+}
+
+const MAX_LAYOUT_SLOTS = 8;
+
+/**
+ * Save the layout under `from` and bring back what was saved under `to`, so
+ * returning to a graph finds its nodes where you left them. With nothing saved
+ * under `to` the current nodes stay, and reconcileLayout keeps any the new
+ * graph shares. Returns whether a layout came back.
+ */
+export function switchLayoutSlot(state, from, to) {
+  state.slots.delete(from);
+  state.slots.set(from, {
+    nodes: new Map([...state.nodes].map(([id, n]) => [id, { ...n, vx: 0, vy: 0 }])),
+    originParent: new Map(state.originParent),
+  });
+  if (state.slots.size > MAX_LAYOUT_SLOTS) state.slots.delete(state.slots.keys().next().value);
+
+  const saved = state.slots.get(to);
+  if (!saved) return false;
+  // The Maps themselves stay: consumers hold refs to them.
+  state.nodes.clear();
+  for (const [id, n] of saved.nodes) state.nodes.set(id, { ...n });
+  state.originParent.clear();
+  for (const [id, parent] of saved.originParent) state.originParent.set(id, parent);
+  return true;
 }
 
 const idOf = (endpoint) => (typeof endpoint === "object" ? endpoint.id : endpoint);

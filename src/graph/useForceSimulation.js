@@ -1,5 +1,5 @@
 import { useEffect, useReducer, useRef } from "react";
-import { createLayoutState, createSimulation, reconcileLayout, setSimulationSize } from "./forceLayout";
+import { createLayoutState, createSimulation, reconcileLayout, setSimulationSize, switchLayoutSlot } from "./forceLayout";
 
 /**
  * Runs a persistent d3-force simulation whose node objects live in a Map
@@ -7,8 +7,10 @@ import { createLayoutState, createSimulation, reconcileLayout, setSimulationSize
  * a ref to that map; consumers re-render on every simulation tick. The
  * forces and node placement themselves live in forceLayout.js, shared with
  * the server-rendered graph previews on the kanji and word pages.
+ * `layoutSlot` names the graph on screen; coming back to a name restores
+ * that graph's layout.
  */
-export function useForceSimulation(graph, width, height, active = true) {
+export function useForceSimulation(graph, width, height, active = true, layoutSlot = null) {
   const stateRef = useRef(null);
   stateRef.current ??= createLayoutState();
   const state = stateRef.current;
@@ -20,6 +22,7 @@ export function useForceSimulation(graph, width, height, active = true) {
   const linkDistanceRef = useRef(state.linkDistance);
   const simulationRef = useRef(null);
   const [, forceRerender] = useReducer((x) => x + 1, 0);
+  const layoutSlotRef = useRef(layoutSlot);
 
   // While the graph is hidden (the phone layout's collapsed Explore pane),
   // physics keeps running -- so positions are settled and correct the
@@ -56,10 +59,16 @@ export function useForceSimulation(graph, width, height, active = true) {
   useEffect(() => {
     const sim = simulationRef.current;
     if (!sim) return;
+    let restored = false;
+    if (layoutSlotRef.current !== layoutSlot) {
+      restored = switchLayoutSlot(state, layoutSlotRef.current, layoutSlot);
+      layoutSlotRef.current = layoutSlot;
+    }
     reconcileLayout(state, sim, graph, width, height);
-    sim.alpha(0.5).restart();
+    // A restored layout has already settled; just let it breathe.
+    sim.alpha(restored ? 0.05 : 0.5).restart();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [graph, width, height]);
+  }, [graph, width, height, layoutSlot]);
 
   return { simNodesMapRef, simulationRef, linkDistanceRef };
 }

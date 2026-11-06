@@ -1,11 +1,23 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import { AuthProvider } from "./auth/AuthContext";
 
 // Shareable graphs: /explore/<root>?expand=... rebuilds the same graph, and
 // the address bar follows what you do. The fixture dataset (see
 // setupTests.js) has 学校, 学生, 小学校, 中学校 ... under 学 and 校.
+// jsdom has no SVG geometry; d3-zoom reads the svg's width/height baseVal
+// to find its viewport, so give it one.
+const baseVal = (v) => ({ get: () => ({ baseVal: { value: v } }), configurable: true });
+beforeAll(() => {
+  Object.defineProperty(SVGSVGElement.prototype, "width", baseVal(800));
+  Object.defineProperty(SVGSVGElement.prototype, "height", baseVal(600));
+});
+afterAll(() => {
+  delete SVGSVGElement.prototype.width;
+  delete SVGSVGElement.prototype.height;
+});
+
 const labels = () =>
   [...document.querySelectorAll("[data-node] .graph-node__label")].map((n) => n.textContent).sort();
 const node = (label) =>
@@ -187,6 +199,29 @@ describe("explore URLs in the app", () => {
       fireEvent.click(await screen.findByRole("button", { name: /See its kanji/ }));
       await waitFor(() => expect(here()).toBe("/explore/学校?mode=meaning&expand=k:学,w:学生&sel=w:学生"));
       await waitFor(() => expect(screen.queryByRole("button", { name: /See its kanji/ })).toBeNull());
+    });
+  });
+
+  describe("swapping between separate graphs", () => {
+    it("a graph comes back with its own selection when you'd picked nothing else", async () => {
+      window.history.replaceState(null, "", "/explore/学校?sel=k:学");
+      renderApp();
+      await waitFor(() => expect(node("学")).toBeTruthy());
+
+      fireEvent.click(screen.getByRole("radio", { name: "Meaning" }));
+      await waitFor(() => expect(here()).toBe("/explore/学校?mode=meaning&start=word&expand=s:学校"));
+      fireEvent.click(screen.getByRole("radio", { name: "Kanji" }));
+      await waitFor(() => expect(here()).toBe("/explore/学校?sel=k:学"));
+    });
+
+    it("a selection the other graph doesn't have falls back to that graph's own", async () => {
+      window.history.replaceState(null, "", "/explore/学校?sel=k:校");
+      renderApp();
+      await waitFor(() => expect(node("校")).toBeTruthy());
+
+      fireEvent.click(screen.getByRole("radio", { name: "Meaning" }));
+      await waitFor(() => expect(here()).toBe("/explore/学校?mode=meaning&start=word&expand=s:学校"));
+      expect(document.querySelector(".dictionary-panel__headword").textContent).toBe("学校");
     });
   });
 

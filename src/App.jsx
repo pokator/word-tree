@@ -207,6 +207,9 @@ export default function App() {
   const [viewKey, setViewKey] = useState(0);
   const [builtFor, setBuiltFor] = useState(null);
   const [selectedId, setSelectedId] = useState(fromUrl?.sel ?? wordNodeId(fromUrl?.root ?? DEFAULT_ROOT));
+  // What to select if the selection turns out not to be in the next graph
+  // built (see handleSetMode).
+  const [selectFallback, setSelectFallback] = useState(null);
   // A shared link's words-per-branch applies to this visit only -- it's
   // not saved over your own setting (that happens in handleSetMaxWords).
   const [maxWords, setMaxWords] = useState(() => fromUrl?.maxWords ?? loadMaxWords());
@@ -261,7 +264,10 @@ export default function App() {
     const built = replayGraph(dataset, rootWord, ops, { maxWords, isJlptAllowed, semantic: semanticStore, start });
     setGraph(built);
     // A link's sel= can name a node its expansions never revealed.
-    if (!built.nodes.has(selectedId)) setSelectedId(wordNodeId(rootWord));
+    if (!built.nodes.has(selectedId)) {
+      setSelectedId(built.nodes.has(selectFallback) ? selectFallback : wordNodeId(rootWord));
+    }
+    setSelectFallback(null);
   }
 
   // In meaning mode a word's dashed "more to reveal" ring is about its
@@ -428,7 +434,10 @@ export default function App() {
         stashed?.root === rootWord ? stashed : { ...freshGraph(rootWord, next), selectedId: wordNodeId(rootWord) };
       setStart(saved.start);
       setOps(saved.ops);
-      setSelectedId(saved.selectedId);
+      // A word you've picked out stays selected if the other graph has it too;
+      // otherwise that graph comes back with its own selection.
+      if (selectedId === wordNodeId(rootWord)) setSelectedId(saved.selectedId);
+      else setSelectFallback(saved.selectedId);
       setNavKey((k) => k + 1);
       setViewKey((k) => k + 1);
     },
@@ -858,6 +867,7 @@ export default function App() {
       commonness={commonness[mode]}
       onSetCommonness={handleSetCommonness}
       viewKey={viewKey}
+      layoutSlot={modeSwitch === "separate" ? `${rootWord}:${mode}` : rootWord}
       selectedId={selectedId}
       onNodeClick={handleNodeSelect}
       onNodeExpand={handleNodeExpand}

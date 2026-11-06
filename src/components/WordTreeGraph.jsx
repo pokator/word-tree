@@ -74,6 +74,7 @@ function truncate(str, max) {
 export default function WordTreeGraph({
   graph,
   viewKey = 0,
+  layoutSlot = null,
   selectedId,
   onNodeClick,
   onNodeExpand,
@@ -106,7 +107,13 @@ export default function WordTreeGraph({
   const detailTierRef = useRef(false);
   const [detailTier, setDetailTier] = useState(false);
 
-  const { simNodesMapRef, simulationRef, linkDistanceRef } = useForceSimulation(graph, size.width, size.height, active);
+  const { simNodesMapRef, simulationRef, linkDistanceRef } = useForceSimulation(
+    graph,
+    size.width,
+    size.height,
+    active,
+    layoutSlot
+  );
 
   // The view frames the whole graph once its layout has mostly settled --
   // on a new root (first load, or a search), and again after each expand,
