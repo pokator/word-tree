@@ -138,6 +138,130 @@ describe("explore URLs in the app", () => {
     await waitFor(() => expect(here()).toBe("/explore/学校"));
   });
 
+  it("a kanji expands by the kanji Commonness setting even in Meaning mode", async () => {
+    localStorage.setItem("word-tree:mode-switch", "mixed");
+    localStorage.setItem("word-tree:commonness", JSON.stringify({ kanji: 0, meaning: 90 }));
+    window.history.replaceState(null, "", "/explore/学校?mode=meaning");
+    renderApp();
+    await waitFor(() => expect(node("学")).toBeTruthy());
+    doubleTap(node("学"));
+    await waitFor(() => expect(here()).toBe("/explore/学校?mode=meaning&expand=k:学&sel=k:学"));
+  });
+
+  describe("crossing to the other mode from the dictionary panel", () => {
+    it("separate graphs: from the root it's the same swap as the mode switch", async () => {
+      window.history.replaceState(null, "", "/explore/学校?mode=meaning&start=word&expand=s:学校");
+      renderApp();
+      fireEvent.click(await screen.findByRole("button", { name: /See its kanji/ }));
+      await waitFor(() => expect(here()).toBe("/explore/学校"));
+      fireEvent.click(screen.getByRole("radio", { name: "Meaning" }));
+      await waitFor(() => expect(here()).toBe("/explore/学校?mode=meaning&start=word&expand=s:学校"));
+    });
+
+    it("separate graphs: a kanji card leaves the meaning graph for the kanji one", async () => {
+      window.history.replaceState(null, "", "/explore/学校?mode=meaning&start=word&expand=s:学校");
+      renderApp();
+      const card = (await screen.findAllByText("学")).find((el) => el.closest(".dictionary-panel"));
+      fireEvent.click(card);
+      await waitFor(() => expect(here()).toBe("/explore/学校?sel=k:学"));
+    });
+
+    it("one graph: expands in place and stays in the current mode", async () => {
+      localStorage.setItem("word-tree:mode-switch", "mixed");
+      window.history.replaceState(null, "", "/explore/学校?mode=meaning&expand=k:学&sel=w:学生");
+      renderApp();
+      fireEvent.click(await screen.findByRole("button", { name: /See its kanji/ }));
+      await waitFor(() => expect(here()).toBe("/explore/学校?mode=meaning&expand=k:学,w:学生&sel=w:学生"));
+      await waitFor(() => expect(screen.queryByRole("button", { name: /See its kanji/ })).toBeNull());
+    });
+  });
+
+  describe("swapping between separate graphs", () => {
+    it("a graph comes back with its own selection when you'd picked nothing else", async () => {
+      window.history.replaceState(null, "", "/explore/学校?sel=k:学");
+      renderApp();
+      await waitFor(() => expect(node("学")).toBeTruthy());
+
+      fireEvent.click(screen.getByRole("radio", { name: "Meaning" }));
+      await waitFor(() => expect(here()).toBe("/explore/学校?mode=meaning&start=word&expand=s:学校"));
+      fireEvent.click(screen.getByRole("radio", { name: "Kanji" }));
+      await waitFor(() => expect(here()).toBe("/explore/学校?sel=k:学"));
+    });
+
+    it("a selection the other graph doesn't have falls back to that graph's own", async () => {
+      window.history.replaceState(null, "", "/explore/学校?sel=k:校");
+      renderApp();
+      await waitFor(() => expect(node("校")).toBeTruthy());
+
+      fireEvent.click(screen.getByRole("radio", { name: "Meaning" }));
+      await waitFor(() => expect(here()).toBe("/explore/学校?mode=meaning&start=word&expand=s:学校"));
+      expect(document.querySelector(".dictionary-panel__headword").textContent).toBe("学校");
+    });
+  });
+
+  describe("Reset goes back to where the current mode starts", () => {
+    const reset = () => fireEvent.click(screen.getByRole("button", { name: "Reset graph" }));
+    const chooseSwitching = (name) => {
+      fireEvent.click(screen.getByRole("button", { name: "Filters" }));
+      fireEvent.click(screen.getByRole("radio", { name }));
+      fireEvent.click(screen.getByRole("button", { name: "Filters" }));
+    };
+    const MEANING_START = "/explore/学校?mode=meaning&start=word&expand=s:学校";
+
+    it("in Meaning, even on a linked graph that mixes both modes", async () => {
+      window.history.replaceState(null, "", "/explore/学校?mode=meaning&expand=k:学");
+      renderApp();
+      await waitFor(() => expect(node("学生")).toBeTruthy());
+      reset();
+      await waitFor(() => expect(here()).toBe(MEANING_START));
+    });
+
+    it("in Kanji, even on a graph that started in Meaning", async () => {
+      localStorage.setItem("word-tree:mode-switch", "mixed");
+      window.history.replaceState(null, "", "/explore/学校?start=word&expand=s:学校");
+      renderApp();
+      await waitFor(() => expect(node("学校")).toBeTruthy());
+      reset();
+      await waitFor(() => expect(here()).toBe("/explore/学校"));
+      await waitFor(() => expect(labels()).toEqual(["学", "学校", "校"].sort()));
+    });
+
+    it("in One graph, Meaning resets to meaning words as well", async () => {
+      localStorage.setItem("word-tree:mode-switch", "mixed");
+      window.history.replaceState(null, "", "/explore/学校?mode=meaning&expand=k:学");
+      renderApp();
+      await waitFor(() => expect(node("学生")).toBeTruthy());
+      reset();
+      await waitFor(() => expect(here()).toBe(MEANING_START));
+    });
+
+    it("switching to Separate graphs clears a graph mixing both modes, and swapping can't bring it back", async () => {
+      localStorage.setItem("word-tree:mode-switch", "mixed");
+      window.history.replaceState(null, "", "/explore/学校?mode=meaning&expand=k:学");
+      renderApp();
+      await waitFor(() => expect(node("学生")).toBeTruthy());
+
+      chooseSwitching("Separate graphs");
+      await waitFor(() => expect(here()).toBe(MEANING_START));
+
+      fireEvent.click(screen.getByRole("radio", { name: "Kanji" }));
+      await waitFor(() => expect(here()).toBe("/explore/学校"));
+      fireEvent.click(screen.getByRole("radio", { name: "Meaning" }));
+      await waitFor(() => expect(here()).toBe(MEANING_START));
+    });
+
+    it("swapping away from a linked mixed graph starts that mode fresh on the way back", async () => {
+      window.history.replaceState(null, "", "/explore/学校?mode=meaning&expand=k:学");
+      renderApp();
+      await waitFor(() => expect(node("学生")).toBeTruthy());
+
+      fireEvent.click(screen.getByRole("radio", { name: "Kanji" }));
+      await waitFor(() => expect(here()).toBe("/explore/学校"));
+      fireEvent.click(screen.getByRole("radio", { name: "Meaning" }));
+      await waitFor(() => expect(here()).toBe(MEANING_START));
+    });
+  });
+
   it("Share falls back to copying when the share sheet refuses", async () => {
     window.history.replaceState(null, "", "/explore/学校");
     const writeText = vi.fn(async () => {});

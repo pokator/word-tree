@@ -1,20 +1,24 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { supabase, isSupabaseConfigured } from "../lib/supabaseClient";
+import { isSupabaseConfigured, loadSupabase, needsSupabaseNow, supabaseReady } from "../lib/supabaseClient";
 import { AuthContext } from "./context";
 import { mergeGuestData } from "./mergeGuestData";
 
 export function AuthProvider({ children }) {
-  const [state, setState] = useState({
+  // With no saved session there's nothing to wait for: they're a guest until
+  // they sign in, and the client only loads when they go to.
+  const [state, setState] = useState(() => ({
     user: null,
     session: null,
-    loading: isSupabaseConfigured,
-  });
+    loading: needsSupabaseNow(),
+  }));
 
   useEffect(() => {
     if (!isSupabaseConfigured) return;
     let cancelled = false;
     let merge = { userId: null, promise: null };
     let latest = 0;
+    let subscription = null;
+    let client = null;
 
     // A signed-in user is only published once anything built up while
     // signed out has been folded into their account -- every data hook
@@ -30,7 +34,7 @@ export function AuthProvider({ children }) {
           // A merge that throws must not strand the app in "loading" --
           // the guest data stays put for the next sign-in, and the user is
           // signed in regardless.
-          const promise = mergeGuestData(supabase, user.id).catch((err) => {
+          const promise = mergeGuestData(client, user.id).catch((err) => {
             console.error("Merging guest data failed:", err);
           });
           merge = { userId: user.id, promise };
@@ -55,16 +59,30 @@ export function AuthProvider({ children }) {
 
     // supabase-js warns against awaiting other Supabase calls inside this
     // callback (it holds an internal lock while it runs), so the merge is
-    // deferred to a fresh task rather than awaited here.
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setTimeout(() => publish(session), 0);
+    // deferred to a fresh task rather than awaited here. Subscribes whenever
+    // the client turns up, whoever loaded it (this, or the sign-in form).
+    supabaseReady.then((ready) => {
+      if (cancelled) return;
+      client = ready;
+      ({
+        data: { subscription },
+      } = client.auth.onAuthStateChange((_event, session) => {
+        setTimeout(() => publish(session), 0);
+      }));
     });
+
+    if (needsSupabaseNow()) {
+      // A saved session can't be read without the client, so carry on as a
+      // guest rather than leave the app in "loading".
+      loadSupabase().catch((err) => {
+        console.error("Loading sign-in failed:", err);
+        if (!cancelled) setState((prev) => ({ ...prev, loading: false }));
+      });
+    }
 
     return () => {
       cancelled = true;
-      subscription.unsubscribe();
+      subscription?.unsubscribe();
     };
   }, []);
 

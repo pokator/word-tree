@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../auth/useAuth";
-import { supabase, isSupabaseConfigured } from "../lib/supabaseClient";
-import { track } from "../lib/analytics";
+import { supabase, isSupabaseConfigured, loadSupabase } from "../lib/supabaseClient";
+import { track } from "../lib/events";
 
 // Supabase refuses a second code for the same address within a minute
 // (auth.email.max_frequency) -- the resend button waits it out rather than
 // letting the user hit that error.
 const RESEND_COOLDOWN_S = 60;
 const CODE_LENGTH = 6;
+const LOAD_ERROR = "Couldn't load sign-in. Check your connection and try again.";
 
 function friendlyError(error, step) {
   const msg = error?.message ?? "";
@@ -59,6 +60,12 @@ export default function AccountSync() {
     return () => clearTimeout(t);
   }, [cooldown]);
 
+  // Opening this panel is the sign that they may sign in, so have the client
+  // ready. A failure here surfaces when they submit, which tries again.
+  useEffect(() => {
+    if (isSupabaseConfigured) loadSupabase().catch(() => {});
+  }, []);
+
   if (!isSupabaseConfigured || loading) return null;
 
   if (user) {
@@ -78,7 +85,13 @@ export default function AccountSync() {
     e?.preventDefault();
     setBusy(true);
     setError(null);
-    const { error: err } = await supabase.auth.signInWithOtp({
+    const client = await loadSupabase().catch(() => null);
+    if (!client) {
+      setBusy(false);
+      setError(LOAD_ERROR);
+      return;
+    }
+    const { error: err } = await client.auth.signInWithOtp({
       email: email.trim(),
       options: { shouldCreateUser: true, emailRedirectTo: window.location.origin },
     });
@@ -96,7 +109,13 @@ export default function AccountSync() {
     e.preventDefault();
     setBusy(true);
     setError(null);
-    const { error: err } = await supabase.auth.verifyOtp({ email: email.trim(), token: code, type: "email" });
+    const client = await loadSupabase().catch(() => null);
+    if (!client) {
+      setBusy(false);
+      setError(LOAD_ERROR);
+      return;
+    }
+    const { error: err } = await client.auth.verifyOtp({ email: email.trim(), token: code, type: "email" });
     // On success AuthProvider picks the session up (merging anything
     // bookmarked as a guest first) and this re-renders as signed in.
     if (err) {

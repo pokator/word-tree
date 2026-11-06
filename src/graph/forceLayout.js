@@ -90,6 +90,8 @@ export function computeSiblingAngles(siblingIds, parentData, graphNodes, { baseA
  *    one-time nudge, so it doesn't keep fighting a later drag
  *  - originParent: nodeId -> the node that first revealed it, a stable
  *    "which way is outward" reference for its own future children
+ *  - slots: a saved copy of `nodes` and `originParent` per graph you've left
+ *    (see switchLayoutSlot)
  */
 export function createLayoutState() {
   return {
@@ -98,34 +100,102 @@ export function createLayoutState() {
     linkDistance: new Map(),
     bridgedWords: new Set(),
     originParent: new Map(),
+    slots: new Map(),
   };
+}
+
+const MAX_LAYOUT_SLOTS = 8;
+const HOME_STRENGTH = 0.2;
+const HOME_CHARGE = -60;
+const HOME_COLLIDE_PAD = 10;
+
+/**
+ * Save the layout under `from` and bring back what was saved under `to`, so
+ * returning to a graph finds its nodes where you left them. With nothing saved
+ * under `to` the current nodes stay, and reconcileLayout keeps any the new
+ * graph shares. Returns whether a layout came back.
+ */
+export function switchLayoutSlot(state, from, to) {
+  state.slots.delete(from);
+  state.slots.set(from, {
+    nodes: new Map([...state.nodes].map(([id, n]) => [id, { ...n, vx: 0, vy: 0 }])),
+    originParent: new Map(state.originParent),
+  });
+  if (state.slots.size > MAX_LAYOUT_SLOTS) state.slots.delete(state.slots.keys().next().value);
+
+  const saved = state.slots.get(to);
+  if (!saved) return false;
+  // The Maps themselves stay: consumers hold refs to them.
+  state.nodes.clear();
+  for (const [id, n] of saved.nodes) state.nodes.set(id, { ...n });
+  state.originParent.clear();
+  for (const [id, parent] of saved.originParent) state.originParent.set(id, parent);
+  return true;
+}
+
+/** Frees nodes the Organize button gave a home (see createSimulation) to find their own place again. */
+export function releaseLayoutHomes(state) {
+  for (const node of state.nodes.values()) {
+    if (node.homeX == null) continue;
+    node.homeX = null;
+    node.homeY = null;
+    node.fx = null;
+    node.fy = null;
+  }
 }
 
 const idOf = (endpoint) => (typeof endpoint === "object" ? endpoint.id : endpoint);
 
-/** The explorer's forces, reading distances from `state`. */
+const hasHome = (node) => node.homeX != null;
+
+/**
+ * The explorer's forces, reading distances from `state`.
+ *
+ * A node with a home (homeX/homeY, from the Organize button) is held near it by
+ * a spring, not fixed there, so the graph stays alive: drag something and its
+ * neighbours get tugged along and settle back. For that layout to be where
+ * things rest, a link between two homed nodes is exactly as long as they are
+ * apart, and homed nodes push and crowd each other less. These read the node
+ * when the forces initialize, so anything changing a home re-initializes them
+ * (refreshForces).
+ */
 export function createSimulation(state, width, height) {
-  return forceSimulation([])
-    .force("charge", forceManyBody().strength(-240))
-    .force("collide", forceCollide().radius((d) => nodeRadius(d) + (d.type === "kanji" ? 30 : 20)))
-    .force(
-      "link",
-      forceLink([])
-        .id((d) => d.id)
-        .distance((l) => {
-          const custom = state.linkDistance.get(linkDistanceKey(idOf(l.source), idOf(l.target)));
-          if (custom !== undefined) return custom;
-          return baseLinkDistance(state.parentDegree.get(idOf(l.source)) ?? 1);
-        })
-        .strength(0.5)
-    )
-    .force("x", forceX(width / 2).strength(0.03))
-    .force("y", forceY(height * CENTER_Y_BIAS).strength(0.03));
+  return setSimulationSize(
+    forceSimulation([])
+      .force("charge", forceManyBody().strength((d) => (hasHome(d) ? HOME_CHARGE : -240)))
+      .force(
+        "collide",
+        forceCollide().radius((d) => nodeRadius(d) + (hasHome(d) ? HOME_COLLIDE_PAD : d.type === "kanji" ? 30 : 20))
+      )
+      .force(
+        "link",
+        forceLink([])
+          .id((d) => d.id)
+          .distance((l) => {
+            const a = state.nodes.get(idOf(l.source));
+            const b = state.nodes.get(idOf(l.target));
+            if (a && b && hasHome(a) && hasHome(b)) return Math.hypot(a.homeX - b.homeX, a.homeY - b.homeY);
+            const custom = state.linkDistance.get(linkDistanceKey(idOf(l.source), idOf(l.target)));
+            if (custom !== undefined) return custom;
+            return baseLinkDistance(state.parentDegree.get(idOf(l.source)) ?? 1);
+          })
+          .strength(0.5)
+      ),
+    width,
+    height
+  );
 }
 
 export function setSimulationSize(sim, width, height) {
-  sim.force("x", forceX(width / 2).strength(0.03));
-  sim.force("y", forceY(height * CENTER_Y_BIAS).strength(0.03));
+  const strength = (d) => (hasHome(d) ? HOME_STRENGTH : 0.03);
+  sim.force("x", forceX((d) => (hasHome(d) ? d.homeX : width / 2)).strength(strength));
+  sim.force("y", forceY((d) => (hasHome(d) ? d.homeY : height * CENTER_Y_BIAS)).strength(strength));
+  return sim;
+}
+
+/** Makes the forces read nodes' homes and link distances again. */
+export function refreshForces(sim) {
+  sim.nodes(sim.nodes());
 }
 
 /**
@@ -162,7 +232,11 @@ export function reconcileLayout(state, sim, graph, width, height, random = Math.
   const parentDegree = new Map();
   for (const l of graph.links) {
     const s = idOf(l.source);
-    if (graph.nodes.get(s)?.type === "kanji") parentDegree.set(s, (parentDegree.get(s) ?? 0) + 1);
+    // A kanji fans out its words; in meaning mode a word fans out its
+    // meaning neighbours the same way.
+    if (graph.nodes.get(s)?.type === "kanji" || l.kind === "semantic") {
+      parentDegree.set(s, (parentDegree.get(s) ?? 0) + 1);
+    }
   }
   state.parentDegree = parentDegree;
 
@@ -252,7 +326,7 @@ export function reconcileLayout(state, sim, graph, width, height, random = Math.
 
     if (prev) {
       Object.assign(prev, data);
-      if (kanjiParents?.size >= 2 && !state.bridgedWords.has(id)) {
+      if (kanjiParents?.size >= 2 && !state.bridgedWords.has(id) && !hasHome(prev)) {
         const mid = pinBridgeWord(id, kanjiParents);
         if (mid) {
           [prev.x, prev.y] = mid;

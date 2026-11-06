@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { probeConnection } from "./ankiConnect";
-import { trackOnce } from "../lib/analytics";
+import { trackOnce } from "../lib/events";
 import { dueCount, openBrowser, openReview, pullStatuses, pushBookmarks, syncItemsFor } from "./ankiSync";
 
 const ENABLED_KEY = "word-tree:anki-enabled";

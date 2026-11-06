@@ -112,8 +112,54 @@ halves visible on a portrait tablet; on a phone, one half at a time (tap the
 word strip for the full entry, tap Explore to go back); and on a phone
 turned sideways, a side rail for the word next to a full-height graph.
 
+**Kanji and Meaning modes** (the switch beside "Explore"). Kanji mode is
+the web described above. In Meaning mode, expanding a word shows words used
+in similar contexts in real Japanese text instead of its kanji: 学校 leads to
+生徒, 教員 and 補習, and further out to 養護教諭. Meaning links are drawn
+wavy, kanji links straight. The neighbours come from chiVe word vectors,
+computed offline (`scripts/semantic/`), and load lazily: frequencies
+(~0.7MB) the first time you use Meaning mode or move the Commonness dial,
+then one ~55KB file per expanded word. Kanji-mode visitors who never touch
+either download nothing extra. What switching does to the graph is an
+experiment, picked in Filters → **Switching modes**:
+- **Separate graphs** (default): each mode keeps its own graph for the
+  current word. Switching swaps between them, and each graph stays until
+  you search for another word or reset that graph.
+- **One graph**: switching keeps the graph on screen, and the mode only
+  decides what the next word expansion shows, so kanji and meaning
+  branches mix.
+
+Either way, Reset goes back to where the current mode starts, and a selected
+word's entry offers the way across to the other mode.
+
+**Organize** (the button above the zoom controls) tidies a crowded graph. The
+physics fans out each expansion well, but it only has the room earlier ones
+left, so clusters sink into each other as a graph grows. Organize works out a
+whole new layout from the graph's shape (`src/graph/organizeLayout.js`): each
+cluster gets space of its own, big fans spread over staggered rings, words
+shared between nodes go between them, and everything allows for labels, which
+keep their size as you zoom out. There's more room on a bigger screen, and a
+graph that would have to zoom out too far gets tightened. Nodes then rest on
+springs rather than being fixed: drag one and its neighbours get tugged along
+and settle back, and later expansions fan out around them until you organize
+again.
+
+The selected node's own lines stand out, with a soft pulse flowing out along
+each one, to follow them through a busy graph.
+
 **Filters** (graph panel toolbar) — ways to control what the graph
-shows:
+shows. Each mode has its own set: Link pattern and the Kanji path
+highlight only describe kanji links, so Meaning mode drops them (and
+turns them off while you're in it).
+- **Commonness** (both modes) — a dial from Familiar to Adventurous that
+  decides which words a reveal picks first. In Kanji mode, Familiar is the
+  original most-common-first order, and moving the dial aims at rarer words
+  containing that kanji (学 → 学級, 奨学金 in the middle; 考証学, 測地学 at
+  the far end). In Meaning mode the middle is "most related", and either
+  end trades some closeness in meaning for everyday or rarer words. The
+  signal is chiVe's corpus frequency, which covers ~82k words, not only the
+  ~13% JMdict ranks. Each mode keeps its own setting, and an expansion
+  records its dial position in the shared link (`k:学@60`, `s:学校@90`).
 - **JLPT level** — hide/dim by a word's hardest-tagged kanji (N5 easiest —
   N1 hardest, plus "Other" for untagged). Unlike the tag filter,
   this one also limits what *future* kanji/word reveals show up, not just
@@ -261,8 +307,8 @@ of sync.
   see `data/offline-dataset/README.md`) via a Web Worker
   (`src/data/datasetWorker.js`) that fetches, decompresses, and indexes it
   off the main thread. Production fetches it from jsDelivr, pinned to the
-  last commit that changed `public/data` (`vite.config.js`), so ~7MB per
-  first visit doesn't count against Vercel's bandwidth quota; the same
+  commit in `src/data/dataPins.json` (`vite.config.js` explains how to move
+  it), so ~7MB per first visit doesn't count against Vercel's bandwidth quota; the same
   files on Moto's own origin are the fallback, falling back to `src/data/japaneseData.js` (a tiny
   ~32 kanji / ~38 word fixture) only if that somehow fails. It's
   deliberately never read from Supabase, even when Supabase is
@@ -288,8 +334,8 @@ of sync.
 - Analytics are [Umami](https://umami.is) (no cookies), served through this
   site's own origin (`/m/*` rewrites in `vercel.json`) so blockers that
   match Umami's domain don't hide visitors. It only loads on the production
-  domain; the custom events (search, first expand, bookmark, sign-in, Anki
-  connect/blocked, `.tsv` export, share) are in `src/lib/analytics.js`'s
+  domain; the custom events (search, first expand, organize, bookmark, sign-in, Anki
+  connect/blocked, `.tsv` export, share) are in `src/lib/events.js`'s
   callers.
 - `src/anki/ankiConnect.js` talks to AnkiConnect's local HTTP API;
   `src/anki/ankiSync.js` is the two-way bridge (cards out, status back),
@@ -357,8 +403,11 @@ see "Assumptions" below.
   not further decomposed into 言+吾). Matches the original 漢字 → 漢, 字
   example. Radical-level decomposition is a natural "zoom in" feature for
   later, not replaced by this.
-- **Kanji ⇄ word is the only relationship type shown** — no "synonym" or
-  "same reading" edges yet.
+- **Two relationship types**: kanji ⇄ word, and (Meaning mode) word ⇄
+  word by meaning. Meaning neighbours are statistical (words that appear in
+  similar contexts), so they are related but not always synonyms, and some
+  noise gets through (侍 → ジャパン, from the "Samurai Japan" baseball
+  team). No "same reading" edges yet.
 - **The graph only grows, never auto-prunes** within one exploration;
   "Reset" collapses back to the root, searching a new word starts fresh.
 - **Anki sync needs Anki desktop.** AnkiConnect only runs on desktop

@@ -54,3 +54,13 @@ if (!globalThis.Worker) {
     terminate() {}
   };
 }
+
+// jsdom has no SVG geometry; d3-zoom reads the svg's width/height baseVal to
+// find its viewport. The graph frames itself once its layout settles, which can
+// happen during any test that renders it.
+const svgSize = (value) => ({ get: () => ({ baseVal: { value } }), configurable: true });
+// (The SEO tests run under node, with no DOM at all.)
+if (typeof SVGSVGElement !== "undefined") {
+  Object.defineProperty(SVGSVGElement.prototype, "width", svgSize(800));
+  Object.defineProperty(SVGSVGElement.prototype, "height", svgSize(600));
+}

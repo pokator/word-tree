@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import { AuthProvider } from "./auth/AuthContext";
-import { resetTrackOnce } from "./lib/analytics";
+import { resetTrackOnce } from "./lib/events";
 import { GUEST_BOOKMARKS_KEY } from "./lib/guestStore";
 
 // Where the Umami events fire, not just that track() works: a funnel step

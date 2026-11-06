@@ -1,5 +1,12 @@
 import { useEffect, useReducer, useRef } from "react";
-import { createLayoutState, createSimulation, reconcileLayout, setSimulationSize } from "./forceLayout";
+import {
+  createLayoutState,
+  createSimulation,
+  reconcileLayout,
+  releaseLayoutHomes,
+  setSimulationSize,
+  switchLayoutSlot,
+} from "./forceLayout";
 
 /**
  * Runs a persistent d3-force simulation whose node objects live in a Map
@@ -7,8 +14,10 @@ import { createLayoutState, createSimulation, reconcileLayout, setSimulationSize
  * a ref to that map; consumers re-render on every simulation tick. The
  * forces and node placement themselves live in forceLayout.js, shared with
  * the server-rendered graph previews on the kanji and word pages.
+ * `layoutSlot` names the graph on screen; coming back to a name restores
+ * that graph's layout.
  */
-export function useForceSimulation(graph, width, height, active = true) {
+export function useForceSimulation(graph, width, height, active = true, layoutSlot = null) {
   const stateRef = useRef(null);
   stateRef.current ??= createLayoutState();
   const state = stateRef.current;
@@ -20,6 +29,7 @@ export function useForceSimulation(graph, width, height, active = true) {
   const linkDistanceRef = useRef(state.linkDistance);
   const simulationRef = useRef(null);
   const [, forceRerender] = useReducer((x) => x + 1, 0);
+  const layoutSlotRef = useRef(layoutSlot);
 
   // While the graph is hidden (the phone layout's collapsed Explore pane),
   // physics keeps running -- so positions are settled and correct the
@@ -56,10 +66,22 @@ export function useForceSimulation(graph, width, height, active = true) {
   useEffect(() => {
     const sim = simulationRef.current;
     if (!sim) return;
+    let restored = false;
+    if (layoutSlotRef.current !== layoutSlot) {
+      restored = switchLayoutSlot(state, layoutSlotRef.current, layoutSlot);
+      layoutSlotRef.current = layoutSlot;
+    }
+    // An organized layout holds while the graph only grows. Once nodes go (a
+    // Reset, a new search, Back, or a word searched for again from scratch) it
+    // no longer describes this graph.
+    if ([...state.nodes.keys()].some((id) => !graph.nodes.has(id))) releaseLayoutHomes(state);
+    const settled = restored && [...graph.nodes.keys()].every((id) => state.nodes.has(id));
     reconcileLayout(state, sim, graph, width, height);
-    sim.alpha(0.5).restart();
+    // A restored layout has already settled, so it just breathes; any new
+    // nodes in it still need to find their place.
+    sim.alpha(settled ? 0.05 : 0.5).restart();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [graph, width, height]);
+  }, [graph, width, height, layoutSlot]);
 
   return { simNodesMapRef, simulationRef, linkDistanceRef };
 }

@@ -110,9 +110,14 @@ function JlptBadge({ level }) {
   );
 }
 
-function ExpandButton({ node, onExpand }) {
+function ExpandButton({ node, onExpand, mode }) {
   if (!node || node.expanded || !onExpand) return null;
-  const label = node.type === "kanji" ? "Show words with this kanji" : "Show kanji breakdown";
+  const label =
+    node.type === "kanji"
+      ? "Show words with this kanji"
+      : mode === "meaning"
+        ? "Show words related in meaning"
+        : "Show kanji breakdown";
   return (
     <button type="button" className="dictionary-panel__expand-btn" onClick={onExpand}>
       {label} &rarr;
@@ -289,6 +294,9 @@ export default function DictionaryPanel({
   wordStats,
   streak,
   onExpand,
+  crossLabel,
+  onCross,
+  mode = "kanji",
   componentKanji = [],
   relatedWords = [],
   onSelectRelated,
@@ -353,7 +361,12 @@ export default function DictionaryPanel({
               )}
             </div>
           )}
-          <ExpandButton node={node} onExpand={onExpand} />
+          <ExpandButton node={node} onExpand={onExpand} mode={mode} />
+          {crossLabel && onCross && (
+            <button type="button" className="dictionary-panel__cross-btn" onClick={onCross}>
+              {crossLabel} &rarr;
+            </button>
+          )}
 
           {wordStats && <ProgressStats wordStats={wordStats} streak={streak} />}
 

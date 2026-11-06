@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { select } from "d3-selection";
 import { zoom as d3zoom, zoomIdentity } from "d3-zoom";
+import { refreshForces } from "../graph/forceLayout";
 import { useForceSimulation } from "../graph/useForceSimulation";
 import { nodeRadius, nodeFill, nodeDetailText, nodeDifficultyColor } from "../graph/layout";
 import { readNodeColors } from "../graph/theme";
@@ -8,6 +9,25 @@ import { kanjiPositionCategory } from "../graph/positionCategory";
 import { linkDistanceKey } from "../graph/linkDistanceKey";
 import { fitTransform, overlayInsets } from "../graph/fitTransform";
 import { kanjiPathColorMap, charOffsetX } from "../graph/kanjiPathColors";
+import { organizeLayout } from "../graph/organizeLayout";
+import { wavyLinkPath } from "../graph/wavyLink";
+import { track } from "../lib/events";
+
+// The flow along the selected node's lines: a soft band of ink, half a line
+// long, that crosses from one end to the other in FLOW_TRAVEL_MS. Each stop
+// brightens and fades as the band passes it (see App.css's
+// graph-link-flow-stop), so the stops are timed by how far along the line they
+// are. Every line's own gradient inherits these, so they all share one set.
+const FLOW_STOPS_ID = "graph-flow-stops";
+const FLOW_TRAVEL_MS = 4400;
+const FLOW_BAND = 0.5;
+// When the selection glow's breath starts (App.css's select-glow-breathe), so
+// the node swells as each band sets off.
+const FLOW_START_MS = 260;
+const FLOW_STOPS = Array.from({ length: 13 }, (_, i) => {
+  const offset = i / 12;
+  return { offset, delay: FLOW_START_MS + Math.round((offset * FLOW_TRAVEL_MS) / (1 + FLOW_BAND)) };
+});
 
 const DRAG_CLICK_THRESHOLD_PX = 5;
 // A fingertip wobbles far more than a mouse between press and release --
@@ -31,6 +51,10 @@ const ZOOM_STEP = 1.3;
 // keeps them visibly following without losing the spring-like give of the
 // link force that's about to take back over once the drag ends.
 const NEIGHBOR_FOLLOW = 0.55;
+const ORGANIZE_MS = 450;
+// A soft reheat once organized, so the layout eases into its springs.
+const ORGANIZE_SETTLE_ALPHA = 0.2;
+const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 // Zoom-based level of detail: past DETAIL_ZOOM_ENTER, nodes grow a reading +
 // short definition stacked inside the bubble, below the label; below
 // DETAIL_ZOOM_EXIT, they drop back to just the word/kanji. The two
@@ -73,6 +97,7 @@ function truncate(str, max) {
 export default function WordTreeGraph({
   graph,
   viewKey = 0,
+  layoutSlot = null,
   selectedId,
   onNodeClick,
   onNodeExpand,
@@ -105,7 +130,13 @@ export default function WordTreeGraph({
   const detailTierRef = useRef(false);
   const [detailTier, setDetailTier] = useState(false);
 
-  const { simNodesMapRef, simulationRef, linkDistanceRef } = useForceSimulation(graph, size.width, size.height, active);
+  const { simNodesMapRef, simulationRef, linkDistanceRef } = useForceSimulation(
+    graph,
+    size.width,
+    size.height,
+    active,
+    layoutSlot
+  );
 
   // The view frames the whole graph once its layout has mostly settled --
   // on a new root (first load, or a search), and again after each expand,
@@ -185,7 +216,7 @@ export default function WordTreeGraph({
 
   // Frames the whole graph in the space the overlaid controls (zoom
   // buttons, legend, and the rail's floating toolbar) leave clear.
-  function fitToContent(duration) {
+  function fitToContent(duration, nodes = [...simNodesMapRef.current.values()]) {
     const svgEl = svgRef.current;
     if (!svgEl || !zoomBehaviorRef.current) return;
     const container = containerRef.current;
@@ -196,7 +227,7 @@ export default function WordTreeGraph({
       svgEl.getBoundingClientRect(),
       [...(overlays ?? [])].map((el) => el.getBoundingClientRect())
     );
-    const t = fitTransform([...simNodesMapRef.current.values()], size.width, size.height, {
+    const t = fitTransform(nodes, size.width, size.height, {
       pad: {
         left: Math.max(24, inset.left),
         right: Math.max(24, inset.right),
@@ -228,8 +259,100 @@ export default function WordTreeGraph({
     fitToContent(400);
   });
 
+  // Finishes an Organize still animating, so nothing fights over a node.
+  const finishOrganizeRef = useRef(null);
+  useEffect(() => () => finishOrganizeRef.current?.(), [layoutSlot, viewKey]);
+  // Finishing reheats the simulation, which shouldn't outlive the graph.
+  useEffect(() => () => simulationRef.current?.stop(), [simulationRef]);
+
+  // Moves every node to a freshly worked-out layout (see graph/organizeLayout)
+  // and gives it a home there: a spring, not a pin, so the graph stays alive
+  // (see createSimulation). A dragged node makes where it's dropped its home;
+  // new nodes from later expansions have none. See useForceSimulation for what
+  // ends it.
+  function organize() {
+    const sim = simulationRef.current;
+    if (!sim || simNodesMapRef.current.size === 0) return;
+    // Mid-drag (a keyboard press, a second input), the drag ends here: its
+    // release would otherwise save positions this is about to change.
+    abortGestureRef.current?.();
+    finishOrganizeRef.current?.();
+    track("organize");
+
+    const targets = organizeLayout(graph, size);
+    // Lengths left by old drags and bridge words would only matter once nodes
+    // are let go, by which time they'd describe a layout long gone.
+    for (const l of graph.links) {
+      const s = typeof l.source === "object" ? l.source.id : l.source;
+      const t = typeof l.target === "object" ? l.target.id : l.target;
+      linkDistanceRef.current.delete(linkDistanceKey(s, t));
+    }
+    const linkForce = sim.force("link");
+    linkForce?.links(linkForce.links());
+
+    const moves = [];
+    for (const [id, to] of targets) {
+      const n = simNodesMapRef.current.get(id);
+      if (!n) continue;
+      n.homeX = to.x;
+      n.homeY = to.y;
+      moves.push({ n, from: { x: n.x, y: n.y }, to });
+    }
+    refreshForces(sim);
+    const moveTo = (t) => {
+      for (const { n, from, to } of moves) {
+        if (n.homeX == null) continue; // freed mid-animation (see useForceSimulation)
+        n.fx = n.x = from.x + (to.x - from.x) * t;
+        n.fy = n.y = from.y + (to.y - from.y) * t;
+        n.vx = 0;
+        n.vy = 0;
+      }
+      // Ticks are what re-render the graph, so keep them coming.
+      sim.alpha(Math.max(sim.alpha(), 0.05)).restart();
+    };
+    const arrive = () => {
+      moveTo(1);
+      for (const { n } of moves) {
+        n.fx = null;
+        n.fy = null;
+      }
+      sim.alpha(ORGANIZE_SETTLE_ALPHA).restart();
+      finishOrganizeRef.current = null;
+    };
+
+    // The view goes to the new layout at the same pace as the nodes, and
+    // framing is back with the view for later expansions, as with Reset zoom.
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    userMovedRef.current = false;
+    pendingFitRef.current = false;
+    fitToContent(
+      reduceMotion ? 0 : ORGANIZE_MS,
+      [...targets].map(([id, to]) => ({ ...graph.nodes.get(id), ...to }))
+    );
+    if (reduceMotion) {
+      arrive();
+      return;
+    }
+
+    const startedAt = performance.now();
+    let frame = requestAnimationFrame(function step(now) {
+      const t = Math.min(1, (now - startedAt) / ORGANIZE_MS);
+      if (t < 1) {
+        moveTo(easeInOut(Math.max(0, t)));
+        frame = requestAnimationFrame(step);
+      } else {
+        arrive();
+      }
+    });
+    finishOrganizeRef.current = () => {
+      cancelAnimationFrame(frame);
+      arrive();
+    };
+  }
+
   function handleNodePointerDown(e, node) {
     e.stopPropagation();
+    finishOrganizeRef.current?.();
     // One gesture at a time: a second finger landing on another node mid-
     // hold doesn't start a competing drag/timer. A leftover gesture from
     // this same pointer (its release never arrived) is replaced instead, so
@@ -322,6 +445,7 @@ export default function WordTreeGraph({
       const sim = simulationRef.current;
       const linkForce = sim?.force("link");
       if (linkForce) linkForce.links(linkForce.links());
+      if (sim) refreshForces(sim);
     }
 
     function toLocal(clientX, clientY) {
@@ -339,6 +463,8 @@ export default function WordTreeGraph({
         moved = true;
         clearTimeout(longPressTimer);
       }
+      // A tap can wobble a pixel or two; a held node would keep the difference.
+      if (!moved) return;
       const [lx, ly] = toLocal(ev.clientX, ev.clientY);
       node.fx = lx;
       node.fy = ly;
@@ -384,6 +510,12 @@ export default function WordTreeGraph({
       // acted; only a drag that followed it still needs saving below.
       if (ev.type === "pointercancel" || (longPressed && !moved)) return;
       if (moved) {
+        // Organized nodes make where they were dropped their new home.
+        for (const { n, x, y } of [{ n: node, x: finalX, y: finalY }, ...childFinals]) {
+          if (n.homeX == null) continue;
+          n.homeX = x;
+          n.homeY = y;
+        }
         // Persist the distance this drag left between the node and each of
         // its parents and children as that link's new target -- without
         // this, the link force pulls everything straight back to the
@@ -462,6 +594,21 @@ export default function WordTreeGraph({
         <button
           type="button"
           className="icon-toolbar__btn"
+          onClick={organize}
+          title="Organize graph"
+          aria-label="Organize graph"
+          data-tutorial="graph-organize-btn"
+        >
+          <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.7">
+            <circle cx="12" cy="5.5" r="2.4" />
+            <circle cx="5.5" cy="18.5" r="2.4" />
+            <circle cx="18.5" cy="18.5" r="2.4" />
+            <path d="M12 8v3.5M12 11.5H5.5V16M12 11.5h6.5V16" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+        <button
+          type="button"
+          className="icon-toolbar__btn"
           onClick={() => stepZoom(ZOOM_STEP)}
           title="Zoom in"
           aria-label="Zoom in"
@@ -503,9 +650,20 @@ export default function WordTreeGraph({
         </button>
       </div>
       <svg ref={svgRef} width={size.width} height={size.height}>
+        <defs>
+          {/* Mounts in the same render as the selected node's glow, so their
+              animations start together and stay in step. */}
+          {selectedNode && (
+            <linearGradient key={selectedId} id={FLOW_STOPS_ID}>
+              {FLOW_STOPS.map(({ offset, delay }) => (
+                <stop key={offset} offset={offset} className="graph-link-flow__stop" style={{ animationDelay: `${delay}ms` }} />
+              ))}
+            </linearGradient>
+          )}
+        </defs>
         <g ref={gRef}>
           <g className="links">
-            {graph.links.map((l) => {
+            {graph.links.map((l, i) => {
               const s = nodesById.get(typeof l.source === "object" ? l.source.id : l.source);
               const t = nodesById.get(typeof l.target === "object" ? l.target.id : l.target);
               if (!s || !t) return null;
@@ -540,17 +698,68 @@ export default function WordTreeGraph({
                     ? s.char
                     : null;
               const pathColor = pathChar ? kanjiPathColors.get(pathChar) : null;
-              return (
-                <line
-                  key={`${s.id}->${t.id}`}
-                  x1={s.x}
-                  y1={s.y}
-                  x2={t.x}
-                  y2={t.y}
-                  vectorEffect="non-scaling-stroke"
-                  className={`graph-link${linkClass}${pathColor ? " graph-link--kanji-path" : ""}`}
-                  style={pathColor ? { stroke: pathColor } : undefined}
+              // The selected node's own lines stand out, so you can follow
+              // them through a busy graph (a shared word's to each parent).
+              const incident = s.id === selectedId || t.id === selectedId ? " graph-link--incident" : "";
+              // A link runs from however it was first revealed, so whichever
+              // way round the selected node is, flow still heads away from it.
+              const towardSource = t.id === selectedId;
+              const flowId = `graph-flow-${i}`;
+              const flowGradient = incident && (
+                <linearGradient
+                  id={flowId}
+                  href={`#${FLOW_STOPS_ID}`}
+                  gradientUnits="userSpaceOnUse"
+                  x1={towardSource ? t.x : s.x}
+                  y1={towardSource ? t.y : s.y}
+                  x2={towardSource ? s.x : t.x}
+                  y2={towardSource ? s.y : t.y}
                 />
+              );
+              // Meaning-mode links (word -> related word) are wavy, so they
+              // read apart from straight kanji links by shape alone, without
+              // spending a hue or a dash pattern (both already mean something
+              // here).
+              if (l.kind === "semantic") {
+                const d = wavyLinkPath(s.x, s.y, t.x, t.y);
+                return (
+                  <Fragment key={`${s.id}~>${t.id}`}>
+                    <path
+                      d={d}
+                      fill="none"
+                      vectorEffect="non-scaling-stroke"
+                      className={`graph-link graph-link--semantic${incident}`}
+                    />
+                    {incident && (
+                      <>
+                        {flowGradient}
+                        <path d={d} stroke={`url(#${flowId})`} className="graph-link-flow" />
+                      </>
+                    )}
+                  </Fragment>
+                );
+              }
+              return (
+                <Fragment key={`${s.id}->${t.id}`}>
+                  <line
+                    x1={s.x}
+                    y1={s.y}
+                    x2={t.x}
+                    y2={t.y}
+                    vectorEffect="non-scaling-stroke"
+                    className={`graph-link${linkClass}${incident}${
+                      pathColor ? ` graph-link--kanji-path${towardSource ? " graph-link--kanji-path-reverse" : ""}` : ""
+                    }`}
+                    style={pathColor ? { stroke: pathColor } : undefined}
+                  />
+                  {/* A kanji-path link is flowing already. */}
+                  {incident && !pathColor && (
+                    <>
+                      {flowGradient}
+                      <line x1={s.x} y1={s.y} x2={t.x} y2={t.y} stroke={`url(#${flowId})`} className="graph-link-flow" />
+                    </>
+                  )}
+                </Fragment>
               );
             })}
           </g>

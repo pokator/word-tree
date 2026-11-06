@@ -1,18 +1,6 @@
 import { fireEvent, render, waitFor } from "@testing-library/react";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import WordTreeGraph from "./WordTreeGraph";
-
-// jsdom has no SVG geometry; d3-zoom reads the svg's width/height baseVal
-// to find its viewport, so give it one.
-const baseVal = (v) => ({ get: () => ({ baseVal: { value: v } }), configurable: true });
-beforeAll(() => {
-  Object.defineProperty(SVGSVGElement.prototype, "width", baseVal(800));
-  Object.defineProperty(SVGSVGElement.prototype, "height", baseVal(600));
-});
-afterAll(() => {
-  delete SVGSVGElement.prototype.width;
-  delete SVGSVGElement.prototype.height;
-});
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
