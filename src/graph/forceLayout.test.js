@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createLayoutState, switchLayoutSlot } from "./forceLayout";
+import { createLayoutState, releaseLayoutPins, switchLayoutSlot } from "./forceLayout";
 
 const place = (state, id, x, y) => state.nodes.set(id, { id, x, y, vx: 3, vy: 3 });
 
@@ -53,5 +53,20 @@ describe("switchLayoutSlot", () => {
     expect(state.slots.size).toBe(8);
     expect(state.slots.has("g0")).toBe(false);
     expect(state.slots.has("g9")).toBe(true);
+  });
+});
+
+describe("releaseLayoutPins", () => {
+  it("hands organized nodes back to the physics and leaves the rest alone", () => {
+    const state = createLayoutState();
+    place(state, "word:held", 1, 1);
+    Object.assign(state.nodes.get("word:held"), { pinned: true, fx: 1, fy: 1 });
+    place(state, "word:dragged", 2, 2);
+    Object.assign(state.nodes.get("word:dragged"), { fx: 2, fy: 2 });
+
+    releaseLayoutPins(state);
+
+    expect(state.nodes.get("word:held")).toMatchObject({ pinned: false, fx: null, fy: null, x: 1 });
+    expect(state.nodes.get("word:dragged")).toMatchObject({ fx: 2, fy: 2 });
   });
 });

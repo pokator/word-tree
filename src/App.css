@@ -1129,9 +1129,17 @@
 
 /* One graph: the kind of link the next word expansion won't add falls back,
    so the current mode reads from the graph itself. */
-.graph-canvas[data-fade-links="kanji"] .graph-link:not(.graph-link--semantic),
-.graph-canvas[data-fade-links="meaning"] .graph-link--semantic {
+.graph-canvas[data-fade-links="kanji"] .graph-link:not(.graph-link--semantic):not(.graph-link--incident),
+.graph-canvas[data-fade-links="meaning"] .graph-link--semantic:not(.graph-link--incident) {
   opacity: 0.4;
+}
+
+/* The selected node's own lines, to follow through a busy graph. Neutral:
+   the kanji-path highlight below still wins on the links it colors. */
+.graph-link--incident {
+  stroke: var(--text);
+  stroke-width: 2px;
+  opacity: 0.9;
 }
 
 /* Kanji-path highlight (Filters -> "Highlight selected word's kanji", on

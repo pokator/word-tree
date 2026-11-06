@@ -130,6 +130,16 @@ export function switchLayoutSlot(state, from, to) {
   return true;
 }
 
+/** Hands nodes held by the Organize button (see organizeLayout) back to the physics. */
+export function releaseLayoutPins(state) {
+  for (const node of state.nodes.values()) {
+    if (!node.pinned) continue;
+    node.pinned = false;
+    node.fx = null;
+    node.fy = null;
+  }
+}
+
 const idOf = (endpoint) => (typeof endpoint === "object" ? endpoint.id : endpoint);
 
 /** The explorer's forces, reading distances from `state`. */
@@ -285,7 +295,7 @@ export function reconcileLayout(state, sim, graph, width, height, random = Math.
 
     if (prev) {
       Object.assign(prev, data);
-      if (kanjiParents?.size >= 2 && !state.bridgedWords.has(id)) {
+      if (kanjiParents?.size >= 2 && !state.bridgedWords.has(id) && !prev.pinned) {
         const mid = pinBridgeWord(id, kanjiParents);
         if (mid) {
           [prev.x, prev.y] = mid;

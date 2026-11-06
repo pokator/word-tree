@@ -8,7 +8,9 @@ import { kanjiPositionCategory } from "../graph/positionCategory";
 import { linkDistanceKey } from "../graph/linkDistanceKey";
 import { fitTransform, overlayInsets } from "../graph/fitTransform";
 import { kanjiPathColorMap, charOffsetX } from "../graph/kanjiPathColors";
+import { organizeLayout } from "../graph/organizeLayout";
 import { wavyLinkPath } from "../graph/wavyLink";
+import { track } from "../lib/analytics";
 
 const DRAG_CLICK_THRESHOLD_PX = 5;
 // A fingertip wobbles far more than a mouse between press and release --
@@ -32,6 +34,8 @@ const ZOOM_STEP = 1.3;
 // keeps them visibly following without losing the spring-like give of the
 // link force that's about to take back over once the drag ends.
 const NEIGHBOR_FOLLOW = 0.55;
+const ORGANIZE_MS = 450;
+const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 // Zoom-based level of detail: past DETAIL_ZOOM_ENTER, nodes grow a reading +
 // short definition stacked inside the bubble, below the label; below
 // DETAIL_ZOOM_EXIT, they drop back to just the word/kanji. The two
@@ -193,7 +197,7 @@ export default function WordTreeGraph({
 
   // Frames the whole graph in the space the overlaid controls (zoom
   // buttons, legend, and the rail's floating toolbar) leave clear.
-  function fitToContent(duration) {
+  function fitToContent(duration, nodes = [...simNodesMapRef.current.values()]) {
     const svgEl = svgRef.current;
     if (!svgEl || !zoomBehaviorRef.current) return;
     const container = containerRef.current;
@@ -204,7 +208,7 @@ export default function WordTreeGraph({
       svgEl.getBoundingClientRect(),
       [...(overlays ?? [])].map((el) => el.getBoundingClientRect())
     );
-    const t = fitTransform([...simNodesMapRef.current.values()], size.width, size.height, {
+    const t = fitTransform(nodes, size.width, size.height, {
       pad: {
         left: Math.max(24, inset.left),
         right: Math.max(24, inset.right),
@@ -236,8 +240,76 @@ export default function WordTreeGraph({
     fitToContent(400);
   });
 
+  // Finishes an Organize still animating, so nothing fights over a node.
+  const finishOrganizeRef = useRef(null);
+  useEffect(() => () => finishOrganizeRef.current?.(), [layoutSlot, viewKey]);
+
+  // Moves every node to a freshly worked-out layout (see graph/organizeLayout)
+  // and holds them there, since the physics would otherwise pull it apart. A
+  // held node can still be dragged, and stays where it's dropped; new nodes
+  // from later expansions stay free. See useForceSimulation for what lets go.
+  function organize() {
+    const sim = simulationRef.current;
+    if (!sim || simNodesMapRef.current.size === 0) return;
+    finishOrganizeRef.current?.();
+    track("organize");
+
+    const targets = organizeLayout(graph, size);
+    // Lengths left by old drags and bridge words would only matter once nodes
+    // are let go, by which time they'd describe a layout long gone.
+    linkDistanceRef.current.clear();
+    const linkForce = sim.force("link");
+    linkForce?.links(linkForce.links());
+
+    const moves = [];
+    for (const [id, to] of targets) {
+      const n = simNodesMapRef.current.get(id);
+      if (!n) continue;
+      n.pinned = true;
+      moves.push({ n, from: { x: n.x, y: n.y }, to });
+    }
+    const moveTo = (t) => {
+      for (const { n, from, to } of moves) {
+        n.fx = n.x = from.x + (to.x - from.x) * t;
+        n.fy = n.y = from.y + (to.y - from.y) * t;
+        n.vx = 0;
+        n.vy = 0;
+      }
+      // Ticks are what re-render the graph, so keep them coming.
+      sim.alpha(Math.max(sim.alpha(), 0.05)).restart();
+    };
+
+    // The view goes to the new layout at the same pace as the nodes, and
+    // framing is back with the view for later expansions, as with Reset zoom.
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    userMovedRef.current = false;
+    pendingFitRef.current = false;
+    fitToContent(
+      reduceMotion ? 0 : ORGANIZE_MS,
+      [...targets].map(([id, to]) => ({ ...graph.nodes.get(id), ...to }))
+    );
+    if (reduceMotion) {
+      moveTo(1);
+      return;
+    }
+
+    const startedAt = performance.now();
+    let frame = requestAnimationFrame(function step(now) {
+      const t = Math.min(1, (now - startedAt) / ORGANIZE_MS);
+      moveTo(easeInOut(Math.max(0, t)));
+      if (t < 1) frame = requestAnimationFrame(step);
+      else finishOrganizeRef.current = null;
+    });
+    finishOrganizeRef.current = () => {
+      cancelAnimationFrame(frame);
+      moveTo(1);
+      finishOrganizeRef.current = null;
+    };
+  }
+
   function handleNodePointerDown(e, node) {
     e.stopPropagation();
+    finishOrganizeRef.current?.();
     // One gesture at a time: a second finger landing on another node mid-
     // hold doesn't start a competing drag/timer. A leftover gesture from
     // this same pointer (its release never arrived) is replaced instead, so
@@ -381,11 +453,12 @@ export default function WordTreeGraph({
       const finalY = node.fy;
       const childFinals = children.map(({ n }) => ({ n, x: n.fx, y: n.fy }));
       const parentFinals = parents.map((n) => ({ n, x: n.x, y: n.y }));
-      node.fx = null;
-      node.fy = null;
-      for (const { n } of children) {
-        n.fx = null;
-        n.fy = null;
+      // Anything organized stays held, where this gesture left it.
+      node.fx = node.pinned ? finalX : null;
+      node.fy = node.pinned ? finalY : null;
+      for (const { n, x, y } of childFinals) {
+        n.fx = n.pinned ? x : null;
+        n.fy = n.pinned ? y : null;
       }
       // The browser took the gesture over (e.g. the start of a pinch) --
       // release the pins above, but it wasn't a tap. A long press already
@@ -420,9 +493,12 @@ export default function WordTreeGraph({
 
     const abort = () => {
       detach();
-      node.fx = null;
-      node.fy = null;
+      if (!node.pinned) {
+        node.fx = null;
+        node.fy = null;
+      }
       for (const { n } of children) {
+        if (n.pinned) continue;
         n.fx = null;
         n.fy = null;
       }
@@ -467,6 +543,21 @@ export default function WordTreeGraph({
   return (
     <div ref={containerRef} className="graph-container">
       <div className="graph-zoom-controls icon-toolbar icon-toolbar--vertical">
+        <button
+          type="button"
+          className="icon-toolbar__btn"
+          onClick={organize}
+          title="Organize graph"
+          aria-label="Organize graph"
+          data-tutorial="graph-organize-btn"
+        >
+          <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.7">
+            <circle cx="12" cy="5.5" r="2.4" />
+            <circle cx="5.5" cy="18.5" r="2.4" />
+            <circle cx="18.5" cy="18.5" r="2.4" />
+            <path d="M12 8v3.5M12 11.5H5.5V16M12 11.5h6.5V16" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
         <button
           type="button"
           className="icon-toolbar__btn"
@@ -548,6 +639,9 @@ export default function WordTreeGraph({
                     ? s.char
                     : null;
               const pathColor = pathChar ? kanjiPathColors.get(pathChar) : null;
+              // The selected node's own lines stand out, so you can follow
+              // them through a busy graph (a shared word's to each parent).
+              const incident = s.id === selectedId || t.id === selectedId ? " graph-link--incident" : "";
               // Meaning-mode links (word -> related word) are wavy, so they
               // read apart from straight kanji links by shape alone, without
               // spending a hue or a dash pattern (both already mean something
@@ -559,7 +653,7 @@ export default function WordTreeGraph({
                     d={wavyLinkPath(s.x, s.y, t.x, t.y)}
                     fill="none"
                     vectorEffect="non-scaling-stroke"
-                    className="graph-link graph-link--semantic"
+                    className={`graph-link graph-link--semantic${incident}`}
                   />
                 );
               }
@@ -571,7 +665,7 @@ export default function WordTreeGraph({
                   x2={t.x}
                   y2={t.y}
                   vectorEffect="non-scaling-stroke"
-                  className={`graph-link${linkClass}${pathColor ? " graph-link--kanji-path" : ""}`}
+                  className={`graph-link${linkClass}${incident}${pathColor ? " graph-link--kanji-path" : ""}`}
                   style={pathColor ? { stroke: pathColor } : undefined}
                 />
               );

@@ -1,5 +1,12 @@
 import { useEffect, useReducer, useRef } from "react";
-import { createLayoutState, createSimulation, reconcileLayout, setSimulationSize, switchLayoutSlot } from "./forceLayout";
+import {
+  createLayoutState,
+  createSimulation,
+  reconcileLayout,
+  releaseLayoutPins,
+  setSimulationSize,
+  switchLayoutSlot,
+} from "./forceLayout";
 
 /**
  * Runs a persistent d3-force simulation whose node objects live in a Map
@@ -64,6 +71,9 @@ export function useForceSimulation(graph, width, height, active = true, layoutSl
       restored = switchLayoutSlot(state, layoutSlotRef.current, layoutSlot);
       layoutSlotRef.current = layoutSlot;
     }
+    // An organized layout holds while the graph only grows. Once nodes go (a
+    // Reset, a new search, Back) it no longer describes this graph.
+    if (!restored && [...state.nodes.keys()].some((id) => !graph.nodes.has(id))) releaseLayoutPins(state);
     const settled = restored && [...graph.nodes.keys()].every((id) => state.nodes.has(id));
     reconcileLayout(state, sim, graph, width, height);
     // A restored layout has already settled, so it just breathes; any new
