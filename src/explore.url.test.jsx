@@ -148,6 +148,48 @@ describe("explore URLs in the app", () => {
     await waitFor(() => expect(here()).toBe("/explore/学校?mode=meaning&expand=k:学&sel=k:学"));
   });
 
+  describe("crossing to the other mode from the dictionary panel", () => {
+    it("separate graphs: opens a word in the other mode's graph, and Back returns", async () => {
+      window.history.replaceState(null, "", "/explore/学校?expand=k:学&sel=w:学生");
+      renderApp();
+      await waitFor(() => expect(node("学生")).toBeTruthy());
+
+      fireEvent.click(await screen.findByRole("button", { name: /Related in meaning/ }));
+      await waitFor(() => expect(here()).toBe("/explore/学生?mode=meaning&start=word&expand=s:学生"));
+
+      act(() => {
+        window.history.back();
+      });
+      await waitFor(() => expect(here()).toBe("/explore/学校?expand=k:学&sel=w:学生"));
+    });
+
+    it("separate graphs: from the root it's the same swap as the mode switch", async () => {
+      window.history.replaceState(null, "", "/explore/学校?mode=meaning&start=word&expand=s:学校");
+      renderApp();
+      fireEvent.click(await screen.findByRole("button", { name: /See its kanji/ }));
+      await waitFor(() => expect(here()).toBe("/explore/学校"));
+      fireEvent.click(screen.getByRole("radio", { name: "Meaning" }));
+      await waitFor(() => expect(here()).toBe("/explore/学校?mode=meaning&start=word&expand=s:学校"));
+    });
+
+    it("separate graphs: a kanji card leaves the meaning graph for the kanji one", async () => {
+      window.history.replaceState(null, "", "/explore/学校?mode=meaning&start=word&expand=s:学校");
+      renderApp();
+      const card = (await screen.findAllByText("学")).find((el) => el.closest(".dictionary-panel"));
+      fireEvent.click(card);
+      await waitFor(() => expect(here()).toBe("/explore/学校?sel=k:学"));
+    });
+
+    it("one graph: expands in place and stays in the current mode", async () => {
+      localStorage.setItem("word-tree:mode-switch", "mixed");
+      window.history.replaceState(null, "", "/explore/学校?mode=meaning&expand=k:学&sel=w:学生");
+      renderApp();
+      fireEvent.click(await screen.findByRole("button", { name: /See its kanji/ }));
+      await waitFor(() => expect(here()).toBe("/explore/学校?mode=meaning&expand=k:学,w:学生&sel=w:学生"));
+      await waitFor(() => expect(screen.queryByRole("button", { name: /See its kanji/ })).toBeNull());
+    });
+  });
+
   describe("Reset goes back to where the current mode starts", () => {
     const reset = () => fireEvent.click(screen.getByRole("button", { name: "Reset graph" }));
     const chooseSwitching = (name) => {

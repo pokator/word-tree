@@ -1695,6 +1695,25 @@
   color: #fff;
 }
 
+/* The way across to the other mode: a quiet second choice beside the accent
+   expand button, which stays the panel's one main action. */
+.dictionary-panel__cross-btn {
+  display: block;
+  margin-top: 10px;
+  font: inherit;
+  font-size: 14px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+.dictionary-panel__cross-btn:hover {
+  color: var(--text-h);
+  border-color: var(--text);
+}
+
 .jlpt-badge {
   font-size: 13px;
   font-weight: 700;

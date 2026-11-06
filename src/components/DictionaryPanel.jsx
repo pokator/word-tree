@@ -294,6 +294,8 @@ export default function DictionaryPanel({
   wordStats,
   streak,
   onExpand,
+  crossLabel,
+  onCross,
   mode = "kanji",
   componentKanji = [],
   relatedWords = [],
@@ -360,6 +362,11 @@ export default function DictionaryPanel({
             </div>
           )}
           <ExpandButton node={node} onExpand={onExpand} mode={mode} />
+          {crossLabel && onCross && (
+            <button type="button" className="dictionary-panel__cross-btn" onClick={onCross}>
+              {crossLabel} &rarr;
+            </button>
+          )}
 
           {wordStats && <ProgressStats wordStats={wordStats} streak={streak} />}
 

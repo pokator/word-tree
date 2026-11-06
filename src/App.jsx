@@ -155,6 +155,12 @@ function loadModeSwitch() {
   }
 }
 
+// Whether all of a word's meaning neighbours are already shown; a word with no
+// neighbour list counts as done.
+function meaningExpansionDone(node, semanticStore) {
+  return node.semanticExpanded || (semanticStore.hasFrequency() && !semanticStore.hasNeighbours(node.word, node.rank));
+}
+
 function jlptBucketToLevel(bucket) {
   if (!bucket || bucket === "unrated") return null;
   const n = Number(bucket.slice(1));
@@ -266,10 +272,7 @@ export default function App() {
     if (!graph || mode !== "meaning") return graph;
     const nodes = new Map();
     for (const [id, n] of graph.nodes) {
-      const done =
-        n.type === "word" &&
-        (n.semanticExpanded || (semanticStore.hasFrequency() && !semanticStore.hasNeighbours(n.word, n.rank)));
-      nodes.set(id, n.type === "word" ? { ...n, expanded: done } : n);
+      nodes.set(id, n.type === "word" ? { ...n, expanded: meaningExpansionDone(n, semanticStore) } : n);
     }
     return { nodes, links: graph.links };
     // semantic.version: what hasNeighbours can answer changes as data loads.
@@ -645,21 +648,23 @@ export default function App() {
     setSelectedId(nodeId);
   }, []);
 
+  // `forMode` is the kind of expansion: the current mode's, unless the
+  // dictionary panel asks for the other one (see handleCrossMode).
   const handleNodeExpand = useCallback(
-    (nodeId) => {
+    (nodeId, forMode = mode) => {
       setSelectedId(nodeId);
       // The root starts out expanded, so double-clicking it changes nothing
-      // and isn't a first expand. In meaning mode "expanded" means its
-      // meaning neighbours are all shown (see viewGraph).
-      const target = viewGraph?.nodes.get(nodeId);
-      if (!target || target.expanded) return;
-      const bySense = mode === "meaning" && target.type === "word";
+      // and isn't a first expand.
+      const target = graph?.nodes.get(nodeId);
+      if (!target) return;
+      const bySense = forMode === "meaning" && target.type === "word";
+      if (bySense ? meaningExpansionDone(target, semanticStore) : target.expanded) return;
       // By what's expanding, not the mode: a kanji shows the same words either way.
       const dial = bySense ? commonness.meaning : commonness.kanji;
       const apply = () => {
         trackOnce("first-expand");
         // k:学, k:学~40, k:学@60, w:学校, s:学校@70
-        setOps((o) => [...o, expandOp(nodeId, maxWords, { mode, commonness: dial })]);
+        setOps((o) => [...o, expandOp(nodeId, maxWords, { mode: forMode, commonness: dial })]);
         setGraph((prev) => {
           const node = prev?.nodes.get(nodeId);
           if (!node) return prev;
@@ -686,7 +691,40 @@ export default function App() {
       if (bySense || dial > 0) loadSemantic(needs).then(apply, () => {});
       else apply();
     },
-    [dataset, viewGraph, mode, commonness, maxWords, isJlptAllowed, semanticStore, loadSemantic]
+    [dataset, graph, mode, commonness, maxWords, isJlptAllowed, semanticStore, loadSemantic]
+  );
+
+  // The way across to the other mode from a word. With one graph that's just
+  // the other kind of expansion, in place. With separate graphs it opens the
+  // word in the other mode's graph: the same swap as the mode switch for the
+  // root, or a new graph around any other word (which Back returns from).
+  // `selectId` is what to select there instead of the word.
+  const handleCrossMode = useCallback(
+    (word, selectId) => {
+      const next = mode === "meaning" ? "kanji" : "meaning";
+      const nodeId = wordNodeId(word);
+      if (modeSwitch === "mixed") {
+        handleNodeExpand(nodeId, next);
+        return;
+      }
+      if (word === rootWord) {
+        handleSetMode(next);
+      } else {
+        track("mode-switch");
+        const fresh = freshGraph(word, next);
+        stashRef.current = {};
+        setMode(next);
+        setRootWord(word);
+        setStart(fresh.start);
+        setOps(fresh.ops);
+        setSelectedId(nodeId);
+        setNavKey((k) => k + 1);
+        setViewKey((k) => k + 1);
+        addRecent(word);
+      }
+      if (selectId) setSelectedId(selectId);
+    },
+    [mode, modeSwitch, rootWord, handleNodeExpand, handleSetMode, freshGraph, addRecent]
   );
 
   // Clicking a card in the dictionary panel's "Kanji" (word view) or
@@ -698,6 +736,12 @@ export default function App() {
   const handleSelectRelated = useCallback(
     (type, key) => {
       if (!selectedNode) return;
+      // A separate meaning graph holds only words, so a word's kanji is
+      // somewhere to go rather than something to add here.
+      if (modeSwitch === "separate" && mode === "meaning" && type === "kanji" && selectedNode.type === "word") {
+        handleCrossMode(selectedNode.word, kanjiNodeId(key));
+        return;
+      }
       const link =
         type === "kanji" && selectedNode.type === "word"
           ? { kanjiChar: key, word: selectedNode.word }
@@ -719,8 +763,22 @@ export default function App() {
       });
       setSelectedId(type === "kanji" ? kanjiNodeId(key) : wordNodeId(key));
     },
-    [dataset, graph, selectedNode]
+    [dataset, graph, selectedNode, modeSwitch, mode, handleCrossMode]
   );
+
+  // The dictionary panel's way across to the other mode from the selected
+  // word, when there's something to show there: a word with no kanji or no
+  // meaning neighbours has nowhere to go, and with one graph, nor does one
+  // whose other expansion is already on screen.
+  const rawSelected = graph?.nodes.get(selectedId);
+  let crossLabel = null;
+  if (rawSelected?.type === "word") {
+    if (mode === "kanji") {
+      if (!meaningExpansionDone(rawSelected, semanticStore)) crossLabel = "Related in meaning";
+    } else if (componentKanji.length > 0 && (modeSwitch === "separate" || !rawSelected.expanded)) {
+      crossLabel = "See its kanji";
+    }
+  }
 
   // Hovering one of those cards highlights where it relates to on the graph
   // (the current node it would attach to, plus the card's own node if
@@ -779,6 +837,8 @@ export default function App() {
       wordStats={wordStats}
       streak={streak}
       onExpand={graph && selectedNode ? () => handleNodeExpand(selectedId) : undefined}
+      crossLabel={crossLabel}
+      onCross={crossLabel ? () => handleCrossMode(selectedNode.word) : undefined}
       mode={mode}
       componentKanji={componentKanji}
       relatedWords={relatedWords}
