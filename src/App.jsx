@@ -155,6 +155,8 @@ function loadModeSwitch() {
   }
 }
 
+const stashKey = (root, mode) => `${root}\n${mode}`;
+
 // Whether all of a word's meaning neighbours are already shown; a word with no
 // neighbour list counts as done.
 function meaningExpansionDone(node, semanticStore) {
@@ -191,9 +193,9 @@ export default function App() {
   const [start, setStart] = useState(fromUrl?.start ?? "kanji");
   const [modeSwitch, setModeSwitch] = useState(loadModeSwitch);
   const [commonness, setCommonness] = useState(loadCommonness);
-  // "separate" mode switching: the other mode's graph, kept to swap back
-  // to -- { kanji?: {root, ops, start, selectedId}, meaning?: ... }. Only
-  // used while its root is still the root on screen.
+  // "separate" mode switching: graphs you've left, kept to swap back to --
+  // stashKey(root, mode) -> { ops, start, selectedId }. Kept across crossing
+  // to another word and back, and dropped by a new search.
   const stashRef = useRef({});
   const [rootWord, setRootWord] = useState(fromUrl?.root ?? DEFAULT_ROOT);
   // What you did to the graph since its root was set (see
@@ -201,6 +203,16 @@ export default function App() {
   const [ops, setOps] = useState(fromUrl?.ops ?? []);
   // Bumped on back/forward, so the graph rebuilds even for the same root.
   const [navKey, setNavKey] = useState(0);
+  // The latest navKey, for an expansion finishing after its data loaded to
+  // tell whether the graph it was for is still the one on screen.
+  const navKeyRef = useRef(navKey);
+  useEffect(() => {
+    navKeyRef.current = navKey;
+  }, [navKey]);
+  // Expansions waiting on semantic data, so a second tap can't apply twice.
+  const pendingExpandsRef = useRef(new Set());
+  // A word found to have no meaning neighbours when asked for from Kanji mode.
+  const [noRelatedFor, setNoRelatedFor] = useState(null);
   const [graph, setGraph] = useState(null);
   // Bumped when Reset or the tour rebuilds the graph around the same root,
   // so the graph re-frames itself even though its root didn't change.
@@ -257,7 +269,7 @@ export default function App() {
   useEffect(() => {
     if (!semanticReady) loadSemantic(opWords).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [semanticReady]);
+  }, [semanticReady, opWords.join("\n")]);
   const readyKey = dataset.loading || !semanticReady ? null : `${dataset.source}:${rootWord}:${navKey}`;
   if (readyKey && readyKey !== builtFor) {
     setBuiltFor(readyKey);
@@ -428,10 +440,11 @@ export default function App() {
       if (modeSwitch === "mixed") return; // same graph; only the next expansion changes
       // A graph holding both modes' branches (from a shared link) isn't this
       // mode's own graph, so swapping back starts this mode fresh instead.
-      stashRef.current[mode] = graphFitsMode(ops, start, mode) ? { root: rootWord, ops, start, selectedId } : undefined;
-      const stashed = stashRef.current[next];
-      const saved =
-        stashed?.root === rootWord ? stashed : { ...freshGraph(rootWord, next), selectedId: wordNodeId(rootWord) };
+      stashRef.current[stashKey(rootWord, mode)] = graphFitsMode(ops, start, mode) ? { ops, start, selectedId } : undefined;
+      const saved = stashRef.current[stashKey(rootWord, next)] ?? {
+        ...freshGraph(rootWord, next),
+        selectedId: wordNodeId(rootWord),
+      };
       setStart(saved.start);
       setOps(saved.ops);
       // A word you've picked out stays selected if the other graph has it too;
@@ -605,10 +618,23 @@ export default function App() {
     shownRef.current = key;
   }, [dataset.loading, graphUrl, rootWord, ops, mode, start]);
 
+  const leavingGraphRef = useRef(null);
+  useEffect(() => {
+    leavingGraphRef.current = { rootWord, mode, ops, start, selectedId, modeSwitch };
+  });
   useEffect(() => {
     function onPopState() {
       const state = readLocation();
       const root = state?.root ?? DEFAULT_ROOT;
+      // Back into the other mode leaves this graph the same way a swap does.
+      const left = leavingGraphRef.current;
+      if (left.modeSwitch === "separate" && left.mode !== (state?.mode ?? "kanji") && graphFitsMode(left.ops, left.start, left.mode)) {
+        stashRef.current[stashKey(left.rootWord, left.mode)] = {
+          ops: left.ops,
+          start: left.start,
+          selectedId: left.selectedId,
+        };
+      }
       shownRef.current = graphKey(root, state?.ops ?? [], state?.start);
       setRootWord(root);
       setOps(state?.ops ?? []);
@@ -662,6 +688,8 @@ export default function App() {
   const handleNodeExpand = useCallback(
     (nodeId, forMode = mode) => {
       setSelectedId(nodeId);
+      // The graph on screen is about to be replaced by one still loading.
+      if (!semanticReady) return;
       // The root starts out expanded, so double-clicking it changes nothing
       // and isn't a first expand.
       const target = graph?.nodes.get(nodeId);
@@ -696,11 +724,28 @@ export default function App() {
       };
       // Meaning neighbours, or a kanji reveal off the Familiar end of the
       // dial, need the semantic data; fetch it first (it's cached after).
-      const needs = bySense ? [target.word] : [];
-      if (bySense || dial > 0) loadSemantic(needs).then(apply, () => {});
-      else apply();
+      if (!bySense && !(target.type === "kanji" && dial > 0)) {
+        apply();
+        return;
+      }
+      const pendingKey = `${forMode}:${nodeId}`;
+      if (pendingExpandsRef.current.has(pendingKey)) return;
+      pendingExpandsRef.current.add(pendingKey);
+      loadSemantic(bySense ? [target.word] : []).then(
+        () => {
+          pendingExpandsRef.current.delete(pendingKey);
+          // You've moved on to another graph; this expansion isn't for it.
+          if (navKeyRef.current !== navKey) return;
+          // Only now, with frequencies loaded, can a word turn out to have none.
+          if (bySense && meaningExpansionDone(target, semanticStore)) setNoRelatedFor(nodeId);
+          else apply();
+        },
+        () => {
+          pendingExpandsRef.current.delete(pendingKey);
+        }
+      );
     },
-    [dataset, graph, mode, commonness, maxWords, isJlptAllowed, semanticStore, loadSemantic]
+    [dataset, graph, mode, navKey, semanticReady, commonness, maxWords, isJlptAllowed, semanticStore, loadSemantic]
   );
 
   // The way across to the other mode from a word. With one graph that's just
@@ -712,28 +757,62 @@ export default function App() {
     (word, selectId) => {
       const next = mode === "meaning" ? "kanji" : "meaning";
       const nodeId = wordNodeId(word);
-      if (modeSwitch === "mixed") {
-        handleNodeExpand(nodeId, next);
+      const cross = () => {
+        if (modeSwitch === "mixed") {
+          handleNodeExpand(nodeId, next);
+          return;
+        }
+        if (word === rootWord) {
+          handleSetMode(next);
+        } else {
+          track("mode-switch");
+          const fresh = freshGraph(word, next);
+          stashRef.current[stashKey(rootWord, mode)] = graphFitsMode(ops, start, mode)
+            ? { ops, start, selectedId }
+            : undefined;
+          setMode(next);
+          setRootWord(word);
+          setStart(fresh.start);
+          setOps(fresh.ops);
+          setSelectedId(nodeId);
+          setNavKey((k) => k + 1);
+          setViewKey((k) => k + 1);
+          addRecent(word);
+        }
+        if (selectId) setSelectedId(selectId);
+      };
+      if (next === "kanji") {
+        cross();
         return;
       }
-      if (word === rootWord) {
-        handleSetMode(next);
-      } else {
-        track("mode-switch");
-        const fresh = freshGraph(word, next);
-        stashRef.current = {};
-        setMode(next);
-        setRootWord(word);
-        setStart(fresh.start);
-        setOps(fresh.ops);
-        setSelectedId(nodeId);
-        setNavKey((k) => k + 1);
-        setViewKey((k) => k + 1);
-        addRecent(word);
-      }
-      if (selectId) setSelectedId(selectId);
+      // Whether the word has any neighbours isn't known until frequencies
+      // load, and it shouldn't leave this graph for a lone node if it doesn't.
+      const rank = graph?.nodes.get(nodeId)?.rank;
+      loadSemantic([word]).then(
+        () => {
+          if (navKeyRef.current !== navKey) return;
+          if (semanticStore.hasNeighbours(word, rank)) cross();
+          else setNoRelatedFor(nodeId);
+        },
+        () => {}
+      );
     },
-    [mode, modeSwitch, rootWord, handleNodeExpand, handleSetMode, freshGraph, addRecent]
+    [
+      mode,
+      modeSwitch,
+      rootWord,
+      ops,
+      start,
+      selectedId,
+      graph,
+      navKey,
+      semanticStore,
+      loadSemantic,
+      handleNodeExpand,
+      handleSetMode,
+      freshGraph,
+      addRecent,
+    ]
   );
 
   // Clicking a card in the dictionary panel's "Kanji" (word view) or
@@ -783,14 +862,14 @@ export default function App() {
   // Meaning mode has nothing to show for this word, which a lone node or a
   // double-click doing nothing wouldn't explain on its own.
   const noRelatedWords =
-    mode === "meaning" &&
+    (mode === "meaning" || noRelatedFor === selectedId) &&
     rawSelected?.type === "word" &&
     semanticStore.hasFrequency() &&
     !semanticStore.hasNeighbours(rawSelected.word, rawSelected.rank);
   let crossLabel = null;
   if (rawSelected?.type === "word") {
     if (mode === "kanji") {
-      if (!meaningExpansionDone(rawSelected, semanticStore)) crossLabel = "Related in meaning";
+      if (!semantic.failed && !meaningExpansionDone(rawSelected, semanticStore)) crossLabel = "Related in meaning";
     } else if (componentKanji.length > 0 && (modeSwitch === "separate" || !rawSelected.expanded)) {
       crossLabel = "See its kanji";
     }

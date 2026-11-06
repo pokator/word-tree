@@ -129,6 +129,9 @@ experiment, picked in Filters → **Switching modes**:
   decides what the next word expansion shows, so kanji and meaning
   branches mix.
 
+Either way, Reset goes back to where the current mode starts, and a selected
+word's entry offers the way across to the other mode.
+
 **Filters** (graph panel toolbar) — ways to control what the graph
 shows. Each mode has its own set: Link pattern and the Kanji path
 highlight only describe kanji links, so Meaning mode drops them (and

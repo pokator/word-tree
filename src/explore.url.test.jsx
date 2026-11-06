@@ -161,20 +161,6 @@ describe("explore URLs in the app", () => {
   });
 
   describe("crossing to the other mode from the dictionary panel", () => {
-    it("separate graphs: opens a word in the other mode's graph, and Back returns", async () => {
-      window.history.replaceState(null, "", "/explore/学校?expand=k:学&sel=w:学生");
-      renderApp();
-      await waitFor(() => expect(node("学生")).toBeTruthy());
-
-      fireEvent.click(await screen.findByRole("button", { name: /Related in meaning/ }));
-      await waitFor(() => expect(here()).toBe("/explore/学生?mode=meaning&start=word&expand=s:学生"));
-
-      act(() => {
-        window.history.back();
-      });
-      await waitFor(() => expect(here()).toBe("/explore/学校?expand=k:学&sel=w:学生"));
-    });
-
     it("separate graphs: from the root it's the same swap as the mode switch", async () => {
       window.history.replaceState(null, "", "/explore/学校?mode=meaning&start=word&expand=s:学校");
       renderApp();

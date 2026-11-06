@@ -64,9 +64,11 @@ export function useForceSimulation(graph, width, height, active = true, layoutSl
       restored = switchLayoutSlot(state, layoutSlotRef.current, layoutSlot);
       layoutSlotRef.current = layoutSlot;
     }
+    const settled = restored && [...graph.nodes.keys()].every((id) => state.nodes.has(id));
     reconcileLayout(state, sim, graph, width, height);
-    // A restored layout has already settled; just let it breathe.
-    sim.alpha(restored ? 0.05 : 0.5).restart();
+    // A restored layout has already settled, so it just breathes; any new
+    // nodes in it still need to find their place.
+    sim.alpha(settled ? 0.05 : 0.5).restart();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [graph, width, height, layoutSlot]);
 
