@@ -189,6 +189,14 @@ describe("organizeLayout", () => {
     expect(positions.size).toBe(411);
   }, 30000);
 
+  it("keeps linked words sharing many others compact", () => {
+    const graph = SHAPES["linked words sharing many others"]();
+    const positions = [...organizeLayout(graph, { width: 800, height: 700 }).values()];
+    const spread = (axis) => Math.max(...positions.map((p) => p[axis])) - Math.min(...positions.map((p) => p[axis]));
+    expect(spread("x")).toBeLessThan(900);
+    expect(spread("y")).toBeLessThan(900);
+  });
+
   it("copes with an empty graph", () => {
     expect(organizeLayout({ nodes: new Map(), links: [] }).size).toBe(0);
   });

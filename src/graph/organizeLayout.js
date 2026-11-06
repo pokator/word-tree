@@ -49,7 +49,11 @@ const MIN_ASPECT_SQUEEZE = 0.72;
 const COMPACT_PASSES = 3;
 const COMPACT_STEP = 0.92;
 const MIN_COMPACT_MOVE = 0.5;
-const SHARED_WORD_ROOM = 0.8;
+const SHARED_WORD_ROOM = 1.2;
+const MAX_STACK_ROOM = 3;
+const stackColumns = (count) => (count > STACK_THREE_COLUMNS ? 3 : count > STACK_TWO_COLUMNS ? 2 : 1);
+const STACK_TWO_COLUMNS = 6;
+const STACK_THREE_COLUMNS = 15;
 const MAX_STACK_NUDGE = 6;
 // Past this a graph is always zoomed out, so there's no need to arrange it once
 // just to find that out.
@@ -230,28 +234,30 @@ function placeSharedWords(shared, adj, positions, foot) {
     const len = Math.hypot(b.x - a.x, b.y - a.y) || 1;
     const nx = -(b.y - a.y) / len;
     const ny = (b.x - a.x) / len;
-    // A stack across the line between its anchors: centered between them if
-    // there's room, and otherwise as near the middle as there is. If that line
-    // is a real link, the stack can't sit on it.
+    // A stack across the line between its anchors, in columns once it's long,
+    // so it can't push the graph far apart. Centered between them if there's
+    // room, and otherwise as near the middle as there is. If that line is a real
+    // link, the stack goes either side of it instead of on it.
     const step = Math.max(...ids.map(foot));
     const linked = names.length === 2 && adj.get(names[0]).has(names[1]);
-    const middle = (ids.length - 1) / 2;
+    const columns = stackColumns(ids.length);
+    const rows = Math.ceil(ids.length / columns);
+    const spot = (i, nudge) => {
+      const row = Math.floor(i / columns);
+      const across = linked ? (row % 2 ? -1 : 1) * (0.75 + Math.floor(row / 2)) : row - (rows - 1) / 2;
+      const along = (i % columns) - (columns - 1) / 2;
+      const offset = step * (across + nudge);
+      return { x: cx + nx * offset + ny * step * along, y: cy + ny * offset - nx * step * along };
+    };
     const isClear = (nudge) =>
       ids.every((id, i) => {
-        const offset = step * (i - middle + nudge);
-        const x = cx + nx * offset;
-        const y = cy + ny * offset;
-        return [...positions].every(([other, p]) => Math.hypot(p.x - x, p.y - y) >= (foot(id) + foot(other)) / 2);
+        const s = spot(i, nudge);
+        return [...positions].every(([other, p]) => Math.hypot(p.x - s.x, p.y - s.y) >= (foot(id) + foot(other)) / 2);
       });
-    const onLine = (nudge) => linked && ids.some((_, i) => Math.abs(i - middle + nudge) < 0.75);
-    // Far enough out that even the longest stack can clear the line entirely.
-    const nudges = [];
-    for (let distance = 0; distance <= MAX_STACK_NUDGE + middle + 1; distance += 0.5) nudges.push(distance, -distance);
-    const nudge = nudges.find((n) => !onLine(n) && isClear(n)) ?? nudges.find((n) => !onLine(n));
-    ids.forEach((id, i) => {
-      const offset = step * (i - middle + nudge);
-      positions.set(id, { x: cx + nx * offset, y: cy + ny * offset });
-    });
+    const nudges = [0];
+    if (!linked) for (let distance = 0.5; distance <= MAX_STACK_NUDGE; distance += 0.5) nudges.push(distance, -distance);
+    const nudge = nudges.find(isClear) ?? 0;
+    ids.forEach((id, i) => positions.set(id, spot(i, nudge)));
   }
 }
 
@@ -314,13 +320,19 @@ function compact(graph, rootId, children, shared, adj, positions, foot, passes) 
     for (let i = 0; i < anchors.length; i++) {
       for (let j = i + 1; j < anchors.length; j++) {
         const pair = `${anchors[i]}|${anchors[j]}`;
-        const entry = between.get(pair) ?? { a: anchors[i], b: anchors[j], room: 0 };
-        entry.room += foot(id) * SHARED_WORD_ROOM;
+        const entry = between.get(pair) ?? { a: anchors[i], b: anchors[j], count: 0, largest: 0 };
+        entry.count += 1;
+        entry.largest = Math.max(entry.largest, foot(id));
         between.set(pair, entry);
       }
     }
   }
-  const keepApart = [...between.values()].map(({ a, b, room }) => ({ a, b, dist: (foot(a) + foot(b)) / 2 + room }));
+  // Only as wide as a stack gets: a long one grows across the line, not along it.
+  const keepApart = [...between.values()].map(({ a, b, count, largest }) => ({
+    a,
+    b,
+    dist: (foot(a) + foot(b)) / 2 + largest * Math.min(count, MAX_STACK_ROOM) * SHARED_WORD_ROOM,
+  }));
 
   const placed = [...positions.keys()];
   const links = [];
