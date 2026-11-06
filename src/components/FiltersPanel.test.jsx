@@ -21,6 +21,12 @@ const base = {
 };
 
 describe("FiltersPanel per mode", () => {
+  it("marks Switching modes as beta", () => {
+    render(<FiltersPanel {...base} mode="kanji" commonness={0} onSetCommonness={() => {}} />);
+    expect(screen.getByText("Switching modes")).toHaveTextContent("Switching modes Beta");
+    expect(screen.queryByText("Experiment")).toBeNull();
+  });
+
   it("kanji mode keeps the kanji-link controls", () => {
     render(<FiltersPanel {...base} mode="kanji" commonness={0} onSetCommonness={() => {}} />);
     expect(screen.getByText("Link pattern")).toBeInTheDocument();

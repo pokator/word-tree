@@ -684,13 +684,18 @@
   border-top: 1px dashed var(--border);
   padding-top: 10px;
 }
-.filters-panel__tag {
+.beta-tag {
+  display: inline-block;
+  flex-shrink: 0;
   font-size: 10px;
+  font-weight: 600;
+  line-height: 14px;
   letter-spacing: 0.04em;
-  padding: 0 5px;
+  padding: 0 4px;
   margin-left: 4px;
+  color: var(--text);
   border: 1px solid var(--border);
-  border-radius: 9999px;
+  border-radius: 3px;
   text-transform: uppercase;
 }
 
@@ -1849,9 +1854,14 @@
 /* Kanji | Meaning -- which way expanding a word branches. A compact
    segmented control: the active half takes the accent wash, same as an
    active Filters chip. */
+.mode-toggle-wrap {
+  display: inline-flex;
+  align-items: center;
+  margin-right: auto;
+  flex-shrink: 0;
+}
 .mode-toggle {
   display: inline-flex;
-  margin-right: auto;
   border: 1px solid var(--border);
   border-radius: 6px;
   overflow: hidden;
@@ -2624,6 +2634,19 @@ button.legend__row.is-inactive:hover {
 }
 .app:is([data-layout="phone"], [data-layout="rail"]) .dictionary-panel {
   padding: 20px 16px 28px;
+}
+/* A phone's toolbar has no room for the heading beside the mode switch, Beta
+   box and 44px buttons, and the switch says what this bar is anyway. */
+.app[data-layout="phone"] .graph-panel__toolbar {
+  padding-inline: 12px;
+  gap: 8px;
+}
+.app[data-layout="phone"] .graph-panel__heading {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
 }
 .app:is([data-layout="phone"], [data-layout="rail"]) .dictionary-panel__headword {
   font-size: 40px;

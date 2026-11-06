@@ -289,20 +289,27 @@ export default function GraphPanel({
       <div className="graph-panel__toolbar">
         <span className="graph-panel__heading">Explore</span>
         {onSetMode && (
-          <div className="mode-toggle" role="radiogroup" aria-label="Exploration mode">
-            {MODES.map(({ value, label, title }) => (
-              <button
-                key={value}
-                type="button"
-                role="radio"
-                aria-checked={mode === value}
-                className={`mode-toggle__btn${mode === value ? " is-active" : ""}`}
-                onClick={() => onSetMode(value)}
-                title={title}
-              >
-                {label}
-              </button>
-            ))}
+          <div className="mode-toggle-wrap">
+            <div className="mode-toggle" role="radiogroup" aria-label="Exploration mode">
+              {MODES.map(({ value, label, title }) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={mode === value}
+                  className={`mode-toggle__btn${mode === value ? " is-active" : ""}`}
+                  onClick={() => onSetMode(value)}
+                  title={title}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {/* Outside the toggle, right after its Meaning half, so the tab's
+                own name stays "Meaning". */}
+            <span className="beta-tag" title="Meaning mode is in beta">
+              Beta
+            </span>
           </div>
         )}
         <div className="graph-panel__toolbar-actions">

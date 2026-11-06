@@ -188,7 +188,7 @@ export default function FiltersPanel({
       {onSetModeSwitch && (
         <div className="filters-panel__section filters-panel__section--experiment">
           <span id="mode-switch-label" className="filters-panel__label">
-            Switching modes <span className="filters-panel__tag">Experiment</span>
+            Switching modes <span className="beta-tag">Beta</span>
           </span>
           <div className="filters-panel__chips" role="radiogroup" aria-labelledby="mode-switch-label">
             {MODE_SWITCH_OPTIONS.map(({ value, label }) => (

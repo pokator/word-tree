@@ -5,6 +5,15 @@ import GraphPanel from "./GraphPanel";
 const STATS = { words: 1, kanji: 0 };
 const panel = (props) => render(<GraphPanel graph={null} stats={STATS} onSetMode={() => {}} {...props} />);
 
+describe("GraphPanel mode switch", () => {
+  it("marks Meaning as beta, right after its tab", () => {
+    panel({ mode: "kanji" });
+    const meaning = screen.getByRole("radio", { name: "Meaning" });
+    expect(meaning.parentElement.nextElementSibling).toHaveTextContent("Beta");
+    expect(meaning.parentElement.lastElementChild).toBe(meaning);
+  });
+});
+
 describe("GraphPanel dead ends", () => {
   it("says when a word has no related words, and offers the way across", () => {
     const onCross = vi.fn();
