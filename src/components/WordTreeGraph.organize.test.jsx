@@ -141,6 +141,19 @@ describe("WordTreeGraph Organize", () => {
     expect(distanceFrom("日本語", root)).toBeLessThan(NEAR_HOME);
   });
 
+  it("flows outward along only the selected node's lines, whichever way round they run", async () => {
+    const { rerender } = render(<WordTreeGraph {...props} graph={makeGraph()} selectedId="kanji:日" />);
+    await waitFor(() => expect(nodeEl("毎日")).toBeTruthy());
+    const flows = () => [...document.querySelectorAll(".graph-link-flow")];
+    // Selected 日: one link arrives from 日本語, three leave for its words.
+    expect(flows()).toHaveLength(4);
+    expect(flows().filter((f) => f.classList.contains("graph-link-flow--reverse"))).toHaveLength(1);
+
+    rerender(<WordTreeGraph {...props} graph={makeGraph()} selectedId="word:毎日" />);
+    expect(flows()).toHaveLength(1);
+    expect(flows()[0].classList.contains("graph-link-flow--reverse")).toBe(true);
+  });
+
   it("marks the selected node's own lines", async () => {
     const { rerender } = render(<WordTreeGraph {...props} graph={makeGraph()} selectedId="kanji:日" />);
     await waitFor(() => expect(nodeEl("毎日")).toBeTruthy());

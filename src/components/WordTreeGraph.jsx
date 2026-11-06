@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { select } from "d3-selection";
 import { zoom as d3zoom, zoomIdentity } from "d3-zoom";
 import { refreshForces } from "../graph/forceLayout";
@@ -669,32 +669,45 @@ export default function WordTreeGraph({
               // The selected node's own lines stand out, so you can follow
               // them through a busy graph (a shared word's to each parent).
               const incident = s.id === selectedId || t.id === selectedId ? " graph-link--incident" : "";
+              // A link runs from however it was first revealed, so whichever
+              // way round the selected node is, flow still heads away from it.
+              const towardSource = t.id === selectedId ? " graph-link-flow--reverse" : "";
               // Meaning-mode links (word -> related word) are wavy, so they
               // read apart from straight kanji links by shape alone, without
               // spending a hue or a dash pattern (both already mean something
               // here).
               if (l.kind === "semantic") {
+                const d = wavyLinkPath(s.x, s.y, t.x, t.y);
                 return (
-                  <path
-                    key={`${s.id}~>${t.id}`}
-                    d={wavyLinkPath(s.x, s.y, t.x, t.y)}
-                    fill="none"
-                    vectorEffect="non-scaling-stroke"
-                    className={`graph-link graph-link--semantic${incident}`}
-                  />
+                  <Fragment key={`${s.id}~>${t.id}`}>
+                    <path
+                      d={d}
+                      fill="none"
+                      vectorEffect="non-scaling-stroke"
+                      className={`graph-link graph-link--semantic${incident}`}
+                    />
+                    {incident && <path d={d} pathLength="1" className={`graph-link-flow${towardSource}`} />}
+                  </Fragment>
                 );
               }
               return (
-                <line
-                  key={`${s.id}->${t.id}`}
-                  x1={s.x}
-                  y1={s.y}
-                  x2={t.x}
-                  y2={t.y}
-                  vectorEffect="non-scaling-stroke"
-                  className={`graph-link${linkClass}${incident}${pathColor ? " graph-link--kanji-path" : ""}`}
-                  style={pathColor ? { stroke: pathColor } : undefined}
-                />
+                <Fragment key={`${s.id}->${t.id}`}>
+                  <line
+                    x1={s.x}
+                    y1={s.y}
+                    x2={t.x}
+                    y2={t.y}
+                    vectorEffect="non-scaling-stroke"
+                    className={`graph-link${linkClass}${incident}${
+                      pathColor ? ` graph-link--kanji-path${towardSource ? " graph-link--kanji-path-reverse" : ""}` : ""
+                    }`}
+                    style={pathColor ? { stroke: pathColor } : undefined}
+                  />
+                  {/* A kanji-path link is flowing already. */}
+                  {incident && !pathColor && (
+                    <line x1={s.x} y1={s.y} x2={t.x} y2={t.y} pathLength="1" className={`graph-link-flow${towardSource}`} />
+                  )}
+                </Fragment>
               );
             })}
           </g>
