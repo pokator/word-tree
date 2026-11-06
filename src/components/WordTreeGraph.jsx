@@ -13,6 +13,19 @@ import { organizeLayout } from "../graph/organizeLayout";
 import { wavyLinkPath } from "../graph/wavyLink";
 import { track } from "../lib/analytics";
 
+// The flow along the selected node's lines: a soft band of ink, half a line
+// long, that crosses from one end to the other in FLOW_TRAVEL_MS. Each stop
+// brightens and fades as the band passes it (see App.css's
+// graph-link-flow-stop), so the stops are timed by how far along the line they
+// are. Every line's own gradient inherits these, so they all share one set.
+const FLOW_STOPS_ID = "graph-flow-stops";
+const FLOW_TRAVEL_MS = 4400;
+const FLOW_BAND = 0.5;
+const FLOW_STOPS = Array.from({ length: 13 }, (_, i) => {
+  const offset = i / 12;
+  return { offset, delay: Math.round((offset * FLOW_TRAVEL_MS) / (1 + FLOW_BAND)) };
+});
+
 const DRAG_CLICK_THRESHOLD_PX = 5;
 // A fingertip wobbles far more than a mouse between press and release --
 // at the mouse's 5px, a lot of honest taps would register as tiny drags
@@ -634,9 +647,17 @@ export default function WordTreeGraph({
         </button>
       </div>
       <svg ref={svgRef} width={size.width} height={size.height}>
+        <defs>
+          {/* Keyed so a new selection's first pulse sets off right away. */}
+          <linearGradient key={selectedId} id={FLOW_STOPS_ID}>
+            {FLOW_STOPS.map(({ offset, delay }) => (
+              <stop key={offset} offset={offset} className="graph-link-flow__stop" style={{ animationDelay: `${delay}ms` }} />
+            ))}
+          </linearGradient>
+        </defs>
         <g ref={gRef}>
           <g className="links">
-            {graph.links.map((l) => {
+            {graph.links.map((l, i) => {
               const s = nodesById.get(typeof l.source === "object" ? l.source.id : l.source);
               const t = nodesById.get(typeof l.target === "object" ? l.target.id : l.target);
               if (!s || !t) return null;
@@ -676,7 +697,19 @@ export default function WordTreeGraph({
               const incident = s.id === selectedId || t.id === selectedId ? " graph-link--incident" : "";
               // A link runs from however it was first revealed, so whichever
               // way round the selected node is, flow still heads away from it.
-              const towardSource = t.id === selectedId ? " graph-link-flow--reverse" : "";
+              const towardSource = t.id === selectedId;
+              const flowId = `graph-flow-${i}`;
+              const flowGradient = incident && (
+                <linearGradient
+                  id={flowId}
+                  href={`#${FLOW_STOPS_ID}`}
+                  gradientUnits="userSpaceOnUse"
+                  x1={towardSource ? t.x : s.x}
+                  y1={towardSource ? t.y : s.y}
+                  x2={towardSource ? s.x : t.x}
+                  y2={towardSource ? s.y : t.y}
+                />
+              );
               // Meaning-mode links (word -> related word) are wavy, so they
               // read apart from straight kanji links by shape alone, without
               // spending a hue or a dash pattern (both already mean something
@@ -691,7 +724,12 @@ export default function WordTreeGraph({
                       vectorEffect="non-scaling-stroke"
                       className={`graph-link graph-link--semantic${incident}`}
                     />
-                    {incident && <path d={d} pathLength="1" className={`graph-link-flow${towardSource}`} />}
+                    {incident && (
+                      <>
+                        {flowGradient}
+                        <path d={d} stroke={`url(#${flowId})`} className="graph-link-flow" />
+                      </>
+                    )}
                   </Fragment>
                 );
               }
@@ -710,7 +748,10 @@ export default function WordTreeGraph({
                   />
                   {/* A kanji-path link is flowing already. */}
                   {incident && !pathColor && (
-                    <line x1={s.x} y1={s.y} x2={t.x} y2={t.y} pathLength="1" className={`graph-link-flow${towardSource}`} />
+                    <>
+                      {flowGradient}
+                      <line x1={s.x} y1={s.y} x2={t.x} y2={t.y} stroke={`url(#${flowId})`} className="graph-link-flow" />
+                    </>
                   )}
                 </Fragment>
               );

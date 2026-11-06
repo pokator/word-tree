@@ -145,13 +145,21 @@ describe("WordTreeGraph Organize", () => {
     const { rerender } = render(<WordTreeGraph {...props} graph={makeGraph()} selectedId="kanji:日" />);
     await waitFor(() => expect(nodeEl("毎日")).toBeTruthy());
     const flows = () => [...document.querySelectorAll(".graph-link-flow")];
-    // Selected 日: one link arrives from 日本語, three leave for its words.
+    // Where the gradient on a flow starts, which is the end it flows from.
+    const flowStart = (flow) => {
+      const id = /url\(#(.+)\)/.exec(flow.getAttribute("stroke"))[1];
+      const gradient = document.getElementById(id);
+      return { x: Number(gradient.getAttribute("x1")), y: Number(gradient.getAttribute("y1")) };
+    };
+    // Selected 日: one link arrives from 日本語, three leave for its words, so
+    // the first runs the other way round from the rest.
     expect(flows()).toHaveLength(4);
-    expect(flows().filter((f) => f.classList.contains("graph-link-flow--reverse"))).toHaveLength(1);
+    for (const flow of flows()) expect(flowStart(flow)).toEqual(where("日"));
 
     rerender(<WordTreeGraph {...props} graph={makeGraph()} selectedId="word:毎日" />);
+    // The only link runs 日 -> 毎日, into the selected node.
     expect(flows()).toHaveLength(1);
-    expect(flows()[0].classList.contains("graph-link-flow--reverse")).toBe(true);
+    expect(flowStart(flows()[0])).toEqual(where("毎日"));
   });
 
   it("ends a drag still going on, so its release can't save bad positions", async () => {
