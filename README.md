@@ -335,7 +335,7 @@ of sync.
   site's own origin (`/m/*` rewrites in `vercel.json`) so blockers that
   match Umami's domain don't hide visitors. It only loads on the production
   domain; the custom events (search, first expand, organize, bookmark, sign-in, Anki
-  connect/blocked, `.tsv` export, share) are in `src/lib/analytics.js`'s
+  connect/blocked, `.tsv` export, share) are in `src/lib/events.js`'s
   callers.
 - `src/anki/ankiConnect.js` talks to AnkiConnect's local HTTP API;
   `src/anki/ankiSync.js` is the two-way bridge (cards out, status back),

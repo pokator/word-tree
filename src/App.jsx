@@ -18,7 +18,7 @@ import { useGroups } from "./groups/useGroups";
 import { useAnkiSync } from "./anki/useAnkiSync";
 import { useTheme } from "./theme/useTheme";
 import { useLayoutMode } from "./lib/useLayoutMode";
-import { track, trackOnce } from "./lib/analytics";
+import { track, trackOnce } from "./lib/events";
 import {
   expandOp,
   exploreUrl,

@@ -1,6 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { resetTrackOnce } from "../lib/analytics";
+import { resetTrackOnce } from "../lib/events";
 import { useAnkiSync } from "./useAnkiSync";
 
 vi.mock("./ankiConnect", async (importOriginal) => ({

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { track, trackOnce } from "./analytics";
+import { track, trackOnce } from "./events";
 
 describe("analytics", () => {
   afterEach(() => {

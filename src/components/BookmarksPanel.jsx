@@ -5,7 +5,7 @@ import { useAnkiBlock } from "../anki/reachability";
 import { buildCollections } from "../bookmarks/collections";
 import { useAuth } from "../auth/useAuth";
 import { isSupabaseConfigured } from "../lib/supabaseClient";
-import { track, trackOnce } from "../lib/analytics";
+import { track, trackOnce } from "../lib/events";
 import AccountSync from "./AccountSync";
 import AnkiSetupHelp from "./AnkiSetupHelp";
 

@@ -11,7 +11,7 @@ import { fitTransform, overlayInsets } from "../graph/fitTransform";
 import { kanjiPathColorMap, charOffsetX } from "../graph/kanjiPathColors";
 import { organizeLayout } from "../graph/organizeLayout";
 import { wavyLinkPath } from "../graph/wavyLink";
-import { track } from "../lib/analytics";
+import { track } from "../lib/events";
 
 // The flow along the selected node's lines: a soft band of ink, half a line
 // long, that crosses from one end to the other in FLOW_TRAVEL_MS. Each stop

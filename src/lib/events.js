@@ -2,6 +2,9 @@
 // production domain, so everywhere else -- dev, previews, tests -- window.umami
 // is undefined and these are no-ops. Analytics must never break the app, so
 // every call is guarded.
+//
+// Don't name this file analytics.js: EasyPrivacy blocks /lib/analytics.js, and
+// in dev, where each module is its own request, that left a blank page.
 
 export function track(name, data) {
   try {
