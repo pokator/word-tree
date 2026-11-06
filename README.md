@@ -126,7 +126,7 @@ in similar contexts in real Japanese text instead of its kanji: 学校 leads to
 wavy, kanji links straight. The neighbours come from chiVe word vectors,
 computed offline (`scripts/semantic/`), and load lazily: frequencies
 (~0.7MB) the first time you use Meaning mode or move the Commonness dial,
-then one ~55KB file per expanded word. Kanji-mode visitors who never touch
+then one ~6KB file per selected word. Kanji-mode visitors who never touch
 either download nothing extra. What switching does to the graph is an
 experiment, picked in Filters → **Switching modes**:
 - **Separate graphs** (default): each mode keeps its own graph for the

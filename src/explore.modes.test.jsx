@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import { AuthProvider } from "./auth/AuthContext";
+import { encodeShard } from "./data/semanticTestUtils";
 
 // Timing between the graph and its semantic data, which loads lazily. 学生 has
 // no frequency entry, so it has no meaning neighbours.
@@ -12,19 +13,24 @@ const NEIGHBOURS = {
   中学校: [["小学校", 90]],
   日本: [["学校", 70]],
 };
-const net = vi.hoisted(() => ({ held: false, failing: false, waiting: [] }));
+const net = vi.hoisted(() => ({ held: false, failing: false, waiting: [], shardFetches: 0 }));
 
 vi.mock("./data/semantic", async (importActual) => {
   const actual = await importActual();
+  const respond = async (body) => {
+    if (net.held) await new Promise((resolve) => net.waiting.push(resolve));
+    if (net.failing) throw new Error("offline");
+    return body;
+  };
   return {
     ...actual,
     createSemanticStore: (options) =>
       actual.createSemanticStore({
         ...options,
-        fetchJson: async (url) => {
-          if (net.held) await new Promise((resolve) => net.waiting.push(resolve));
-          if (net.failing) throw new Error("offline");
-          return url.includes("frequency") ? FREQUENCY : NEIGHBOURS;
+        fetchJson: () => respond(FREQUENCY),
+        fetchBytes: () => {
+          net.shardFetches++;
+          return respond(encodeShard(NEIGHBOURS, Object.keys(FREQUENCY)));
         },
       }),
   };
@@ -71,9 +77,23 @@ const open = (url) => {
 describe("modes and lazily loaded meaning data", () => {
   beforeEach(() => {
     localStorage.clear();
-    Object.assign(net, { held: false, failing: false, waiting: [] });
+    Object.assign(net, { held: false, failing: false, waiting: [], shardFetches: 0 });
   });
   afterEach(() => window.history.replaceState(null, "", "/"));
+
+  it("fetches a selected word's neighbours in meaning mode, before it's expanded", async () => {
+    open("/explore/学校?mode=meaning&start=word");
+    await waitFor(() => expect(node("学校")).toBeTruthy());
+    await waitFor(() => expect(net.shardFetches).toBeGreaterThan(0));
+    expect(labels()).toEqual(["学校"]);
+  });
+
+  it("downloads no meaning data for a word selected in kanji mode", async () => {
+    open("/explore/学校?expand=k:学&sel=w:学生");
+    await waitFor(() => expect(node("学生")).toBeTruthy());
+    await settle();
+    expect(net.shardFetches).toBe(0);
+  });
 
   it("a search made while meaning data loads still builds that word's graph", async () => {
     net.held = true;
