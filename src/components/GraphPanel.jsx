@@ -171,6 +171,9 @@ export default function GraphPanel({
   onSetMode,
   modeSwitch,
   onSetModeSwitch,
+  deadEndWord,
+  crossLabel,
+  onCross,
   commonness,
   onSetCommonness,
   viewKey,
@@ -403,6 +406,16 @@ export default function GraphPanel({
       </div>
 
       <div className="graph-canvas">
+        {deadEndWord && (
+          <div className="graph-note" role="status">
+            No related words for {deadEndWord}.
+            {crossLabel && onCross && (
+              <button type="button" className="graph-note__action" onClick={onCross}>
+                {crossLabel} &rarr;
+              </button>
+            )}
+          </div>
+        )}
         {graph ? (
           <WordTreeGraph
             graph={graph}

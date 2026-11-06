@@ -79,8 +79,8 @@ export default function FiltersPanel({
           </div>
           <p className="filters-panel__hint">
             {meaning
-              ? "Everyday words, or rarer and more specific ones."
-              : "Which words a kanji shows first. Familiar is most common first."}
+              ? "Everyday words, or rarer and more specific ones. Applies from the next expansion; Reset redoes this graph."
+              : "Which words a kanji shows first. Familiar is most common first. Applies from the next expansion; Reset redoes this graph."}
           </p>
         </div>
       )}

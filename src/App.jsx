@@ -780,6 +780,13 @@ export default function App() {
   // meaning neighbours has nowhere to go, and with one graph, nor does one
   // whose other expansion is already on screen.
   const rawSelected = graph?.nodes.get(selectedId);
+  // Meaning mode has nothing to show for this word, which a lone node or a
+  // double-click doing nothing wouldn't explain on its own.
+  const noRelatedWords =
+    mode === "meaning" &&
+    rawSelected?.type === "word" &&
+    semanticStore.hasFrequency() &&
+    !semanticStore.hasNeighbours(rawSelected.word, rawSelected.rank);
   let crossLabel = null;
   if (rawSelected?.type === "word") {
     if (mode === "kanji") {
@@ -864,6 +871,9 @@ export default function App() {
       onSetMode={handleSetMode}
       modeSwitch={modeSwitch}
       onSetModeSwitch={handleSetModeSwitch}
+      deadEndWord={noRelatedWords ? rawSelected.word : null}
+      crossLabel={crossLabel}
+      onCross={crossLabel ? () => handleCrossMode(selectedNode.word) : undefined}
       commonness={commonness[mode]}
       onSetCommonness={handleSetCommonness}
       viewKey={viewKey}

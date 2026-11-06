@@ -1981,6 +1981,38 @@
    section tops out around 3 rows (JLPT packs its 6 levels into 2 columns
    to match), so the card reads as one wide, short block instead of a
    narrow, tall one. */
+/* Says why the graph can't grow from the selected word, and offers the way
+   out. Sits above the canvas, so it needs its own surface. */
+.graph-note {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px 12px;
+  width: max-content;
+  max-width: calc(100% - 32px);
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+}
+.graph-note__action {
+  font: inherit;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-h);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 .graph-legend {
   position: absolute;
   left: 16px;
