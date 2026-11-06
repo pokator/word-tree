@@ -3,6 +3,15 @@
 User-agent: meta-externalagent
 Disallow: /
 
+# These were 41% of all requests in Oct 2026, and crawling thousands of
+# different /kanji and /word pages is what uses up the free plan's function CPU.
+User-agent: meta-webindexer
+User-agent: amazonbot
+User-agent: ahrefsbot
+User-agent: gptbot
+User-agent: petalbot
+Disallow: /
+
 User-agent: *
 Allow: /
 # The explorer and its ~7MB dictionary are for people. Crawlers get the
