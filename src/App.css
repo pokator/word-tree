@@ -1347,7 +1347,10 @@
    normal (non-forwards) fill-mode means it stops influencing the element
    the instant it ends, and the breathe animation's matching 260ms delay
    picks up cleanly from exactly the state node-pop left behind, so the
-   glow doesn't visibly jump between "entering" and "breathing." */
+   glow doesn't visibly jump between "entering" and "breathing."
+   One breath shares the line flow's 8.8s cycle and its start (WordTreeGraph's
+   FLOW_START_MS is this same 260ms), so the node swells as a band sets off
+   along its lines, then rests until the next. */
 .graph-node__select-glow {
   fill: var(--select-glow-color, var(--text-h));
   filter: blur(var(--select-glow-blur));
@@ -1356,16 +1359,17 @@
   transform-origin: center;
   animation:
     node-pop 260ms cubic-bezier(0.2, 0.8, 0.3, 1.1),
-    select-glow-breathe 2400ms ease-in-out 260ms infinite;
+    select-glow-breathe 8800ms ease-in-out 260ms infinite;
 }
 
 @keyframes select-glow-breathe {
   0%,
+  25%,
   100% {
     opacity: var(--select-glow-opacity);
     transform: scale(1);
   }
-  50% {
+  12.5% {
     opacity: calc(var(--select-glow-opacity) * 1.4);
     transform: scale(1.12);
   }

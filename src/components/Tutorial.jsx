@@ -13,7 +13,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 // `.graph-node` group itself: the root starts out selected, and a
 // selected node's group also contains the blurred `__select-glow`
 // sibling circle (see App.css's select-glow-breathe), which scales up to
-// 1.12x on a 2.4s loop purely for decoration. That animation changes the
+// 1.12x on a loop purely for decoration. That animation changes the
 // GROUP's bounding rect every frame, and useTrackedRect below re-measures
 // every frame too -- so pointing at the group made the step-2 spotlight
 // visibly pulse and re-render in lockstep with the glow. `__fill` has

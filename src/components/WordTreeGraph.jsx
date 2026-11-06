@@ -21,9 +21,12 @@ import { track } from "../lib/events";
 const FLOW_STOPS_ID = "graph-flow-stops";
 const FLOW_TRAVEL_MS = 4400;
 const FLOW_BAND = 0.5;
+// When the selection glow's breath starts (App.css's select-glow-breathe), so
+// the node swells as each band sets off.
+const FLOW_START_MS = 260;
 const FLOW_STOPS = Array.from({ length: 13 }, (_, i) => {
   const offset = i / 12;
-  return { offset, delay: Math.round((offset * FLOW_TRAVEL_MS) / (1 + FLOW_BAND)) };
+  return { offset, delay: FLOW_START_MS + Math.round((offset * FLOW_TRAVEL_MS) / (1 + FLOW_BAND)) };
 });
 
 const DRAG_CLICK_THRESHOLD_PX = 5;
@@ -648,12 +651,15 @@ export default function WordTreeGraph({
       </div>
       <svg ref={svgRef} width={size.width} height={size.height}>
         <defs>
-          {/* Keyed so a new selection's first pulse sets off right away. */}
-          <linearGradient key={selectedId} id={FLOW_STOPS_ID}>
-            {FLOW_STOPS.map(({ offset, delay }) => (
-              <stop key={offset} offset={offset} className="graph-link-flow__stop" style={{ animationDelay: `${delay}ms` }} />
-            ))}
-          </linearGradient>
+          {/* Mounts in the same render as the selected node's glow, so their
+              animations start together and stay in step. */}
+          {selectedNode && (
+            <linearGradient key={selectedId} id={FLOW_STOPS_ID}>
+              {FLOW_STOPS.map(({ offset, delay }) => (
+                <stop key={offset} offset={offset} className="graph-link-flow__stop" style={{ animationDelay: `${delay}ms` }} />
+              ))}
+            </linearGradient>
+          )}
         </defs>
         <g ref={gRef}>
           <g className="links">

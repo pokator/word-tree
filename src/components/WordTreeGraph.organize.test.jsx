@@ -162,6 +162,20 @@ describe("WordTreeGraph Organize", () => {
     expect(flowStart(flows()[0])).toEqual(where("毎日"));
   });
 
+  it("starts the flow only once the selected node, and so its glow, is on the graph", async () => {
+    const stops = () => document.querySelectorAll(".graph-link-flow__stop");
+    const { rerender } = render(<WordTreeGraph {...props} graph={makeGraph()} selectedId="word:not-here-yet" />);
+    await waitFor(() => expect(nodeEl("毎日")).toBeTruthy());
+    expect(stops()).toHaveLength(0);
+    expect(document.querySelector(".graph-node__select-glow")).toBeNull();
+
+    rerender(<WordTreeGraph {...props} graph={makeGraph()} selectedId="word:毎日" />);
+    expect(stops().length).toBeGreaterThan(0);
+    expect(document.querySelector(".graph-node__select-glow")).toBeTruthy();
+    // The first stop is at the selected node's end, and starts with the breath.
+    expect(stops()[0].style.animationDelay).toBe("260ms");
+  });
+
   it("ends a drag still going on, so its release can't save bad positions", async () => {
     const graph = makeGraph();
     render(<WordTreeGraph {...props} graph={graph} />);
