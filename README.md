@@ -138,9 +138,14 @@ left, so clusters sink into each other as a graph grows. Organize works out a
 whole new layout from the graph's shape (`src/graph/organizeLayout.js`): each
 cluster gets space of its own, big fans spread over staggered rings, words
 shared between nodes go between them, and everything allows for labels, which
-keep their size as you zoom out. Nodes then hold where they are: dragging still
-works, and later expansions fan out around them until you organize again. The
-selected node's own lines also stand out, to follow one through a busy graph.
+keep their size as you zoom out. There's more room on a bigger screen, and a
+graph that would have to zoom out too far gets tightened. Nodes then rest on
+springs rather than being fixed: drag one and its neighbours get tugged along
+and settle back, and later expansions fan out around them until you organize
+again.
+
+The selected node's own lines stand out, with a soft pulse flowing out along
+each one, to follow them through a busy graph.
 
 **Filters** (graph panel toolbar) — ways to control what the graph
 shows. Each mode has its own set: Link pattern and the Kanji path
