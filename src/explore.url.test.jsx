@@ -138,6 +138,16 @@ describe("explore URLs in the app", () => {
     await waitFor(() => expect(here()).toBe("/explore/学校"));
   });
 
+  it("a kanji expands by the kanji Commonness setting even in Meaning mode", async () => {
+    localStorage.setItem("word-tree:mode-switch", "mixed");
+    localStorage.setItem("word-tree:commonness", JSON.stringify({ kanji: 0, meaning: 90 }));
+    window.history.replaceState(null, "", "/explore/学校?mode=meaning");
+    renderApp();
+    await waitFor(() => expect(node("学")).toBeTruthy());
+    doubleTap(node("学"));
+    await waitFor(() => expect(here()).toBe("/explore/学校?mode=meaning&expand=k:学&sel=k:学"));
+  });
+
   describe("Reset goes back to where the current mode starts", () => {
     const reset = () => fireEvent.click(screen.getByRole("button", { name: "Reset graph" }));
     const chooseSwitching = (name) => {

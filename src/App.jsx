@@ -654,7 +654,8 @@ export default function App() {
       const target = viewGraph?.nodes.get(nodeId);
       if (!target || target.expanded) return;
       const bySense = mode === "meaning" && target.type === "word";
-      const dial = commonness[mode];
+      // By what's expanding, not the mode: a kanji shows the same words either way.
+      const dial = bySense ? commonness.meaning : commonness.kanji;
       const apply = () => {
         trackOnce("first-expand");
         // k:学, k:学~40, k:学@60, w:学校, s:学校@70
