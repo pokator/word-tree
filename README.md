@@ -58,6 +58,13 @@ Supabase only accepts a custom email template once the project sends mail
 through a custom SMTP provider (Authentication → Emails → SMTP Settings) —
 its built-in sender also only delivers to the project's own team members.
 
+Supabase pauses a Free plan project after a week of low database activity,
+which takes sign-in down until it's resumed in the dashboard. To prevent that,
+`.github/workflows/supabase-keepalive.yml` reads one row every 8 hours and
+fails, which sends GitHub's failure email, if it can't. It needs two repository
+variables (Settings → Secrets and variables → Actions → Variables):
+`SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`.
+
 If Supabase isn't configured (or a fetch to it fails), the app silently
 falls back to the same bundled dataset, offline-style — you'll see "local
 dataset" in the graph panel's footer and can still explore, just without
