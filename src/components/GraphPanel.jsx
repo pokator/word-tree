@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import WordTreeGraph from "./WordTreeGraph";
 import FiltersPanel from "./FiltersPanel";
 import { kanjiPositionCategory } from "../graph/positionCategory";
+import { wavyLinkPath } from "../graph/wavyLink";
 import { useClickOutside } from "../lib/useClickOutside";
 import { useLayoutMode } from "../lib/useLayoutMode";
 
@@ -156,6 +157,8 @@ const MODES = [
   { value: "kanji", label: "Kanji", title: "Expand words into their kanji, and kanji into words that share them" },
   { value: "meaning", label: "Meaning", title: "Expand words into words related in meaning" },
 ];
+
+const MEANING_SWATCH_PATH = wavyLinkPath(0, 4, 16, 4, { amplitude: 2, halfWavelength: 8 });
 
 // True once the graph has a meaning link to explain in the legend.
 function hasSemanticLinks(graph) {
@@ -466,7 +469,10 @@ export default function GraphPanel({
                       <span className="legend__swatch legend__swatch--line" /> Kanji
                     </span>
                     <span className="legend__row" title="Words used in similar contexts">
-                      <span className="legend__swatch legend__swatch--line legend__swatch--line--meaning" /> Meaning
+                      <svg className="legend__wave" width="16" height="8" aria-hidden="true">
+                        <path d={MEANING_SWATCH_PATH} fill="none" />
+                      </svg>{" "}
+                      Meaning
                     </span>
                   </div>
                 )}

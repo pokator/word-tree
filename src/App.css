@@ -1117,7 +1117,7 @@
   stroke-dasharray: 0.5 5;
 }
 
-/* Meaning-mode links (word -> word related in meaning). Curved in
+/* Meaning-mode links (word -> word related in meaning). Wavy in
    WordTreeGraph, so shape alone sets them apart; drawn in the word-node tone
    rather than the neutral border so the meaning web reads as one family
    with the words it joins. */
@@ -2147,11 +2147,10 @@ button.legend__row.is-inactive:hover {
 .legend__swatch--line--dotted {
   border-top-style: dotted;
 }
-/* An arch, echoing the curved meaning links on the graph. */
-.legend__swatch--line--meaning {
-  height: 5px;
-  border-top-color: var(--node-word);
-  border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+/* A short wave, the same shape as the meaning links on the graph. */
+.legend__wave {
+  stroke: var(--node-word);
+  stroke-width: 1.5px;
 }
 
 /* Difficulty rows mirror the actual on-graph marker -- a full solid fill,

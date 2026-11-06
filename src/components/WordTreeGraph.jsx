@@ -8,6 +8,7 @@ import { kanjiPositionCategory } from "../graph/positionCategory";
 import { linkDistanceKey } from "../graph/linkDistanceKey";
 import { fitTransform, overlayInsets } from "../graph/fitTransform";
 import { kanjiPathColorMap, charOffsetX } from "../graph/kanjiPathColors";
+import { wavyLinkPath } from "../graph/wavyLink";
 
 const DRAG_CLICK_THRESHOLD_PX = 5;
 // A fingertip wobbles far more than a mouse between press and release --
@@ -540,17 +541,15 @@ export default function WordTreeGraph({
                     ? s.char
                     : null;
               const pathColor = pathChar ? kanjiPathColors.get(pathChar) : null;
-              // Meaning-mode links (word -> related word) bow slightly to
-              // one side, so they read apart from straight kanji links by
-              // shape alone, without spending a hue or a dash pattern
-              // (both already mean something here).
+              // Meaning-mode links (word -> related word) are wavy, so they
+              // read apart from straight kanji links by shape alone, without
+              // spending a hue or a dash pattern (both already mean something
+              // here).
               if (l.kind === "semantic") {
-                const mx = (s.x + t.x) / 2 - (t.y - s.y) * 0.12;
-                const my = (s.y + t.y) / 2 + (t.x - s.x) * 0.12;
                 return (
                   <path
                     key={`${s.id}~>${t.id}`}
-                    d={`M${s.x},${s.y} Q${mx},${my} ${t.x},${t.y}`}
+                    d={wavyLinkPath(s.x, s.y, t.x, t.y)}
                     fill="none"
                     vectorEffect="non-scaling-stroke"
                     className="graph-link graph-link--semantic"

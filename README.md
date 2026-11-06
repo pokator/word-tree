@@ -116,7 +116,7 @@ turned sideways, a side rail for the word next to a full-height graph.
 the web described above. In Meaning mode, expanding a word shows words used
 in similar contexts in real Japanese text instead of its kanji: 学校 leads to
 生徒, 教員 and 補習, and further out to 養護教諭. Meaning links are drawn
-curved, kanji links straight. The neighbours come from chiVe word vectors,
+wavy, kanji links straight. The neighbours come from chiVe word vectors,
 computed offline (`scripts/semantic/`), and load lazily: frequencies
 (~0.7MB) the first time you use Meaning mode or move the Commonness dial,
 then one ~55KB file per expanded word. Kanji-mode visitors who never touch
