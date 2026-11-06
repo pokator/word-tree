@@ -138,6 +138,69 @@ describe("explore URLs in the app", () => {
     await waitFor(() => expect(here()).toBe("/explore/学校"));
   });
 
+  describe("Reset goes back to where the current mode starts", () => {
+    const reset = () => fireEvent.click(screen.getByRole("button", { name: "Reset graph" }));
+    const chooseSwitching = (name) => {
+      fireEvent.click(screen.getByRole("button", { name: "Filters" }));
+      fireEvent.click(screen.getByRole("radio", { name }));
+      fireEvent.click(screen.getByRole("button", { name: "Filters" }));
+    };
+    const MEANING_START = "/explore/学校?mode=meaning&start=word&expand=s:学校";
+
+    it("in Meaning, even on a linked graph that mixes both modes", async () => {
+      window.history.replaceState(null, "", "/explore/学校?mode=meaning&expand=k:学");
+      renderApp();
+      await waitFor(() => expect(node("学生")).toBeTruthy());
+      reset();
+      await waitFor(() => expect(here()).toBe(MEANING_START));
+    });
+
+    it("in Kanji, even on a graph that started in Meaning", async () => {
+      localStorage.setItem("word-tree:mode-switch", "mixed");
+      window.history.replaceState(null, "", "/explore/学校?start=word&expand=s:学校");
+      renderApp();
+      await waitFor(() => expect(node("学校")).toBeTruthy());
+      reset();
+      await waitFor(() => expect(here()).toBe("/explore/学校"));
+      await waitFor(() => expect(labels()).toEqual(["学", "学校", "校"].sort()));
+    });
+
+    it("in One graph, Meaning resets to meaning words as well", async () => {
+      localStorage.setItem("word-tree:mode-switch", "mixed");
+      window.history.replaceState(null, "", "/explore/学校?mode=meaning&expand=k:学");
+      renderApp();
+      await waitFor(() => expect(node("学生")).toBeTruthy());
+      reset();
+      await waitFor(() => expect(here()).toBe(MEANING_START));
+    });
+
+    it("switching to Separate graphs clears a graph mixing both modes, and swapping can't bring it back", async () => {
+      localStorage.setItem("word-tree:mode-switch", "mixed");
+      window.history.replaceState(null, "", "/explore/学校?mode=meaning&expand=k:学");
+      renderApp();
+      await waitFor(() => expect(node("学生")).toBeTruthy());
+
+      chooseSwitching("Separate graphs");
+      await waitFor(() => expect(here()).toBe(MEANING_START));
+
+      fireEvent.click(screen.getByRole("radio", { name: "Kanji" }));
+      await waitFor(() => expect(here()).toBe("/explore/学校"));
+      fireEvent.click(screen.getByRole("radio", { name: "Meaning" }));
+      await waitFor(() => expect(here()).toBe(MEANING_START));
+    });
+
+    it("swapping away from a linked mixed graph starts that mode fresh on the way back", async () => {
+      window.history.replaceState(null, "", "/explore/学校?mode=meaning&expand=k:学");
+      renderApp();
+      await waitFor(() => expect(node("学生")).toBeTruthy());
+
+      fireEvent.click(screen.getByRole("radio", { name: "Kanji" }));
+      await waitFor(() => expect(here()).toBe("/explore/学校"));
+      fireEvent.click(screen.getByRole("radio", { name: "Meaning" }));
+      await waitFor(() => expect(here()).toBe(MEANING_START));
+    });
+  });
+
   it("Share falls back to copying when the share sheet refuses", async () => {
     window.history.replaceState(null, "", "/explore/学校");
     const writeText = vi.fn(async () => {});

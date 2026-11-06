@@ -22,6 +22,8 @@ import { track, trackOnce } from "./lib/analytics";
 import {
   expandOp,
   exploreUrl,
+  freshGraphState,
+  graphFitsMode,
   opsNeedFrequency,
   parseExploreUrl,
   replayGraph,
@@ -353,16 +355,9 @@ export default function App() {
   // membership, before groups became bookmark tags).
   const isBookmarked = useCallback((word) => saved.isSaved(word), [saved]);
 
-  // A brand-new graph for `root` in `forMode`: kanji mode (and any mode
-  // when switching mixes graphs) starts from the root and its kanji; a
-  // separate meaning graph starts from the root and its first batch of
-  // meaning neighbours.
   const freshGraph = useCallback(
-    (root, forMode) =>
-      forMode === "meaning" && modeSwitch === "separate"
-        ? { start: "word", ops: [expandOp(wordNodeId(root), maxWords, { mode: "meaning", commonness: commonness.meaning })] }
-        : { start: "kanji", ops: [] },
-    [modeSwitch, maxWords, commonness.meaning]
+    (root, forMode) => freshGraphState(root, forMode, { maxWords, commonness: commonness.meaning }),
+    [maxWords, commonness.meaning]
   );
 
   const handleSelectWord = useCallback(
@@ -403,16 +398,16 @@ export default function App() {
     [handleSelectWord, isDesktop, closeSidebar]
   );
 
-  // Resets only the graph on screen; with separate mode graphs, the other
-  // mode's graph is kept.
+  // Resets only the graph on screen, back to where the current mode starts;
+  // with separate mode graphs, the other mode's graph is kept.
   const handleReset = useCallback(() => {
-    const fresh = start === "word" && mode === "meaning" ? freshGraph(rootWord, "meaning") : { start, ops: [] };
+    const fresh = freshGraph(rootWord, mode);
     setStart(fresh.start);
     setOps(fresh.ops);
     setSelectedId(wordNodeId(rootWord));
     setNavKey((k) => k + 1);
     setViewKey((k) => k + 1);
-  }, [rootWord, start, mode, freshGraph]);
+  }, [rootWord, mode, freshGraph]);
 
   const handleSetMode = useCallback(
     (next) => {
@@ -422,7 +417,9 @@ export default function App() {
       if (next === "meaning") loadSemantic([rootWord]).catch(() => {});
       setMode(next);
       if (modeSwitch === "mixed") return; // same graph; only the next expansion changes
-      stashRef.current[mode] = { root: rootWord, ops, start, selectedId };
+      // A graph holding both modes' branches (from a shared link) isn't this
+      // mode's own graph, so swapping back starts this mode fresh instead.
+      stashRef.current[mode] = graphFitsMode(ops, start, mode) ? { root: rootWord, ops, start, selectedId } : undefined;
       const stashed = stashRef.current[next];
       const saved =
         stashed?.root === rootWord ? stashed : { ...freshGraph(rootWord, next), selectedId: wordNodeId(rootWord) };
@@ -435,15 +432,28 @@ export default function App() {
     [mode, modeSwitch, ops, start, selectedId, rootWord, freshGraph, loadSemantic]
   );
 
-  const handleSetModeSwitch = useCallback((value) => {
-    setModeSwitch(value);
-    stashRef.current = {};
-    try {
-      localStorage.setItem(MODE_SWITCH_KEY, value);
-    } catch {
-      // localStorage unavailable -- setting just won't persist this session
-    }
-  }, []);
+  const handleSetModeSwitch = useCallback(
+    (value) => {
+      setModeSwitch(value);
+      stashRef.current = {};
+      // Separate graphs take effect now: a graph already mixing both modes
+      // can't stay on screen as this mode's own.
+      if (value === "separate" && !graphFitsMode(ops, start, mode)) {
+        const fresh = freshGraph(rootWord, mode);
+        setStart(fresh.start);
+        setOps(fresh.ops);
+        setSelectedId(wordNodeId(rootWord));
+        setNavKey((k) => k + 1);
+        setViewKey((k) => k + 1);
+      }
+      try {
+        localStorage.setItem(MODE_SWITCH_KEY, value);
+      } catch {
+        // localStorage unavailable -- setting just won't persist this session
+      }
+    },
+    [ops, start, mode, rootWord, freshGraph]
+  );
 
   const handleSetCommonness = useCallback(
     (value) => {

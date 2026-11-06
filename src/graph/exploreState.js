@@ -133,6 +133,25 @@ export function expandOp(nodeId, maxWords = DEFAULT_MAX_WORDS, { mode = "kanji",
   return `${base}${size}${c !== DEFAULT_COMMONNESS[kind] ? `@${c}` : ""}`;
 }
 
+/**
+ * What a new graph of `root` starts as in `mode`: the root and its kanji, or
+ * the root and its first batch of meaning neighbours. Search and Reset both
+ * land here, whichever way mode switching is set.
+ */
+export function freshGraphState(root, mode, { maxWords = DEFAULT_MAX_WORDS, commonness } = {}) {
+  return mode === "meaning"
+    ? { start: "word", ops: [expandOp(wordNodeId(root), maxWords, { mode: "meaning", commonness })] }
+    : { start: "kanji", ops: [] };
+}
+
+/** Whether a graph holds only what `mode` itself adds, so it can stand as that
+ * mode's own graph when each mode keeps a separate one. */
+export function graphFitsMode(ops, start, mode) {
+  return mode === "meaning"
+    ? start === "word" && ops.every((op) => op.startsWith("s:"))
+    : start !== "word" && !ops.some((op) => op.startsWith("s:"));
+}
+
 /** The app URL for a graph state; `sel` is the selected node's id. */
 export function exploreUrl({ root, ops = [], sel = null, maxWords = DEFAULT_MAX_WORDS, mode = "kanji", start = "kanji" }) {
   const params = new URLSearchParams();

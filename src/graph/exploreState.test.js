@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import * as fixture from "../data/japaneseData";
 import { createInitialGraph, expandKanji, expandWord, revealLink } from "./buildGraph";
-import { expandOp, exploreUrl, opsNeedFrequency, parseExploreUrl, replayGraph, semanticOpWords } from "./exploreState";
+import { expandOp, exploreUrl, freshGraphState, graphFitsMode, opsNeedFrequency, parseExploreUrl, replayGraph, semanticOpWords } from "./exploreState";
 
 const dataset = fixture;
 const ids = (g) => [...g.nodes.keys()].sort();
@@ -129,5 +129,31 @@ describe("meaning mode", () => {
     expect(opsNeedFrequency(["k:学", "w:学校"])).toBe(false);
     expect(opsNeedFrequency(["k:学@60"])).toBe(true);
     expect(opsNeedFrequency(["s:学校"])).toBe(true);
+  });
+});
+
+describe("freshGraphState", () => {
+  it("starts Kanji from the root and its kanji, Meaning from the first neighbours", () => {
+    expect(freshGraphState("学校", "kanji")).toEqual({ start: "kanji", ops: [] });
+    expect(freshGraphState("学校", "meaning")).toEqual({ start: "word", ops: ["s:学校"] });
+  });
+
+  it("records a batch size and dial that differ from the defaults", () => {
+    expect(freshGraphState("学校", "meaning", { maxWords: 12, commonness: 90 }).ops).toEqual(["s:学校~12@90"]);
+  });
+});
+
+describe("graphFitsMode", () => {
+  it("accepts a graph holding only its own mode's branches", () => {
+    expect(graphFitsMode([], "kanji", "kanji")).toBe(true);
+    expect(graphFitsMode(["k:学", "w:学校"], "kanji", "kanji")).toBe(true);
+    expect(graphFitsMode(["s:学校"], "word", "meaning")).toBe(true);
+  });
+
+  it("rejects a graph mixing in the other mode", () => {
+    expect(graphFitsMode(["s:学校"], "kanji", "kanji")).toBe(false);
+    expect(graphFitsMode([], "word", "kanji")).toBe(false);
+    expect(graphFitsMode(["s:学校"], "kanji", "meaning")).toBe(false);
+    expect(graphFitsMode(["s:学校", "k:学"], "word", "meaning")).toBe(false);
   });
 });
