@@ -8,7 +8,8 @@ const auth = vi.hoisted(() => ({
   verifyOtp: vi.fn(),
   signOut: vi.fn(),
 }));
-vi.mock("../lib/supabaseClient", () => ({ isSupabaseConfigured: true, supabase: { auth } }));
+const load = vi.hoisted(() => vi.fn());
+vi.mock("../lib/supabaseClient", () => ({ isSupabaseConfigured: true, supabase: { auth }, loadSupabase: load }));
 
 const { default: AccountSync } = await import("./AccountSync");
 
@@ -23,8 +24,20 @@ function renderAs(user) {
 describe("AccountSync", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    load.mockResolvedValue({ auth });
     auth.signInWithOtp.mockResolvedValue({ error: null });
     auth.verifyOtp.mockResolvedValue({ error: null });
+  });
+
+  it("gets the client ready when shown, and says so if it can't load when needed", async () => {
+    renderAs(null);
+    expect(load).toHaveBeenCalled();
+
+    load.mockRejectedValue(new Error("offline"));
+    await userEvent.type(screen.getByLabelText("Email"), "me@example.com");
+    await userEvent.click(screen.getByRole("button", { name: "Send code" }));
+    expect(await screen.findByText(/Couldn't load sign-in/)).toBeInTheDocument();
+    expect(auth.signInWithOtp).not.toHaveBeenCalled();
   });
 
   it("emails a code, then verifies the typed code for that address", async () => {
