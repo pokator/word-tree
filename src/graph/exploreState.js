@@ -17,10 +17,10 @@ import { DEFAULT_COMMONNESS } from "./commonness.js";
 // Op tokens:
 //   k:<kanji>[~N|~all][@C]  expand a kanji (again = the next batch of
 //                           words); ~N records a batch size other than the
-//                           default, so the link replays what you saw even
-//                           if the setting changes later; @C does the same
-//                           for a Commonness dial (0-100) other than
-//                           kanji mode's default
+//                           default (without it, the op replays at the
+//                           current words-per-branch setting); @C records a
+//                           Commonness dial (0-100) other than kanji mode's
+//                           default
 //   w:<word>                expand a word into its kanji
 //   s:<word>[~N|~all][@C]   meaning mode: reveal the next batch of the
 //                           word's semantic neighbours; @C as above,
