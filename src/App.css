@@ -1973,21 +1973,19 @@
 /* Feeling lucky -- a random word, explored a couple of steps out. Sits
    right after the search field (pulled in from the header's wider gap) as its
    quieter sibling: same height and radius, surface fill, no accent until
-   hovered. Icon only on touch layouts, where the header has no room for the
-   label. */
+   hovered. Icon only; its name is in the tooltip and aria-label. */
 .lucky-btn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
   flex-shrink: 0;
+  width: 44px;
   height: 44px;
   margin-left: -10px;
   /* Takes the header's spare width, so it stays beside the search field and
      the controls keep to the right edge. */
   margin-right: auto;
-  padding: 0 14px 0 12px;
-  font: inherit;
-  font-size: 14px;
+  padding: 0;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--code-bg);
@@ -2023,12 +2021,7 @@
 .app:not([data-layout="desktop"]) .lucky-btn {
   width: 40px;
   height: 40px;
-  padding: 0;
   margin-left: 0;
-  justify-content: center;
-}
-.app:not([data-layout="desktop"]) .lucky-btn__label {
-  display: none;
 }
 
 .search-results {

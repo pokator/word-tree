@@ -112,7 +112,7 @@ halves visible on a portrait tablet; on a phone, one half at a time (tap the
 word strip for the full entry, tap Explore to go back); and on a phone
 turned sideways, a side rail for the word next to a full-height graph.
 
-**Feeling lucky** (the dice beside the search field) lands on a random
+**Feeling lucky** (the dice button beside the search field) lands on a random
 common word that's already been explored a couple of steps out, then
 organizes the graph. It's a kanji graph (the root's kanji, a few words from
 each, and one of those words followed into a new kanji), a meaning graph

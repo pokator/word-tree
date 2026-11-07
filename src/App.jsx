@@ -1052,7 +1052,6 @@ export default function App() {
           data-tutorial="lucky-btn"
         >
           <DiceIcon />
-          <span className="lucky-btn__label">Feeling lucky</span>
         </button>
         {!isDesktop ? (
           <MobileMenu
