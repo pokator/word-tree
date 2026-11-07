@@ -2021,16 +2021,37 @@
   cursor: default;
   opacity: 0.55;
 }
+/* Still working after the roll (fetching meaning data): keep turning. */
 .lucky-btn[aria-busy="true"] svg {
-  animation: lucky-roll 700ms ease-in-out infinite;
+  animation: lucky-spin 700ms ease-in-out infinite;
 }
-@keyframes lucky-roll {
+@keyframes lucky-spin {
   to {
     transform: rotate(360deg);
   }
 }
+/* The roll itself: a hop and a full tumble, squashing as it turns, while
+   LuckyButton flicks through faces. 480ms = its 6 ticks of 80ms. */
+.lucky-btn.is-rolling svg {
+  animation: lucky-tumble 480ms cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+@keyframes lucky-tumble {
+  0% {
+    transform: translateY(0) rotate(0) scale(1);
+  }
+  30% {
+    transform: translateY(-4px) rotate(-150deg) scale(0.86);
+  }
+  65% {
+    transform: translateY(-1px) rotate(-300deg) scale(1.08);
+  }
+  100% {
+    transform: translateY(0) rotate(-360deg) scale(1);
+  }
+}
 @media (prefers-reduced-motion: reduce) {
-  .lucky-btn[aria-busy="true"] svg {
+  .lucky-btn[aria-busy="true"] svg,
+  .lucky-btn.is-rolling svg {
     animation: none;
   }
 }
@@ -2228,6 +2249,15 @@
 }
 .graph-legend__chevron {
   flex: none;
+  transition: transform 180ms cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+.graph-legend__chevron.is-collapsed {
+  transform: rotate(180deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .graph-legend__chevron {
+    transition: none;
+  }
 }
 .graph-legend__body {
   display: flex;

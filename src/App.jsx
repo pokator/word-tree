@@ -7,7 +7,8 @@ import ThemeToggle from "./components/ThemeToggle";
 import BookmarksPanel from "./components/BookmarksPanel";
 import Tutorial from "./components/Tutorial";
 import MobileMenu from "./components/MobileMenu";
-import { BookmarkIcon, DiceIcon, TutorialIcon } from "./components/icons";
+import { BookmarkIcon, TutorialIcon } from "./components/icons";
+import LuckyButton from "./components/LuckyButton";
 import { luckyCandidates, planLuckyGraph } from "./graph/lucky";
 import { useWordData } from "./data/useWordData";
 import { useSemantic } from "./data/useSemantic";
@@ -1042,18 +1043,12 @@ export default function App() {
         </div>
         <div className="app__search">
           <SearchBar words={dataset.WORDS} onSelectWord={handleSearch} recents={recents} wordsByText={dataset.WORDS_BY_TEXT} />
-          <button
-            type="button"
-            className="lucky-btn"
-            onClick={handleFeelingLucky}
-            disabled={dataset.loading || luckyBusy}
-            aria-busy={luckyBusy}
-            aria-label="Feeling lucky: explore a random word"
+          <LuckyButton
+            onRoll={handleFeelingLucky}
+            busy={luckyBusy}
+            disabled={dataset.loading}
             title={dataset.loading ? "Loading dictionary…" : "Feeling lucky: explore a random word"}
-            data-tutorial="lucky-btn"
-          >
-            <DiceIcon />
-          </button>
+          />
         </div>
         {!isDesktop ? (
           <MobileMenu
