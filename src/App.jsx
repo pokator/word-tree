@@ -7,7 +7,8 @@ import ThemeToggle from "./components/ThemeToggle";
 import BookmarksPanel from "./components/BookmarksPanel";
 import Tutorial from "./components/Tutorial";
 import MobileMenu from "./components/MobileMenu";
-import { BookmarkIcon, TutorialIcon } from "./components/icons";
+import { BookmarkIcon, DiceIcon, TutorialIcon } from "./components/icons";
+import { luckyCandidates, planLuckyGraph } from "./graph/lucky";
 import { useWordData } from "./data/useWordData";
 import { useSemantic } from "./data/useSemantic";
 import { useRecentRoots } from "./data/useRecentRoots";
@@ -232,6 +233,10 @@ export default function App() {
   const [focusGroupId, setFocusGroupId] = useState(null);
   const [isFiltersPanelOpen, setIsFiltersPanelOpen] = useState(false);
   const [tutorialOpen, setTutorialOpen] = useState(false);
+  // Feeling lucky: busy while a random graph is being planned (it may fetch
+  // meaning data), and organizeKey asks the graph to Organize once it lands.
+  const [luckyBusy, setLuckyBusy] = useState(false);
+  const [organizeKey, setOrganizeKey] = useState(0);
 
   const { recents, addRecent } = useRecentRoots();
   const streak = useStreak();
@@ -396,6 +401,41 @@ export default function App() {
     },
     [addRecent, freshGraph, mode]
   );
+
+  // Words a Feeling lucky graph can start from (see graph/lucky.js); worked
+  // out once the dictionary has loaded, and only the first time it's used.
+  const luckyPoolRef = useRef(null);
+  const luckyBusyRef = useRef(false);
+  const handleFeelingLucky = useCallback(async () => {
+    if (dataset.loading || luckyBusyRef.current) return;
+    luckyBusyRef.current = true;
+    setLuckyBusy(true);
+    track("lucky");
+    try {
+      luckyPoolRef.current ??= luckyCandidates(dataset);
+      const plan = await planLuckyGraph(dataset, {
+        candidates: luckyPoolRef.current,
+        semantic: semanticStore,
+        loadSemantic,
+        isJlptAllowed,
+      });
+      if (!plan) return;
+      stashRef.current = {}; // a new word drops the other mode's graph
+      setRootWord(plan.root);
+      setMode(plan.mode);
+      setStart(plan.start);
+      setOps(plan.ops);
+      setSelectedId(wordNodeId(plan.root));
+      setNavKey((k) => k + 1);
+      setViewKey((k) => k + 1);
+      setOrganizeKey((k) => k + 1);
+      setMobileView("explore");
+      addRecent(plan.root);
+    } finally {
+      luckyBusyRef.current = false;
+      setLuckyBusy(false);
+    }
+  }, [dataset, semanticStore, loadSemantic, isJlptAllowed, addRecent]);
 
   // Only the search bar counts as a search -- bookmark clicks also land in
   // handleSelectWord, via handleSelectFromSidebar.
@@ -956,6 +996,7 @@ export default function App() {
       commonness={commonness[mode]}
       onSetCommonness={handleSetCommonness}
       viewKey={viewKey}
+      organizeKey={organizeKey}
       layoutSlot={modeSwitch === "separate" ? `${rootWord}:${mode}` : rootWord}
       selectedId={selectedId}
       onNodeClick={handleNodeSelect}
@@ -1000,6 +1041,19 @@ export default function App() {
           </h1>
         </div>
         <SearchBar words={dataset.WORDS} onSelectWord={handleSearch} recents={recents} wordsByText={dataset.WORDS_BY_TEXT} />
+        <button
+          type="button"
+          className="lucky-btn"
+          onClick={handleFeelingLucky}
+          disabled={dataset.loading || luckyBusy}
+          aria-busy={luckyBusy}
+          aria-label="Feeling lucky: explore a random word"
+          title={dataset.loading ? "Loading dictionary…" : "Feeling lucky: explore a random word"}
+          data-tutorial="lucky-btn"
+        >
+          <DiceIcon />
+          <span className="lucky-btn__label">Feeling lucky</span>
+        </button>
         {!isDesktop ? (
           <MobileMenu
             savedCount={saved.words.length}

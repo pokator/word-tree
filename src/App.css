@@ -1970,6 +1970,67 @@
   outline-offset: 1px;
 }
 
+/* Feeling lucky -- a random word, explored a couple of steps out. Sits
+   right after the search field (pulled in from the header's wider gap) as its
+   quieter sibling: same height and radius, surface fill, no accent until
+   hovered. Icon only on touch layouts, where the header has no room for the
+   label. */
+.lucky-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  height: 44px;
+  margin-left: -10px;
+  /* Takes the header's spare width, so it stays beside the search field and
+     the controls keep to the right edge. */
+  margin-right: auto;
+  padding: 0 14px 0 12px;
+  font: inherit;
+  font-size: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--code-bg);
+  color: var(--text-h);
+  cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease;
+}
+.lucky-btn:hover:not(:disabled) {
+  color: var(--accent);
+  border-color: var(--accent-border);
+}
+.lucky-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.lucky-btn:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+.lucky-btn[aria-busy="true"] svg {
+  animation: lucky-roll 700ms ease-in-out infinite;
+}
+@keyframes lucky-roll {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lucky-btn[aria-busy="true"] svg {
+    animation: none;
+  }
+}
+.app:not([data-layout="desktop"]) .lucky-btn {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  margin-left: 0;
+  justify-content: center;
+}
+.app:not([data-layout="desktop"]) .lucky-btn__label {
+  display: none;
+}
+
 .search-results {
   position: absolute;
   top: calc(100% + 4px);
@@ -2968,7 +3029,8 @@ button.legend__row.is-inactive:hover {
      grows outright; the search button keeps its look inside the field and
      just gets a larger invisible hit area. Legend rows only need WCAG 2.2's
      24px -- any taller and the legend covers more of a phone's graph. */
-  .mobile-menu__trigger {
+  .mobile-menu__trigger,
+  .app:not([data-layout="desktop"]) .lucky-btn {
     width: 44px;
     height: 44px;
   }

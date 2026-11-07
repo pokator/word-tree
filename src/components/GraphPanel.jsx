@@ -177,6 +177,7 @@ export default function GraphPanel({
   commonness,
   onSetCommonness,
   viewKey,
+  organizeKey,
   layoutSlot,
   selectedId,
   onNodeClick,
@@ -431,6 +432,7 @@ export default function GraphPanel({
           <WordTreeGraph
             graph={graph}
             viewKey={viewKey}
+            organizeKey={organizeKey}
             layoutSlot={layoutSlot}
             selectedId={selectedId}
             onNodeClick={onNodeClick}

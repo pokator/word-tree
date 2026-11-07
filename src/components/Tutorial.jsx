@@ -31,7 +31,7 @@ const STEPS = [
   {
     target: ".search-bar input",
     title: "Search",
-    body: 'Type a word in kanji, kana, or romaji ("shitsumon" finds 質問) to jump straight to it.',
+    body: 'Type a word in kanji, kana, or romaji ("shitsumon" finds 質問) to jump straight to it, or press the dice beside it for a random word, already explored.',
     placement: "bottom",
   },
   {

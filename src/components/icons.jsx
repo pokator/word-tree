@@ -18,6 +18,19 @@ export function TutorialIcon() {
   );
 }
 
+export function DiceIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
+      <rect x="4" y="4" width="16" height="16" rx="3.5" fill="none" stroke="currentColor" strokeWidth="1.7" />
+      <g fill="currentColor" stroke="none">
+        <circle cx="8.6" cy="8.6" r="1.35" />
+        <circle cx="12" cy="12" r="1.35" />
+        <circle cx="15.4" cy="15.4" r="1.35" />
+      </g>
+    </svg>
+  );
+}
+
 export function BookmarkIcon() {
   return (
     <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
