@@ -204,10 +204,13 @@ Bookmarks and press **Connect to Anki** (Anki desktop must be running with
 the [AnkiConnect](https://foosoft.net/projects/anki-connect/) add-on). From
 then on, in that browser:
 - every bookmark becomes a card in Anki's `元` deck, using a dedicated
-  "Moto (元)" note type — the word on the front; reading, meaning, and its
-  kanji breakdown on the back — tagged with its collections
+  "Moto (元)" note type — the word in bold on the front; on the back its
+  reading, numbered definitions in bold with part of speech and usage notes,
+  and each kanji's meanings, on'yomi and kun'yomi — tagged with its collections
   (`moto::kanji::日`, `moto::jlpt::n5`, `moto::from::日本語`,
-  `moto::tag::…`). Removing a bookmark never deletes its card;
+  `moto::tag::…`). Removing a bookmark never deletes its card. Notes from
+  before this format update on the next sync, keeping their review history;
+  a field or card style you edited inside Anki is left as it is;
 - each word's status comes back from its Anki card: Learning until Anki is
   spacing it 21+ days apart, then Known — including words already in your
   *other* decks (matched on each note type's first field), so what you
