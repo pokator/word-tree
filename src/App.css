@@ -1927,11 +1927,32 @@
   white-space: nowrap;
 }
 
+/* The search field and the Feeling lucky dice, as one item in the header:
+   it takes the slot the search field had on its own, so the dice sits beside
+   it without moving it. */
+.app__search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 200px;
+  max-width: calc(640px + 8px + 44px);
+}
+
+/* Wherever the header has spare room, the dice hangs into it (the group
+   lays out as if it were the search field alone), so the search field stays
+   exactly where it was before the dice joined it. Narrower than this, the
+   header is tight and the two share the slot. */
+@media (min-width: 1120px) {
+  .app[data-layout="desktop"] .app__search {
+    margin-right: calc(-8px - 44px);
+  }
+}
+
 .search-bar {
   position: relative;
   flex: 1 1 auto;
-  min-width: 200px;
-  max-width: 640px;
+  min-width: 0;
 }
 
 .search-bar input {
@@ -1971,8 +1992,7 @@
 }
 
 /* Feeling lucky -- a random word, explored a couple of steps out. Sits
-   right after the search field (pulled in from the header's wider gap) as its
-   quieter sibling: same height and radius, surface fill, no accent until
+   right after the search field (see .app__search) as its quieter sibling: same height and radius, surface fill, no accent until
    hovered. Icon only; its name is in the tooltip and aria-label. */
 .lucky-btn {
   display: inline-flex;
@@ -1981,10 +2001,6 @@
   flex-shrink: 0;
   width: 44px;
   height: 44px;
-  margin-left: -10px;
-  /* Takes the header's spare width, so it stays beside the search field and
-     the controls keep to the right edge. */
-  margin-right: auto;
   padding: 0;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -2021,7 +2037,6 @@
 .app:not([data-layout="desktop"]) .lucky-btn {
   width: 40px;
   height: 40px;
-  margin-left: 0;
 }
 
 .search-results {
@@ -2655,7 +2670,7 @@ button.legend__row.is-inactive:hover {
   height: var(--mobile-header-h);
   padding: 6px 12px;
 }
-.app:not([data-layout="desktop"]) .search-bar {
+.app:not([data-layout="desktop"]) .app__search {
   min-width: 0;
 }
 /* 16px, not the desktop 15px: iOS Safari zooms the whole page in on focus

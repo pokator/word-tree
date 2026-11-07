@@ -1040,19 +1040,21 @@ export default function App() {
             <span className="app__title-text">Moto</span>
           </h1>
         </div>
-        <SearchBar words={dataset.WORDS} onSelectWord={handleSearch} recents={recents} wordsByText={dataset.WORDS_BY_TEXT} />
-        <button
-          type="button"
-          className="lucky-btn"
-          onClick={handleFeelingLucky}
-          disabled={dataset.loading || luckyBusy}
-          aria-busy={luckyBusy}
-          aria-label="Feeling lucky: explore a random word"
-          title={dataset.loading ? "Loading dictionary…" : "Feeling lucky: explore a random word"}
-          data-tutorial="lucky-btn"
-        >
-          <DiceIcon />
-        </button>
+        <div className="app__search">
+          <SearchBar words={dataset.WORDS} onSelectWord={handleSearch} recents={recents} wordsByText={dataset.WORDS_BY_TEXT} />
+          <button
+            type="button"
+            className="lucky-btn"
+            onClick={handleFeelingLucky}
+            disabled={dataset.loading || luckyBusy}
+            aria-busy={luckyBusy}
+            aria-label="Feeling lucky: explore a random word"
+            title={dataset.loading ? "Loading dictionary…" : "Feeling lucky: explore a random word"}
+            data-tutorial="lucky-btn"
+          >
+            <DiceIcon />
+          </button>
+        </div>
         {!isDesktop ? (
           <MobileMenu
             savedCount={saved.words.length}
