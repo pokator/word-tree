@@ -18,6 +18,32 @@ export function TutorialIcon() {
   );
 }
 
+// Pip positions for each face of the dice (x, y in the 24px box).
+const L = 8.6;
+const C = 12;
+const R = 15.4;
+const DICE_FACES = {
+  1: [[C, C]],
+  2: [[L, L], [R, R]],
+  3: [[L, L], [C, C], [R, R]],
+  4: [[L, L], [R, L], [L, R], [R, R]],
+  5: [[L, L], [R, L], [C, C], [L, R], [R, R]],
+  6: [[L, L], [L, C], [L, R], [R, L], [R, C], [R, R]],
+};
+
+export function DiceIcon({ face = 3 }) {
+  return (
+    <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
+      <rect x="4" y="4" width="16" height="16" rx="3.5" fill="none" stroke="currentColor" strokeWidth="1.7" />
+      <g fill="currentColor" stroke="none">
+        {(DICE_FACES[face] ?? DICE_FACES[3]).map(([x, y]) => (
+          <circle key={`${x},${y}`} cx={x} cy={y} r="1.35" />
+        ))}
+      </g>
+    </svg>
+  );
+}
+
 export function BookmarkIcon() {
   return (
     <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">

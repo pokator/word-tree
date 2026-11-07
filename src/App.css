@@ -1927,11 +1927,32 @@
   white-space: nowrap;
 }
 
+/* The search field and the Feeling lucky dice, as one item in the header:
+   it takes the slot the search field had on its own, so the dice sits beside
+   it without moving it. */
+.app__search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 200px;
+  max-width: calc(640px + 8px + 44px);
+}
+
+/* Wherever the header has spare room, the dice hangs into it (the group
+   lays out as if it were the search field alone), so the search field stays
+   exactly where it was before the dice joined it. Narrower than this, the
+   header is tight and the two share the slot. */
+@media (min-width: 1120px) {
+  .app[data-layout="desktop"] .app__search {
+    margin-right: calc(-8px - 44px);
+  }
+}
+
 .search-bar {
   position: relative;
   flex: 1 1 auto;
-  min-width: 200px;
-  max-width: 640px;
+  min-width: 0;
 }
 
 .search-bar input {
@@ -1968,6 +1989,75 @@
 .search-bar__submit:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
+}
+
+/* Feeling lucky -- a random word, explored a couple of steps out. Sits
+   right after the search field (see .app__search) as its quieter sibling: same height and radius, surface fill, no accent until
+   hovered. Icon only; its name is in the tooltip and aria-label. */
+.lucky-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--code-bg);
+  color: var(--text-h);
+  cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease;
+}
+.lucky-btn:hover:not(:disabled) {
+  color: var(--accent);
+  border-color: var(--accent-border);
+}
+.lucky-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.lucky-btn:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+/* Still working after the roll (fetching meaning data): keep turning. */
+.lucky-btn[aria-busy="true"] svg {
+  animation: lucky-spin 700ms ease-in-out infinite;
+}
+@keyframes lucky-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+/* The roll itself: a hop and a full tumble, squashing as it turns, while
+   LuckyButton flicks through faces. 480ms = its 6 ticks of 80ms. */
+.lucky-btn.is-rolling svg {
+  animation: lucky-tumble 480ms cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+@keyframes lucky-tumble {
+  0% {
+    transform: translateY(0) rotate(0) scale(1);
+  }
+  30% {
+    transform: translateY(-4px) rotate(-150deg) scale(0.86);
+  }
+  65% {
+    transform: translateY(-1px) rotate(-300deg) scale(1.08);
+  }
+  100% {
+    transform: translateY(0) rotate(-360deg) scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lucky-btn[aria-busy="true"] svg,
+  .lucky-btn.is-rolling svg {
+    animation: none;
+  }
+}
+.app:not([data-layout="desktop"]) .lucky-btn {
+  width: 40px;
+  height: 40px;
 }
 
 .search-results {
@@ -2159,6 +2249,15 @@
 }
 .graph-legend__chevron {
   flex: none;
+  transition: transform 180ms cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+.graph-legend__chevron.is-collapsed {
+  transform: rotate(180deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .graph-legend__chevron {
+    transition: none;
+  }
 }
 .graph-legend__body {
   display: flex;
@@ -2601,7 +2700,7 @@ button.legend__row.is-inactive:hover {
   height: var(--mobile-header-h);
   padding: 6px 12px;
 }
-.app:not([data-layout="desktop"]) .search-bar {
+.app:not([data-layout="desktop"]) .app__search {
   min-width: 0;
 }
 /* 16px, not the desktop 15px: iOS Safari zooms the whole page in on focus
@@ -2968,7 +3067,8 @@ button.legend__row.is-inactive:hover {
      grows outright; the search button keeps its look inside the field and
      just gets a larger invisible hit area. Legend rows only need WCAG 2.2's
      24px -- any taller and the legend covers more of a phone's graph. */
-  .mobile-menu__trigger {
+  .mobile-menu__trigger,
+  .app:not([data-layout="desktop"]) .lucky-btn {
     width: 44px;
     height: 44px;
   }

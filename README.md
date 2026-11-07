@@ -119,6 +119,14 @@ halves visible on a portrait tablet; on a phone, one half at a time (tap the
 word strip for the full entry, tap Explore to go back); and on a phone
 turned sideways, a side rail for the word next to a full-height graph.
 
+**Feeling lucky** (the dice button beside the search field) lands on a random
+common word that's already been explored a couple of steps out, then
+organizes the graph. It's a kanji graph (the root's kanji, a few words from
+each, and one of those words followed into a new kanji), a meaning graph
+(the root's meaning neighbours, three of them opened up), or a mix of the
+two, picked at random (`src/graph/lucky.js`). The result is an ordinary
+`/explore/` URL, so a lucky graph can be shared or reloaded like any other.
+
 **Kanji and Meaning modes** (the switch beside "Explore"). Kanji mode is
 the web described above. In Meaning mode, expanding a word shows words used
 in similar contexts in real Japanese text instead of its kanji: 学校 leads to

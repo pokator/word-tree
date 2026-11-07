@@ -97,6 +97,7 @@ function truncate(str, max) {
 export default function WordTreeGraph({
   graph,
   viewKey = 0,
+  organizeKey = 0,
   layoutSlot = null,
   selectedId,
   onNodeClick,
@@ -264,6 +265,23 @@ export default function WordTreeGraph({
   useEffect(() => () => finishOrganizeRef.current?.(), [layoutSlot, viewKey]);
   // Finishing reheats the simulation, which shouldn't outlive the graph.
   useEffect(() => () => simulationRef.current?.stop(), [simulationRef]);
+
+  // A new organizeKey (a Feeling lucky graph) organizes the graph once all of
+  // its nodes have joined the simulation, after a beat so the expansions are
+  // seen fanning out before they settle into place.
+  const organizedKeyRef = useRef(organizeKey);
+  useEffect(() => {
+    if (organizeKey === organizedKeyRef.current) return;
+    const sim = simNodesMapRef.current;
+    if (graph.nodes.size < 2 || ![...graph.nodes.keys()].every((id) => sim.has(id))) return;
+    const t = setTimeout(() => {
+      organizedKeyRef.current = organizeKey;
+      organize();
+    }, 400);
+    return () => clearTimeout(t);
+    // organize is redefined every render; this reacts to the key and graph only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [organizeKey, graph]);
 
   // Moves every node to a freshly worked-out layout (see graph/organizeLayout)
   // and gives it a home there: a spring, not a pin, so the graph stays alive

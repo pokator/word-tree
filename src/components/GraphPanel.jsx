@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import WordTreeGraph from "./WordTreeGraph";
 import FiltersPanel from "./FiltersPanel";
 import { kanjiPositionCategory } from "../graph/positionCategory";
@@ -34,11 +34,18 @@ function useLegendOpen() {
   return [open, toggle];
 }
 
+// One chevron, turned rather than redrawn, so it can rotate between the two.
 function LegendChevron({ open }) {
   return (
-    <svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true" className="graph-legend__chevron">
+    <svg
+      viewBox="0 0 20 20"
+      width="14"
+      height="14"
+      aria-hidden="true"
+      className={`graph-legend__chevron${open ? "" : " is-collapsed"}`}
+    >
       <path
-        d={open ? "M5 8l5 5 5-5" : "M5 12l5-5 5 5"}
+        d="M5 8l5 5 5-5"
         fill="none"
         stroke="currentColor"
         strokeWidth="1.8"
@@ -136,6 +143,80 @@ function wordReadingCategories(graph, word) {
   return categories;
 }
 
+const LEGEND_OPEN_MS = 180;
+const LEGEND_CLOSE_MS = 150;
+const LEGEND_EASE = "cubic-bezier(0.2, 0.8, 0.3, 1)";
+
+/**
+ * The legend card grows into and shrinks out of its collapsed size instead of
+ * jumping, anchored where it sits (bottom left), with its contents fading.
+ * Measured, not CSS-transitioned: the card's size is whatever its contents
+ * make it, which CSS can't transition to. While closing, the contents stay
+ * mounted (`closing`) so they can fade out before they go. Skipped with
+ * reduced motion, or where the Web Animations API is missing (tests).
+ */
+function useLegendAnimation(open, toggle) {
+  const cardRef = useRef(null);
+  const fromRef = useRef(null);
+  const [closing, setClosing] = useState(false);
+
+  const handleToggle = useCallback(() => {
+    const el = cardRef.current;
+    const animate =
+      typeof el?.animate === "function" && !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (animate) {
+      el.getAnimations({ subtree: true }).forEach((a) => a.cancel());
+      fromRef.current = el.getBoundingClientRect();
+      setClosing(open);
+    }
+    toggle();
+  }, [open, toggle]);
+
+  useLayoutEffect(() => {
+    const from = fromRef.current;
+    const el = cardRef.current;
+    fromRef.current = null;
+    if (!from || !el) return;
+    const body = el.querySelector(".graph-legend__body");
+    // Closing: measure the collapsed card without painting it.
+    if (!open && body) {
+      body.style.display = "none";
+      el.classList.add("is-collapsed");
+    }
+    const to = el.getBoundingClientRect();
+    if (!open && body) {
+      body.style.display = "";
+      el.classList.remove("is-collapsed");
+    }
+
+    el.style.overflow = "hidden";
+    const card = el.animate(
+      [
+        { width: `${from.width}px`, height: `${from.height}px` },
+        { width: `${to.width}px`, height: `${to.height}px` },
+      ],
+      { duration: open ? LEGEND_OPEN_MS : LEGEND_CLOSE_MS, easing: LEGEND_EASE }
+    );
+    body?.animate(
+      open
+        ? [
+            { opacity: 0, transform: "translateY(4px)" },
+            { opacity: 1, transform: "none" },
+          ]
+        : [{ opacity: 1 }, { opacity: 0 }],
+      { duration: open ? LEGEND_OPEN_MS : LEGEND_CLOSE_MS * 0.7, easing: "ease-out", fill: "forwards" }
+    );
+    const done = () => {
+      el.style.overflow = "";
+      if (!open) setClosing(false);
+    };
+    card.onfinish = done;
+    card.oncancel = done;
+  }, [open]);
+
+  return { cardRef, closing, handleToggle };
+}
+
 function LoadingIndicator() {
   return (
     <div className="loading-indicator">
@@ -177,6 +258,7 @@ export default function GraphPanel({
   commonness,
   onSetCommonness,
   viewKey,
+  organizeKey,
   layoutSlot,
   selectedId,
   onNodeClick,
@@ -219,6 +301,11 @@ export default function GraphPanel({
   // dim it regardless of what isDimmed returns (see its `!node.isRoot &&`
   // guard), so a toggle for it would silently do nothing.
   const [legendOpen, toggleLegend] = useLegendOpen();
+  const { cardRef: legendRef, closing: legendClosing, handleToggle: handleToggleLegend } = useLegendAnimation(
+    legendOpen,
+    toggleLegend
+  );
+  const legendShown = legendOpen || legendClosing;
   // Kanji path and Link pattern describe kanji<->word links and aren't in
   // meaning mode's Filters, so they're off there rather than active but
   // impossible to turn off.
@@ -431,6 +518,7 @@ export default function GraphPanel({
           <WordTreeGraph
             graph={graph}
             viewKey={viewKey}
+            organizeKey={organizeKey}
             layoutSlot={layoutSlot}
             selectedId={selectedId}
             onNodeClick={onNodeClick}
@@ -451,19 +539,24 @@ export default function GraphPanel({
         )}
 
         {graph && (
-          <div className={`graph-legend${legendOpen ? "" : " is-collapsed"}`}>
+          <div ref={legendRef} className={`graph-legend${legendShown ? "" : " is-collapsed"}`}>
             <button
               type="button"
               className="graph-legend__toggle"
-              onClick={toggleLegend}
+              onClick={handleToggleLegend}
               aria-expanded={legendOpen}
               aria-controls="graph-legend-body"
             >
               Legend
               <LegendChevron open={legendOpen} />
             </button>
-            {legendOpen && (
-              <div className="graph-legend__body" id="graph-legend-body">
+            {legendShown && (
+              <div
+                className="graph-legend__body"
+                id="graph-legend-body"
+                aria-hidden={legendClosing || undefined}
+                inert={legendClosing || undefined}
+              >
                 <div className="graph-legend__group">
                   <span className="legend__group-label">Type</span>
                   <span className="legend__row">
