@@ -9,13 +9,14 @@ that are related in meaning instead of words that share its kanji.
 1.3 `mc90` word vectors (word2vec on CommonCrawl Japanese, Sudachi
 tokenisation, Apache-2.0, 594MB download from
 `https://sudachi.s3-ap-northeast-1.amazonaws.com/chive/chive-1.3-mc90.tar.gz`)
-and finds, for each ranked JMdict word, its nearest neighbours by cosine
+and finds, for each JMdict word it knows, its nearest neighbours by cosine
 similarity.
 
 - **Coverage:** chiVe knows 82,145 of the 228k JMdict headwords, including
-  26,844 of the 30,389 ranked (common) words. Every one of those that is
-  ranked or among chiVe's 60k most frequent words gets a neighbour list
-  (43,785 roots), and any of the 82k can show up as a neighbour.
+  26,844 of the 30,389 ranked (common) words. Each of them gets a list, since
+  any of them can show up as a neighbour and a word you can reach should have a
+  way onward. 349 lists come out empty because nothing was close enough, and
+  those words show "No related words".
 - **Commonness:** chiVe's vocabulary is in corpus-frequency order, so a
   word's line number shows how common it is, for every word and not only the
   ~13% JMdict ranks. The script keeps up to 6 / 8 / 10 neighbours in three
@@ -76,14 +77,19 @@ The script writes straight into `public/data/`:
 
 - `frequency.gzjson`: chiVe frequency index for all 82k words (0.7 MB gz).
   The Commonness dial in both modes uses it.
-- `semantic/000.gzjson` to `127.gzjson`: neighbour lists, sharded by
+- `semantic/0000.gzbin` to `1023.gzbin`: neighbour lists, sharded by
   `shardOf()` (FNV-1a over code points, in both the script and
-  `src/data/semantic.js`, and tested to agree). About 55–65 KB each, 7.4 MB
-  in all.
+  `src/data/semantic.js`, and tested to agree). About 6 KB each, 6.6 MB in
+  all. Each gzipped file is a run of rows: varint word id, varint count, then
+  that many pairs of varint word id and one byte of similarity×100. A word's
+  id is its position in `frequency.gzjson`, whose keys are most frequent first,
+  so the build refuses any integer-like word (JavaScript would reorder it).
+  Words with no neighbours have no row.
 
 The app fetches the frequency file the first time someone uses Meaning mode
-or moves the dial, and a shard only when a word in it is expanded in Meaning
-mode. A first visit downloads none of this.
+or moves the dial. It fetches a shard when a word in it is selected or expanded
+in Meaning mode, so most expansions are immediate. A first visit downloads none
+of this.
 
 Regenerate with:
 
@@ -91,6 +97,6 @@ Regenerate with:
 python3 scripts/semantic/build_neighbours.py path/to/chive-1.3-mc90.txt
 ```
 
-It takes about 5 minutes on 4 CPUs and needs only numpy. Commit the result, then
+It takes a few minutes and needs only numpy. Commit the result, then
 move the `meaning` pin in `src/data/dataPins.json` to that commit, or production
 keeps loading the old data.

@@ -9,11 +9,16 @@ lazy-load for a separate "meaning" mode.
 OUT_DIR defaults to public/data. It writes:
 
   frequency.gzjson        {word: chiVe frequency index} for every JMdict word
-                          chiVe knows (~82k) -- the commonness signal
-  semantic/NNN.gzjson     128 shards of {root: [[neighbour, similarity*100]]},
-                          sharded by shardOf() (FNV-1a over code points,
-                          mirrored in src/data/semantic.js) so the app only
-                          fetches the ~55KB shard for the word being expanded
+                          chiVe knows (~82k), most frequent first -- the
+                          commonness signal, and its key order gives each word
+                          the id the shards use
+  semantic/NNNN.gzbin     1024 gzipped binary shards, sharded by shardOf()
+                          (FNV-1a over code points, mirrored in
+                          src/data/semantic.js) so the app only fetches the
+                          ~6KB shard for the word it needs. Each row is varint
+                          word id, varint count, then count of (varint word id,
+                          one byte of similarity*100). Words with no neighbours
+                          have no row.
 
 chiVe (https://github.com/WorksApplications/chiVe, Apache-2.0) is word2vec
 trained on CommonCrawl Japanese, tokenised with Sudachi. Its vocabulary is in
@@ -21,10 +26,9 @@ corpus-frequency order, so a word's line number doubles as how common it is in
 real text -- a continuous signal covering every word, unlike JMdict's `rank`,
 which only ~13% of entries have.
 
-What it produces, per root word (every JMdict word chiVe knows that is either
-ranked or in chiVe's 60k most frequent words -- the same rule as
-hasNeighbours() in src/data/semantic.js): up to 24 neighbours, chosen so the "commonness" dial has
-something to show at every setting:
+What it produces, for every JMdict word chiVe knows, since any of them can turn
+up as a neighbour and so needs a way onward: up to 24 neighbours, chosen so the
+"commonness" dial has something to show at every setting:
 
   - candidates are any JMdict word chiVe knows (~82k), not only ranked ones,
     so rarer, more "interesting" words can appear;
@@ -36,9 +40,8 @@ something to show at every setting:
   - alternate spellings of the root itself, and too many words that merely
     share its kanji (that's what kanji mode is for), are dropped.
 
-Each neighbour is stored as [word, similarity*100]; each word's frequency
-index is stored once in frequency.gzjson, so the client can weight by
-commonness without the neighbour lists repeating it.
+Each word's frequency index is stored once in frequency.gzjson, so the client
+can weight by commonness without the neighbour lists repeating it.
 """
 
 import gzip
@@ -53,8 +56,7 @@ WORDS = ROOT / "data/offline-dataset/words.json"
 
 BANDS = [(0, 15_000), (15_000, 60_000), (60_000, 10**9)]  # chiVe frequency index
 PER_BAND = [6, 8, 10]
-ROOT_MAX_FREQ = 60_000  # unranked words this frequent also get neighbours
-SHARDS = 128
+SHARDS = 1024
 SHORTLIST = 400  # nearest candidates considered before banding
 MIN_SIM = 0.35
 MMR_LAMBDA = 0.75  # 1 = pure similarity, lower = more diverse
@@ -78,11 +80,19 @@ def shard_of(word):
     return h % SHARDS
 
 
-def write_gzjson(path, obj):
+def write_gzip(path, data):
     path.parent.mkdir(parents=True, exist_ok=True)
-    data = json.dumps(obj, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     # mtime=0 keeps the bytes identical across rebuilds of the same data.
     path.write_bytes(gzip.compress(data, compresslevel=9, mtime=0))
+
+
+def varint(value):
+    out = bytearray()
+    while value >= 128:
+        out.append((value & 127) | 128)
+        value >>= 7
+    out.append(value)
+    return out
 
 
 def load_vectors(path, wanted):
@@ -110,14 +120,17 @@ def main(vec_path, out_dir=ROOT / "public/data"):
 
     words, freq, m = load_vectors(vec_path, set(by_word))
     print(f"{len(words)} JMdict words have vectors", file=sys.stderr)
-    index = {w: i for i, w in enumerate(words)}
+    # The client numbers words by frequency.gzjson's key order, and JavaScript
+    # moves integer-like keys to the front of an object.
+    numeric = [w for w in words if w.isascii() and w.isdigit()]
+    if numeric:
+        raise SystemExit(f"integer-like words would break shard ids: {numeric[:10]}")
     # Same JMdict entry under another spelling: identical reading + senses.
     entry_key = [(by_word[w].get("reading"), by_word[w].get("meaning")) for w in words]
     kanji_sets = [kanji_of(w) for w in words]
     band_of = np.searchsorted([b[1] for b in BANDS], freq, side="right")
 
-    roots = [i for i, w in enumerate(words) if by_word[w].get("rank") is not None or freq[i] < ROOT_MAX_FREQ]
-    print(f"{len(roots)} roots", file=sys.stderr)
+    roots = list(range(len(words)))
 
     neighbours = {}
     chunk = 512
@@ -155,16 +168,25 @@ def main(vec_path, out_dir=ROOT / "public/data"):
                     chosen.append(c)
                 picks += chosen
             picks.sort(key=lambda c: -sims[row, c])
-            neighbours[ri] = [[words[c], int(round(float(sims[row, c]) * 100))] for c in picks]
+            neighbours[ri] = [(int(c), int(round(float(sims[row, c]) * 100))) for c in picks]
         print(f"  {min(start + chunk, len(roots))}/{len(roots)}", file=sys.stderr)
 
-    write_gzjson(out_dir / "frequency.gzjson", {w: int(f) for w, f in zip(words, freq)})
-    shards = [{} for _ in range(SHARDS)]
-    for ri, ns in neighbours.items():
-        shards[shard_of(words[ri])][words[ri]] = ns
+    frequency = json.dumps({w: int(f) for w, f in zip(words, freq)}, ensure_ascii=False, separators=(",", ":"))
+    write_gzip(out_dir / "frequency.gzjson", frequency.encode("utf-8"))
+
+    shards = [bytearray() for _ in range(SHARDS)]
+    for ri in roots:
+        if neighbours[ri]:
+            shard = shards[shard_of(words[ri])]
+            shard += varint(ri) + varint(len(neighbours[ri]))
+            for c, sim in neighbours[ri]:
+                shard += varint(c)
+                shard.append(sim)
+    for stale in (out_dir / "semantic").glob("*"):
+        stale.unlink()
     for n, shard in enumerate(shards):
-        write_gzjson(out_dir / f"semantic/{n:03d}.gzjson", shard)
-    print(f"wrote frequency for {len(words)} words, neighbours for {len(neighbours)} roots", file=sys.stderr)
+        write_gzip(out_dir / f"semantic/{n:04d}.gzbin", bytes(shard))
+    print(f"wrote frequency and neighbours for {len(words)} words", file=sys.stderr)
 
 
 if __name__ == "__main__":

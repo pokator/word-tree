@@ -276,7 +276,7 @@ export default function BookmarksPanel({
   const items = all.filter((w) => !shownIds || shownIds.has(w.word));
 
   function exportTsv() {
-    downloadTextFile("moto-export.tsv", buildAnkiTsv(all));
+    downloadTextFile("moto-export.tsv", buildAnkiTsv(all, dataset));
     track("tsv-export", { count: all.length });
     setMessage("Downloaded a .tsv file. Import it in Anki via File → Import.");
   }

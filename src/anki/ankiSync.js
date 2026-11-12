@@ -32,11 +32,47 @@ const BACK = `{{FrontSide}}
 {{#Kanji}}<div class="moto-kanji">{{Kanji}}</div>{{/Kanji}}`;
 const CSS = `.card { font-family: "Hiragino Sans", "Noto Sans CJK JP", "Yu Gothic", sans-serif; text-align: center; color: #1c1a14; background: #e7e2d1; }
 .night_mode .card { color: #f5f6fa; background: #0b0c10; }
+.moto-word { font-size: 56px; font-weight: 700; margin: 24px 0 8px; }
+.moto-reading { font-size: 26px; margin-top: 12px; }
+.moto-meaning { font-size: 20px; margin-top: 12px; }
+.moto-senses { display: inline-block; margin: 0; padding-left: 1.5em; text-align: left; }
+.moto-senses li { margin-top: 8px; }
+.moto-pos, .moto-note { font-size: 14px; opacity: 0.7; }
+.moto-kanji { display: grid; gap: 16px; width: fit-content; max-width: 100%; margin: 24px auto 0; padding-top: 16px; border-top: 1px solid currentColor; text-align: left; font-size: 15px; }
+.moto-k { display: flex; gap: 16px; align-items: flex-start; }
+.moto-k-char { font-size: 32px; font-weight: 500; line-height: 1.1; }
+.moto-k-label { font-size: 12px; opacity: 0.7; margin-right: 4px; }
+.moto-k-reading { white-space: nowrap; }`;
+// The styling every Moto note type was created with before cards carried
+// full senses and kanji readings. Only this exact text is upgraded, so a
+// note type the user restyled inside Anki stays theirs.
+const LEGACY_CSS = `.card { font-family: "Hiragino Sans", "Noto Sans CJK JP", "Yu Gothic", sans-serif; text-align: center; color: #1c1a14; background: #e7e2d1; }
+.night_mode .card { color: #f5f6fa; background: #0b0c10; }
 .moto-word { font-size: 56px; margin: 24px 0 8px; }
 .moto-reading { font-size: 26px; margin-top: 12px; }
 .moto-meaning { font-size: 20px; margin-top: 8px; }
 .moto-kanji { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 16px; margin-top: 20px; font-size: 15px; opacity: 0.85; }
 .moto-kanji b { font-size: 22px; font-weight: 500; margin-right: 4px; }`;
+
+// JMdict's part-of-speech labels are written for a dictionary schema; these
+// are the ones common enough to be noise on a flashcard. Anything else
+// (mostly rare archaic verb classes) is shown as is.
+const POS_LABELS = {
+  "noun (common) (futsuumeishi)": "noun",
+  "expressions (phrases, clauses, etc.)": "expression",
+  "noun or participle which takes the aux. verb suru": "suru verb",
+  "suru verb - special class": "suru verb",
+  "suru verb - included": "suru verb",
+  "nouns which may take the genitive case particle 'no'": "no-adjective",
+  "adjectival nouns or quasi-adjectives (keiyodoshi)": "na-adjective",
+  "adjective (keiyoushi)": "i-adjective",
+  "adjective (keiyoushi) - yoi/ii class": "i-adjective (yoi/ii)",
+  "adverb (fukushi)": "adverb",
+  "adverb taking the 'to' particle": "to-adverb",
+  "noun or verb acting prenominally": "prenominal",
+  "interjection (kandoushi)": "interjection",
+  "pre-noun adjectival (rentaishi)": "pre-noun adjectival",
+};
 
 // Anki tags can't contain spaces, and "::" is its hierarchy separator;
 // quotes, backslashes and * are search syntax, so they go too.
@@ -62,17 +98,104 @@ function escapeHtml(s) {
   return String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 }
 
+function posLabel(sense) {
+  const labels = (sense.pos ?? []).map((p) => POS_LABELS[p] ?? p.replace(/^Godan verb with '.*' ending$/, "Godan verb"));
+  return [...new Set(labels)].join(", ");
+}
+
+/** One sense: part of speech (only where it changes from the sense before,
+ * as most dictionaries print it), the gloss in bold, then usage notes and
+ * loanword origin. */
+function senseHtml(sense, previous) {
+  const pos = posLabel(sense);
+  const notes = [...(sense.misc ?? []), ...(sense.info ?? [])];
+  if (sense.origin) notes.push(`From ${sense.origin}`);
+  return [
+    pos && (!previous || pos !== posLabel(previous)) ? `<div class="moto-pos">${escapeHtml(pos)}</div>` : "",
+    `<b>${escapeHtml(sense.gloss.join("; "))}</b>`,
+    notes.length ? `<div class="moto-note">${escapeHtml(notes.join(", "))}</div>` : "",
+  ].join("");
+}
+
+function meaningHtml(entry) {
+  // Entries without structured senses (the tiny fallback fixture) split the
+  // same way the dictionary panel does.
+  const senses = entry.senses?.length
+    ? entry.senses
+    : (entry.meaning ?? "")
+        .split(";")
+        .map((m) => m.trim())
+        .filter(Boolean)
+        .map((m) => ({ gloss: [m] }));
+  if (senses.length === 0) return "";
+  if (senses.length === 1) return senseHtml(senses[0]);
+  return `<ol class="moto-senses">${senses.map((s, i) => `<li>${senseHtml(s, senses[i - 1])}</li>`).join("")}</ol>`;
+}
+
+function kanjiHtml(k) {
+  const readings = [
+    ["On", k.onyomi],
+    ["Kun", k.kunyomi],
+  ]
+    .filter(([, list]) => list?.length)
+    .map(([label, list]) => {
+      // Kept whole so a long list wraps between readings, never inside one.
+      const items = list.map((r) => `<span class="moto-k-reading">${escapeHtml(r)}</span>`).join("、");
+      return `<div><span class="moto-k-label">${label}</span>${items}</div>`;
+    })
+    .join("");
+  const meaning = k.meaning ? `<div>${escapeHtml(k.meaning)}</div>` : "";
+  return `<div class="moto-k"><b class="moto-k-char">${escapeHtml(k.char)}</b><div>${meaning}${readings}</div></div>`;
+}
+
 /** Note fields for one word -- the kanji breakdown is what ties a review
- * back to the graph: each component kanji with its core meaning. */
+ * back to the graph: each component kanji with its meanings and readings.
+ * The word itself is made bold by the card's styling (see CSS). */
 export function noteFields(entry, componentKanji = []) {
   return {
     Word: escapeHtml(entry.word),
     Reading: escapeHtml(entry.reading ?? ""),
+    Meaning: meaningHtml(entry),
+    Kanji: componentKanji.map(kanjiHtml).join(""),
+  };
+}
+
+/** What noteFields used to produce: the fields refreshedFields may replace. */
+function legacyNoteFields(entry, componentKanji) {
+  return {
     Meaning: escapeHtml(entry.meaning ?? ""),
     Kanji: componentKanji
       .map((k) => `<span><b>${escapeHtml(k.char)}</b>${escapeHtml((k.meaning ?? "").split(";")[0])}</span>`)
       .join(""),
   };
+}
+
+/**
+ * The fields of an existing note to bring up to the current format, or null
+ * if none. A field is only replaced while it's still exactly what Moto
+ * generated, so anything edited by hand inside Anki is left alone. Updating
+ * fields doesn't touch a note's cards, so review history is unaffected.
+ */
+function refreshedFields(note, entry, componentKanji) {
+  const legacy = legacyNoteFields(entry, componentKanji);
+  const current = noteFields(entry, componentKanji);
+  const fields = {};
+  for (const name of Object.keys(legacy)) {
+    const value = note.fields[name]?.value;
+    if (value === undefined || value === current[name]) continue;
+    if (decodeEntities(value) === decodeEntities(legacy[name])) fields[name] = current[name];
+  }
+  return Object.keys(fields).length ? fields : null;
+}
+
+function decodeEntities(value) {
+  return String(value ?? "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/gi, "&");
 }
 
 /**
@@ -83,14 +206,7 @@ export function noteFields(entry, componentKanji = []) {
  * notes (which the user may have edited inside Anki) and other decks'.
  */
 export function plainField(value) {
-  return String(value ?? "")
-    .replace(/<[^>]*>/g, "")
-    .replace(/&nbsp;/gi, " ")
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">")
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&amp;/gi, "&")
+  return decodeEntities(String(value ?? "").replace(/<[^>]*>/g, ""))
     .replace(/\[[^\]]*\]/g, "")
     .replace(/\s+/g, "");
 }
@@ -139,8 +255,9 @@ async function multi(actions) {
   return results.map((r) => (r && typeof r === "object" && "error" in r ? r : { result: r, error: null }));
 }
 
-/** Creates the Moto note type and deck if they don't exist yet. Safe to
- * call before every sync. */
+/** Creates the Moto note type and deck if they don't exist yet, and brings
+ * an unmodified older note type's styling up to date. Safe to call before
+ * every sync. */
 export async function ensureModelAndDeck() {
   const models = await invoke("modelNames");
   if (!models.includes(MODEL_NAME)) {
@@ -151,6 +268,9 @@ export async function ensureModelAndDeck() {
       isCloze: false,
       cardTemplates: [{ Name: "Recognition", Front: FRONT, Back: BACK }],
     });
+  } else {
+    const { css } = await invoke("modelStyling", { modelName: MODEL_NAME });
+    if (css === LEGACY_CSS) await invoke("updateModelStyling", { model: { name: MODEL_NAME, css: CSS } });
   }
   await invoke("createDeck", { deck: DECK_NAME });
 }
@@ -160,7 +280,8 @@ const isMotoTag = (t) => t.toLowerCase() === TAG_ROOT || t.toLowerCase().startsW
 /**
  * Makes Anki hold one Moto note per bookmarked word, with current tags.
  * Adds the missing ones; retags existing ones (tags change as a word joins
- * collections). Never deletes -- un-bookmarking a word leaves its Anki card
+ * collections); refreshes older notes still in the previous format (see
+ * refreshedFields). Never deletes -- un-bookmarking a word leaves its Anki card
  * and review history alone. Words in `skipWords` get no new card (marked
  * "I already know this" -- see useAnkiSync).
  *
@@ -170,7 +291,7 @@ const isMotoTag = (t) => t.toLowerCase() === TAG_ROOT || t.toLowerCase().startsW
  * batch if any one note is a duplicate, which would otherwise block every
  * other bookmark on every sync.
  * `items`: [{ entry, componentKanji, tags }]. Returns { added, retagged,
- * rejected } -- `rejected` being the words Anki refused to add (so the UI
+ * refreshed, rejected } -- `rejected` being the words Anki refused to add (so the UI
  * can say so instead of the word silently never appearing).
  */
 export async function pushBookmarks(items, { skipWords = new Set() } = {}) {
@@ -185,6 +306,7 @@ export async function pushBookmarks(items, { skipWords = new Set() } = {}) {
 
   const candidates = [];
   const retag = [];
+  const refresh = [];
   for (const { entry, componentKanji, tags } of items) {
     const note = existing.get(plainField(entry.word));
     if (!note) {
@@ -202,6 +324,8 @@ export async function pushBookmarks(items, { skipWords = new Set() } = {}) {
       const want = tags.map((t) => t.toLowerCase()).sort().join(" ");
       const have = note.tags.filter(isMotoTag).map((t) => t.toLowerCase()).sort().join(" ");
       if (want !== have) retag.push({ note: note.noteId, tags, userTags: note.tags.filter((t) => !isMotoTag(t)) });
+      const fields = refreshedFields(note, entry, componentKanji);
+      if (fields) refresh.push({ id: note.noteId, fields });
     }
   }
 
@@ -227,7 +351,14 @@ export async function pushBookmarks(items, { skipWords = new Set() } = {}) {
     const failed = results.filter((r) => r.error);
     if (failed.length) console.warn("Some Anki notes couldn't be retagged:", failed.map((r) => r.error));
   }
-  return { added, retagged: retag.length, rejected };
+  let refreshed = 0;
+  for (const group of chunks(refresh, NOTE_CHUNK)) {
+    const results = await multi(group.map((note) => ({ action: "updateNoteFields", params: { note } })));
+    const failed = results.filter((r) => r.error);
+    if (failed.length) console.warn("Some Anki notes couldn't be updated:", failed.map((r) => r.error));
+    refreshed += results.length - failed.length;
+  }
+  return { added, retagged: retag.length, refreshed, rejected };
 }
 
 /**
@@ -329,6 +460,13 @@ export function collectionQuery(tag) {
   return `"tag:${String(tag).replace(/(["\\])/g, "\\$1")}"`;
 }
 
+/** A word's component kanji, as dataset entries. */
+export function componentKanjiFor(dataset, word) {
+  return extractKanjiComponents(word)
+    .map((c) => dataset.KANJI[c])
+    .filter(Boolean);
+}
+
 /**
  * Turns bookmarks into what pushBookmarks needs: each word's dictionary
  * entry, its component kanji (for the card's breakdown and its
@@ -341,9 +479,7 @@ export function syncItemsFor(dataset, bookmarks, userTagsFor = () => []) {
   for (const b of bookmarks) {
     const entry = dataset.WORDS_BY_TEXT[b.item_id];
     if (!entry) continue;
-    const componentKanji = extractKanjiComponents(entry.word)
-      .map((c) => dataset.KANJI[c])
-      .filter(Boolean);
+    const componentKanji = componentKanjiFor(dataset, entry.word);
     const bucket = wordJlptBucket(dataset, entry.word);
     items.push({
       entry,

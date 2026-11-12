@@ -4,8 +4,22 @@
 // writer -- too much weight for a fallback whose whole job is "the good
 // path isn't available."
 
-export function buildAnkiTsv(words) {
-  return words.map((w) => `${w.word}\t${w.reading} — ${w.meaning}`).join("\n");
+import { componentKanjiFor, noteFields } from "./ankiSync";
+
+// Fields carry HTML (with attribute quotes), so they're quoted and any
+// inner quote doubled, as Anki's importer expects.
+const quoted = (field) => `"${field.replace(/"/g, '""')}"`;
+
+/** Front and back for Anki's Basic note type, with the same content as a
+ * synced card. The header lines tell Anki's importer the file holds HTML,
+ * so the formatting survives without touching the import dialog. */
+export function buildAnkiTsv(words, dataset) {
+  const rows = words.map((w) => {
+    const { Word, Reading, Meaning, Kanji } = noteFields(w, componentKanjiFor(dataset, w.word));
+    const back = `<div>${Reading}</div><div>${Meaning}</div>${Kanji ? `<hr>${Kanji}` : ""}`;
+    return `${quoted(`<b>${Word}</b>`)}\t${quoted(back)}`;
+  });
+  return ["#separator:Tab", "#html:true", ...rows].join("\n");
 }
 
 export function downloadTextFile(filename, content) {

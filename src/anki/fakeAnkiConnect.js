@@ -20,11 +20,13 @@ function globMatch(pattern, text) {
   return new RegExp(`^${source}$`, "s").test(text);
 }
 
-export function createFakeAnki({ models = {}, decks = [], notes = [] } = {}) {
+export function createFakeAnki({ models = {}, styles = {}, decks = [], notes = [] } = {}) {
   let nextId = 1000;
   const state = {
     // modelName -> fields[]
     models: { Basic: ["Front", "Back"], ...models },
+    // modelName -> css
+    styles: { ...styles },
     decks: new Set(["Default", ...decks]),
     // { noteId, modelName, deck, fields: {name: value}, tags: [], cards: [{cardId, interval, type, queue, due}] }
     notes: notes.map((n) => ({
@@ -85,9 +87,19 @@ export function createFakeAnki({ models = {}, decks = [], notes = [] } = {}) {
     version: () => 6,
     modelNames: () => Object.keys(state.models),
     modelFieldNames: ({ modelName }) => state.models[modelName],
-    createModel: ({ modelName, inOrderFields }) => {
+    createModel: ({ modelName, inOrderFields, css }) => {
       state.models[modelName] = inOrderFields;
+      state.styles[modelName] = css;
       return {};
+    },
+    modelStyling: ({ modelName }) => ({ css: state.styles[modelName] ?? "" }),
+    updateModelStyling: ({ model }) => {
+      state.styles[model.name] = model.css;
+      return null;
+    },
+    updateNoteFields: ({ note }) => {
+      Object.assign(state.notes.find((n) => n.noteId === note.id).fields, note.fields);
+      return null;
     },
     createDeck: ({ deck }) => {
       state.decks.add(deck);

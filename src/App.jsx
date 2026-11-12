@@ -162,7 +162,7 @@ const stashKey = (root, mode) => `${root}\n${mode}`;
 // Whether all of a word's meaning neighbours are already shown; a word with no
 // neighbour list counts as done.
 function meaningExpansionDone(node, semanticStore) {
-  return node.semanticExpanded || (semanticStore.hasFrequency() && !semanticStore.hasNeighbours(node.word, node.rank));
+  return node.semanticExpanded || (semanticStore.hasFrequency() && !semanticStore.hasNeighbours(node.word));
 }
 
 function jlptBucketToLevel(bucket) {
@@ -304,6 +304,13 @@ export default function App() {
   }, [graph, mode, semanticStore, semantic.version]);
 
   const selectedNode = viewGraph?.nodes.get(selectedId) ?? null;
+
+  // A selected word is the likeliest to be expanded next, so its neighbours
+  // are fetched now and the expansion can be immediate.
+  const wordToPrepare = mode === "meaning" && selectedNode?.type === "word" ? selectedNode.word : null;
+  useEffect(() => {
+    if (wordToPrepare) loadSemantic([wordToPrepare]).catch(() => {});
+  }, [wordToPrepare, loadSemantic]);
 
   // The word's own component kanji, shown beside its definitions (see
   // DictionaryPanel). Only reachable once the graph exists, which is only
@@ -833,13 +840,12 @@ export default function App() {
         cross();
         return;
       }
-      // Whether the word has any neighbours isn't known until frequencies
-      // load, and it shouldn't leave this graph for a lone node if it doesn't.
-      const rank = graph?.nodes.get(nodeId)?.rank;
+      // Whether the word has any neighbours isn't known until its data loads,
+      // and it shouldn't leave this graph for a lone node if it doesn't.
       loadSemantic([word]).then(
         () => {
           if (navKeyRef.current !== navKey) return;
-          if (semanticStore.hasNeighbours(word, rank)) cross();
+          if (semanticStore.hasNeighbours(word)) cross();
           else setNoRelatedFor(nodeId);
         },
         () => {}
@@ -852,7 +858,6 @@ export default function App() {
       ops,
       start,
       selectedId,
-      graph,
       navKey,
       semanticStore,
       loadSemantic,
@@ -913,7 +918,7 @@ export default function App() {
     (mode === "meaning" || noRelatedFor === selectedId) &&
     rawSelected?.type === "word" &&
     semanticStore.hasFrequency() &&
-    !semanticStore.hasNeighbours(rawSelected.word, rawSelected.rank);
+    !semanticStore.hasNeighbours(rawSelected.word);
   let crossLabel = null;
   if (rawSelected?.type === "word") {
     if (mode === "kanji") {
