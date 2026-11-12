@@ -6,11 +6,11 @@ const STATS = { words: 1, kanji: 0 };
 const panel = (props) => render(<GraphPanel graph={null} stats={STATS} onSetMode={() => {}} {...props} />);
 
 describe("GraphPanel mode switch", () => {
-  it("marks Meaning as beta, right after its tab", () => {
+  it("marks Meaning as beta inside its own tab", () => {
     panel({ mode: "kanji" });
     const meaning = screen.getByRole("radio", { name: "Meaning" });
-    expect(meaning.parentElement.nextElementSibling).toHaveTextContent("Beta");
-    expect(meaning.parentElement.lastElementChild).toBe(meaning);
+    expect(meaning).toHaveTextContent("MeaningBeta");
+    expect(screen.getByRole("radio", { name: "Kanji" })).not.toHaveTextContent("Beta");
   });
 });
 

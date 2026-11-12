@@ -403,6 +403,15 @@ export default function App() {
     [addRecent, freshGraph, mode]
   );
 
+  const persistModeSwitch = useCallback((value) => {
+    setModeSwitch(value);
+    try {
+      localStorage.setItem(MODE_SWITCH_KEY, value);
+    } catch {
+      // localStorage unavailable -- setting just won't persist this session
+    }
+  }, []);
+
   // Words a Feeling lucky graph can start from (see graph/lucky.js); worked
   // out once the dictionary has loaded, and only the first time it's used.
   const luckyPoolRef = useRef(null);
@@ -422,6 +431,9 @@ export default function App() {
       });
       if (!plan) return;
       stashRef.current = {}; // a new word drops the other mode's graph
+      // Switching modes follows the roll: a graph mixing both kinds of
+      // branch is One graph, a single-mode one is Separate graphs.
+      persistModeSwitch(graphFitsMode(plan.ops, plan.start, plan.mode) ? "separate" : "mixed");
       setRootWord(plan.root);
       setMode(plan.mode);
       setStart(plan.start);
@@ -436,7 +448,7 @@ export default function App() {
       luckyBusyRef.current = false;
       setLuckyBusy(false);
     }
-  }, [dataset, semanticStore, loadSemantic, isJlptAllowed, addRecent]);
+  }, [dataset, semanticStore, loadSemantic, isJlptAllowed, addRecent, persistModeSwitch]);
 
   // Only the search bar counts as a search -- bookmark clicks also land in
   // handleSelectWord, via handleSelectFromSidebar.
@@ -500,7 +512,7 @@ export default function App() {
 
   const handleSetModeSwitch = useCallback(
     (value) => {
-      setModeSwitch(value);
+      persistModeSwitch(value);
       stashRef.current = {};
       // Separate graphs take effect now: a graph already mixing both modes
       // can't stay on screen as this mode's own.
@@ -512,13 +524,8 @@ export default function App() {
         setNavKey((k) => k + 1);
         setViewKey((k) => k + 1);
       }
-      try {
-        localStorage.setItem(MODE_SWITCH_KEY, value);
-      } catch {
-        // localStorage unavailable -- setting just won't persist this session
-      }
     },
-    [ops, start, mode, rootWord, freshGraph]
+    [ops, start, mode, rootWord, freshGraph, persistModeSwitch]
   );
 
   const handleSetCommonness = useCallback(

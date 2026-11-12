@@ -78,9 +78,8 @@ export default function FiltersPanel({
             <span>Adventurous</span>
           </div>
           <p className="filters-panel__hint">
-            {meaning
-              ? "Everyday words, or rarer and more specific ones. Applies from the next expansion; Reset redoes this graph."
-              : "Which words a kanji shows first. Familiar is most common first. Applies from the next expansion; Reset redoes this graph."}
+            {meaning ? "Everyday words, or rarer ones." : "Which words each kanji shows first."} Reset to redo this
+            graph.
           </p>
         </div>
       )}
@@ -205,9 +204,7 @@ export default function FiltersPanel({
             ))}
           </div>
           <p className="filters-panel__hint">
-            {modeSwitch === "mixed"
-              ? "Switching keeps this graph. The mode sets how the next word expands."
-              : "Each mode keeps its own graph until you search again or reset it."}
+            {modeSwitch === "mixed" ? "Both modes build on this graph." : "Each mode keeps its own graph."}
           </p>
         </div>
       )}

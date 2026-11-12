@@ -236,7 +236,7 @@ function LoadingIndicator() {
  */
 const MODES = [
   { value: "kanji", label: "Kanji", title: "Expand words into their kanji, and kanji into words that share them" },
-  { value: "meaning", label: "Meaning", title: "Expand words into words related in meaning" },
+  { value: "meaning", label: "Meaning", title: "Expand words into words related in meaning (beta)" },
 ];
 
 const MEANING_SWATCH_PATH = wavyLinkPath(0, 4, 16, 4, { amplitude: 2, halfWavelength: 8 });
@@ -389,14 +389,16 @@ export default function GraphPanel({
                   title={title}
                 >
                   {label}
+                  {/* Inside its tab so it's clearly Meaning's; hidden from
+                      assistive tech so the tab's own name stays "Meaning". */}
+                  {value === "meaning" && (
+                    <span className="beta-tag" aria-hidden="true">
+                      Beta
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
-            {/* Outside the toggle, right after its Meaning half, so the tab's
-                own name stays "Meaning". */}
-            <span className="beta-tag" title="Meaning mode is in beta">
-              Beta
-            </span>
           </div>
         )}
         <div className="graph-panel__toolbar-actions">
